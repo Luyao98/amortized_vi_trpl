@@ -1,0 +1,9 @@
+tensor([[ 1.4176, -2.8420],
+        [-0.9470,  0.0301],
+        [ 0.8859, -0.9568],
+        ...,
+        [ 2.7444, -1.7442],
+        [ 2.5682, -2.7970],
+        [ 1.0274, -0.6701]])
+/home/luyao/amortized_vi_trpl/2DGaussian/model.py:143: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  contexts = torch.tensor(contexts, dtype=torch.float32).to(device)

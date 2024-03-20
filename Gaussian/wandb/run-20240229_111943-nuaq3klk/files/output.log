@@ -1,0 +1,10 @@
+/home/luyao/amortized_vi_trpl/2DGaussian/model.py:129: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  contexts = torch.tensor(contexts, dtype=torch.float32).to(device)
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/2DGaussian/model.py", line 201, in <module>
+    maha_loss, cov_loss = model.gaussian_kl(mean_val, chol_val, mean_target_val, cov_target_val)
+  File "/home/luyao/amortized_vi_trpl/2DGaussian/model.py", line 84, in gaussian_kl
+    maha_part = .5 * self.mahalanobis_distance(mean_other, mean, precision_other)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1270, in __getattr__
+    type(self).__name__, name))
+AttributeError: 'GaussianNN' object has no attribute 'mahalanobis_distance'

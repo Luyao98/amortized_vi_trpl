@@ -1,0 +1,15 @@
+tensor([[ 1.4176, -2.8420],
+        [-0.9470,  0.0301],
+        [ 0.8859, -0.9568],
+        ...,
+        [ 2.7444, -1.7442],
+        [ 2.5682, -2.7970],
+        [ 1.0274, -0.6701]])
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/2DGaussian/model.py", line 197, in <module>
+    likelihood(proj_mean, proj_cov, model_samples)).mean()
+  File "/home/luyao/amortized_vi_trpl/2DGaussian/utils.py", line 247, in likelihood
+    return ch.distributions.MultivariateNormal(mean, cov).log_prob(samples)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/distributions/multivariate_normal.py", line 124, in __init__
+    if loc.dim() < 1:
+AttributeError: 'NoneType' object has no attribute 'dim'

@@ -1,0 +1,21 @@
+/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/autograd/__init__.py:199: UserWarning: Error detected in BmmBackward0. Traceback of forward call that caused the error:
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 187, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, beta, optimizer)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 86, in train_model
+    cov_old = model.covariance_gmm(chol_old)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 65, in covariance_gmm
+    cov_matrix = chol @ chol.transpose(-1, -2)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/fx/traceback.py", line 57, in format_stack
+    return traceback.format_stack()
+ (Triggered internally at ../torch/csrc/autograd/python_anomaly_mode.cpp:114.)
+  allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 187, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, beta, optimizer)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 136, in train_model
+    loss.backward()
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/_tensor.py", line 489, in backward
+    self, gradient, retain_graph, create_graph, inputs=inputs
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/autograd/__init__.py", line 199, in backward
+    allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
+RuntimeError: Trying to backward through the graph a second time (or directly access saved tensors after they have already been freed). Saved intermediate values of the graph are freed when you call .backward() or autograd.grad(). Specify retain_graph=True if you need to backward through the graph a second time or if you need to access saved tensors after calling backward.

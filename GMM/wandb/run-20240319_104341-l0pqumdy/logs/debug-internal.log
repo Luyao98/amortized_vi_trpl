@@ -1,0 +1,200 @@
+2024-03-19 10:43:41,672 INFO    StreamThr :66174 [internal.py:wandb_internal():89] W&B internal server running at pid: 66174, started at: 2024-03-19 10:43:41.670878
+2024-03-19 10:43:41,676 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: status
+2024-03-19 10:43:41,683 INFO    WriterThread:66174 [datastore.py:open_for_write():87] open: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/run-l0pqumdy.wandb
+2024-03-19 10:43:41,684 DEBUG   SenderThread:66174 [sender.py:send():382] send: header
+2024-03-19 10:43:41,702 DEBUG   SenderThread:66174 [sender.py:send():382] send: run
+2024-03-19 10:43:42,706 INFO    SenderThread:66174 [dir_watcher.py:__init__():211] watching files in: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files
+2024-03-19 10:43:42,707 INFO    SenderThread:66174 [sender.py:_start_run_threads():1139] run started: l0pqumdy with start time 1710841421.671314
+2024-03-19 10:43:42,716 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: check_version
+2024-03-19 10:43:42,716 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: check_version
+2024-03-19 10:43:42,782 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: run_start
+2024-03-19 10:43:42,784 DEBUG   HandlerThread:66174 [system_info.py:__init__():27] System info init
+2024-03-19 10:43:42,784 DEBUG   HandlerThread:66174 [system_info.py:__init__():42] System info init done
+2024-03-19 10:43:42,784 INFO    HandlerThread:66174 [system_monitor.py:start():194] Starting system monitor
+2024-03-19 10:43:42,784 INFO    SystemMonitor:66174 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2024-03-19 10:43:42,785 INFO    HandlerThread:66174 [system_monitor.py:probe():214] Collecting system info
+2024-03-19 10:43:42,785 INFO    SystemMonitor:66174 [interfaces.py:start():190] Started cpu monitoring
+2024-03-19 10:43:42,786 INFO    SystemMonitor:66174 [interfaces.py:start():190] Started disk monitoring
+2024-03-19 10:43:42,787 INFO    SystemMonitor:66174 [interfaces.py:start():190] Started memory monitoring
+2024-03-19 10:43:42,788 INFO    SystemMonitor:66174 [interfaces.py:start():190] Started network monitoring
+2024-03-19 10:43:42,819 DEBUG   HandlerThread:66174 [system_info.py:probe():151] Probing system
+2024-03-19 10:43:42,835 DEBUG   HandlerThread:66174 [system_info.py:_probe_git():136] Probing git
+2024-03-19 10:43:42,871 DEBUG   HandlerThread:66174 [system_info.py:_probe_git():144] Probing git done
+2024-03-19 10:43:42,872 DEBUG   HandlerThread:66174 [system_info.py:probe():199] Probing system done
+2024-03-19 10:43:42,872 DEBUG   HandlerThread:66174 [system_monitor.py:probe():223] {'os': 'Linux-5.15.0-100-generic-x86_64-with-debian-bullseye-sid', 'python': '3.7.12', 'heartbeatAt': '2024-03-19T09:43:42.820148', 'startedAt': '2024-03-19T09:43:41.656676', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': '/home/luyao/amortized_vi_trpl/GMM/GMM_model.py', 'codePathLocal': 'GMM_model.py', 'codePath': 'GMM/GMM_model.py', 'git': {'remote': 'git@github.com:ALRhub/amortized_vi_trpl.git', 'commit': 'd1b9095a7feed67440f1518b2bc8471a2c3d99f6'}, 'email': 'Deng@fzi.de', 'root': '/home/luyao/amortized_vi_trpl', 'host': 'luyao-PC', 'username': 'luyao', 'executable': '/home/luyao/miniconda3/envs/ITPAL_luyao/bin/python', 'cpu_count': 4, 'cpu_count_logical': 8, 'cpu_freq': {'current': 2578.023875, 'min': 800.0, 'max': 3800.0}, 'cpu_freq_per_core': [{'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 1024.191, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}], 'disk': {'/': {'total': 54.84476089477539, 'used': 18.718353271484375}}, 'memory': {'total': 15.36514663696289}}
+2024-03-19 10:43:42,873 INFO    HandlerThread:66174 [system_monitor.py:probe():224] Finished collecting system info
+2024-03-19 10:43:42,873 INFO    HandlerThread:66174 [system_monitor.py:probe():227] Publishing system info
+2024-03-19 10:43:42,873 DEBUG   HandlerThread:66174 [system_info.py:_save_conda():209] Saving list of conda packages installed into the current environment
+2024-03-19 10:43:42,883 ERROR   HandlerThread:66174 [system_info.py:_save_conda():219] Error saving conda packages: [Errno 2] No such file or directory: 'conda': 'conda'
+Traceback (most recent call last):
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/wandb/sdk/internal/system/system_info.py", line 216, in _save_conda
+    ["conda", "env", "export"], stdout=f, stderr=subprocess.DEVNULL
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/subprocess.py", line 339, in call
+    with Popen(*popenargs, **kwargs) as p:
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/subprocess.py", line 800, in __init__
+    restore_signals, start_new_session)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/subprocess.py", line 1551, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: 'conda': 'conda'
+2024-03-19 10:43:42,886 DEBUG   HandlerThread:66174 [system_info.py:_save_conda():220] Saving conda packages done
+2024-03-19 10:43:42,888 INFO    HandlerThread:66174 [system_monitor.py:probe():229] Finished publishing system info
+2024-03-19 10:43:42,896 DEBUG   SenderThread:66174 [sender.py:send():382] send: files
+2024-03-19 10:43:42,896 INFO    SenderThread:66174 [sender.py:_save_file():1403] saving file wandb-metadata.json with policy now
+2024-03-19 10:43:42,907 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: python_packages
+2024-03-19 10:43:42,907 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: python_packages
+2024-03-19 10:43:42,910 DEBUG   SenderThread:66174 [sender.py:send():382] send: telemetry
+2024-03-19 10:43:42,913 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-19 10:43:42,914 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-19 10:43:42,914 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: stop_status
+2024-03-19 10:43:43,121 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-19 10:43:43,267 DEBUG   SenderThread:66174 [sender.py:send():382] send: history
+2024-03-19 10:43:43,268 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: summary_record
+2024-03-19 10:43:43,270 INFO    SenderThread:66174 [sender.py:_save_file():1403] saving file wandb-summary.json with policy end
+2024-03-19 10:43:43,272 DEBUG   SenderThread:66174 [sender.py:send():382] send: exit
+2024-03-19 10:43:43,272 INFO    SenderThread:66174 [sender.py:send_exit():589] handling exit code: 1
+2024-03-19 10:43:43,273 INFO    SenderThread:66174 [sender.py:send_exit():591] handling runtime: 0
+2024-03-19 10:43:43,273 INFO    SenderThread:66174 [sender.py:_save_file():1403] saving file wandb-summary.json with policy end
+2024-03-19 10:43:43,274 INFO    SenderThread:66174 [sender.py:send_exit():597] send defer
+2024-03-19 10:43:43,274 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,274 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 0
+2024-03-19 10:43:43,275 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,275 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 0
+2024-03-19 10:43:43,275 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 1
+2024-03-19 10:43:43,275 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,276 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 1
+2024-03-19 10:43:43,276 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,276 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 1
+2024-03-19 10:43:43,276 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 2
+2024-03-19 10:43:43,277 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,277 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 2
+2024-03-19 10:43:43,277 INFO    HandlerThread:66174 [system_monitor.py:finish():203] Stopping system monitor
+2024-03-19 10:43:43,278 DEBUG   SystemMonitor:66174 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2024-03-19 10:43:43,278 DEBUG   SystemMonitor:66174 [system_monitor.py:_start():179] Finished system metrics aggregation loop
+2024-03-19 10:43:43,278 DEBUG   SystemMonitor:66174 [system_monitor.py:_start():183] Publishing last batch of metrics
+2024-03-19 10:43:43,279 INFO    HandlerThread:66174 [interfaces.py:finish():202] Joined cpu monitor
+2024-03-19 10:43:43,280 INFO    HandlerThread:66174 [interfaces.py:finish():202] Joined disk monitor
+2024-03-19 10:43:43,280 INFO    HandlerThread:66174 [interfaces.py:finish():202] Joined memory monitor
+2024-03-19 10:43:43,280 INFO    HandlerThread:66174 [interfaces.py:finish():202] Joined network monitor
+2024-03-19 10:43:43,281 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,281 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 2
+2024-03-19 10:43:43,281 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 3
+2024-03-19 10:43:43,282 DEBUG   SenderThread:66174 [sender.py:send():382] send: stats
+2024-03-19 10:43:43,282 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,282 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 3
+2024-03-19 10:43:43,283 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,283 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 3
+2024-03-19 10:43:43,283 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 4
+2024-03-19 10:43:43,284 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,284 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 4
+2024-03-19 10:43:43,284 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,284 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 4
+2024-03-19 10:43:43,285 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 5
+2024-03-19 10:43:43,285 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,285 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 5
+2024-03-19 10:43:43,286 DEBUG   SenderThread:66174 [sender.py:send():382] send: summary
+2024-03-19 10:43:43,286 INFO    SenderThread:66174 [sender.py:_save_file():1403] saving file wandb-summary.json with policy end
+2024-03-19 10:43:43,287 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,287 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 5
+2024-03-19 10:43:43,287 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 6
+2024-03-19 10:43:43,287 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,288 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 6
+2024-03-19 10:43:43,288 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,288 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 6
+2024-03-19 10:43:43,294 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: status_report
+2024-03-19 10:43:43,477 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 7
+2024-03-19 10:43:43,477 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:43,477 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 7
+2024-03-19 10:43:43,478 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:43,478 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 7
+2024-03-19 10:43:43,499 INFO    wandb-upload_0:66174 [upload_job.py:push():131] Uploaded file /tmp/tmpj7fitezhwandb/brvtvr14-wandb-metadata.json
+2024-03-19 10:43:43,712 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/config.yaml
+2024-03-19 10:43:43,712 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/wandb-metadata.json
+2024-03-19 10:43:43,713 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/requirements.txt
+2024-03-19 10:43:43,713 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/output.log
+2024-03-19 10:43:43,714 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/conda-environment.yaml
+2024-03-19 10:43:43,714 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/wandb-summary.json
+2024-03-19 10:43:44,235 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-19 10:43:45,293 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 8
+2024-03-19 10:43:45,293 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: poll_exit
+2024-03-19 10:43:45,294 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:45,295 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 8
+2024-03-19 10:43:45,296 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:45,296 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 8
+2024-03-19 10:43:45,296 INFO    SenderThread:66174 [job_builder.py:build():296] Attempting to build job artifact
+2024-03-19 10:43:45,297 INFO    SenderThread:66174 [job_builder.py:_get_source_type():426] is repo sourced job
+2024-03-19 10:43:45,584 INFO    SenderThread:66174 [job_builder.py:build():402] adding wandb-job metadata file
+2024-03-19 10:43:45,632 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 9
+2024-03-19 10:43:45,633 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:45,633 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 9
+2024-03-19 10:43:45,635 DEBUG   SenderThread:66174 [sender.py:send():382] send: artifact
+2024-03-19 10:43:45,710 INFO    Thread-12 :66174 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/output.log
+2024-03-19 10:43:46,237 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-19 10:43:47,204 INFO    SenderThread:66174 [sender.py:send_artifact():1494] sent artifact job-git_github.com_ALRhub_amortized_vi_trpl.git_GMM_GMM_model.py - {'id': 'QXJ0aWZhY3Q6NzYwODQ1Nzc4', 'state': 'COMMITTED', 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjE0OTc1NDg2Nw==', 'latestArtifact': {'id': 'QXJ0aWZhY3Q6NzYwODQ1Nzc4', 'versionIndex': 3}}}
+2024-03-19 10:43:47,204 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:47,205 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 9
+2024-03-19 10:43:47,205 INFO    SenderThread:66174 [dir_watcher.py:finish():358] shutting down directory watcher
+2024-03-19 10:43:47,712 INFO    SenderThread:66174 [dir_watcher.py:finish():388] scan: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files
+2024-03-19 10:43:47,713 INFO    SenderThread:66174 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/output.log output.log
+2024-03-19 10:43:47,713 INFO    SenderThread:66174 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/config.yaml config.yaml
+2024-03-19 10:43:47,720 INFO    SenderThread:66174 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/wandb-summary.json wandb-summary.json
+2024-03-19 10:43:47,721 INFO    SenderThread:66174 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/requirements.txt requirements.txt
+2024-03-19 10:43:47,727 INFO    SenderThread:66174 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/wandb-metadata.json wandb-metadata.json
+2024-03-19 10:43:47,727 INFO    SenderThread:66174 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/conda-environment.yaml conda-environment.yaml
+2024-03-19 10:43:47,730 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 10
+2024-03-19 10:43:47,730 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: poll_exit
+2024-03-19 10:43:47,730 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:47,730 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 10
+2024-03-19 10:43:47,730 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:47,730 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 10
+2024-03-19 10:43:47,730 INFO    SenderThread:66174 [file_pusher.py:finish():172] shutting down file pusher
+2024-03-19 10:43:48,240 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-19 10:43:48,242 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: poll_exit
+2024-03-19 10:43:48,431 INFO    wandb-upload_0:66174 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/config.yaml
+2024-03-19 10:43:48,434 INFO    wandb-upload_2:66174 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/requirements.txt
+2024-03-19 10:43:48,436 INFO    wandb-upload_1:66174 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/output.log
+2024-03-19 10:43:48,438 INFO    wandb-upload_3:66174 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/files/wandb-summary.json
+2024-03-19 10:43:48,641 INFO    Thread-11 :66174 [sender.py:transition_state():617] send defer: 11
+2024-03-19 10:43:48,641 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:48,642 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 11
+2024-03-19 10:43:48,643 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:48,643 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 11
+2024-03-19 10:43:48,643 INFO    SenderThread:66174 [file_pusher.py:join():178] waiting for file pusher
+2024-03-19 10:43:48,644 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 12
+2024-03-19 10:43:48,644 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:48,644 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 12
+2024-03-19 10:43:48,645 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:48,645 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 12
+2024-03-19 10:43:48,646 INFO    SenderThread:66174 [file_stream.py:finish():595] file stream finish called
+2024-03-19 10:43:48,842 INFO    SenderThread:66174 [file_stream.py:finish():599] file stream finish is done
+2024-03-19 10:43:48,842 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 13
+2024-03-19 10:43:48,843 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:48,843 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 13
+2024-03-19 10:43:48,844 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:48,844 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 13
+2024-03-19 10:43:48,845 INFO    SenderThread:66174 [sender.py:transition_state():617] send defer: 14
+2024-03-19 10:43:48,846 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: defer
+2024-03-19 10:43:48,847 DEBUG   SenderThread:66174 [sender.py:send():382] send: final
+2024-03-19 10:43:48,847 INFO    HandlerThread:66174 [handler.py:handle_request_defer():172] handle defer: 14
+2024-03-19 10:43:48,847 DEBUG   SenderThread:66174 [sender.py:send():382] send: footer
+2024-03-19 10:43:48,849 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: defer
+2024-03-19 10:43:48,849 INFO    SenderThread:66174 [sender.py:send_request_defer():613] handle sender defer: 14
+2024-03-19 10:43:48,851 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-19 10:43:48,852 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: poll_exit
+2024-03-19 10:43:48,854 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-19 10:43:48,855 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: poll_exit
+2024-03-19 10:43:48,857 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: server_info
+2024-03-19 10:43:48,858 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: server_info
+2024-03-19 10:43:48,865 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: get_summary
+2024-03-19 10:43:48,866 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: sampled_history
+2024-03-19 10:43:48,867 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-19 10:43:48,868 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: job_info
+2024-03-19 10:43:49,121 DEBUG   SenderThread:66174 [sender.py:send_request():409] send_request: job_info
+2024-03-19 10:43:49,122 INFO    MainThread:66174 [wandb_run.py:_footer_history_summary_info():3866] rendering history
+2024-03-19 10:43:49,123 INFO    MainThread:66174 [wandb_run.py:_footer_history_summary_info():3898] rendering summary
+2024-03-19 10:43:49,123 INFO    MainThread:66174 [wandb_run.py:_footer_sync_info():3825] logging synced files
+2024-03-19 10:43:49,124 DEBUG   HandlerThread:66174 [handler.py:handle_request():146] handle_request: shutdown
+2024-03-19 10:43:49,125 INFO    HandlerThread:66174 [handler.py:finish():869] shutting down handler
+2024-03-19 10:43:49,868 INFO    WriterThread:66174 [datastore.py:close():296] close: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240319_104341-l0pqumdy/run-l0pqumdy.wandb
+2024-03-19 10:43:50,122 INFO    SenderThread:66174 [sender.py:finish():1572] shutting down sender
+2024-03-19 10:43:50,122 INFO    SenderThread:66174 [file_pusher.py:finish():172] shutting down file pusher
+2024-03-19 10:43:50,123 INFO    SenderThread:66174 [file_pusher.py:join():178] waiting for file pusher

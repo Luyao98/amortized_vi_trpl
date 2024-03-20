@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 169, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, beta, optimizer, device)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 111, in train_model
+    log_model = ch.cat(log_model, dim=1)
+IndexError: Dimension out of range (expected to be in range of [-1, 0], but got 1)

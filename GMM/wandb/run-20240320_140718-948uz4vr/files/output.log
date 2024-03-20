@@ -1,0 +1,27 @@
+/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/autograd/__init__.py:199: UserWarning: Error detected in SoftmaxBackward0. Traceback of forward call that caused the error:
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 162, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, optimizer)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 82, in train_model
+    gate_pred, mean_pred, chol_pred = model(b_contexts)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 39, in forward
+    gate = self.gate(x)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 27, in forward
+    x = ch.softmax(self.fc3(x), dim=1)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/fx/traceback.py", line 57, in format_stack
+    return traceback.format_stack()
+ (Triggered internally at ../torch/csrc/autograd/python_anomaly_mode.cpp:114.)
+  allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 162, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, optimizer)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 113, in train_model
+    loss.backward()
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/_tensor.py", line 489, in backward
+    self, gradient, retain_graph, create_graph, inputs=inputs
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/autograd/__init__.py", line 199, in backward
+    allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
+RuntimeError: Function 'SoftmaxBackward0' returned nan values in its 0th output.

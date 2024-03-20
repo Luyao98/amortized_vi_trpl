@@ -1,0 +1,27 @@
+2024-02-29 13:30:12,659 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Current SDK version is 0.16.3
+2024-02-29 13:30:12,659 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Configure stats pid to 34878
+2024-02-29 13:30:12,659 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Loading settings from /home/luyao/.config/wandb/settings
+2024-02-29 13:30:12,659 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Loading settings from /home/luyao/amortized_vi_trpl/2DGaussian/wandb/settings
+2024-02-29 13:30:12,660 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Loading settings from environment variables: {}
+2024-02-29 13:30:12,660 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2024-02-29 13:30:12,660 INFO    MainThread:34878 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': '2DGaussian/model.py', 'program_abspath': '/home/luyao/amortized_vi_trpl/2DGaussian/model.py', 'program': '/home/luyao/amortized_vi_trpl/2DGaussian/model.py'}
+2024-02-29 13:30:12,660 INFO    MainThread:34878 [wandb_init.py:_log_setup():526] Logging user logs to /home/luyao/amortized_vi_trpl/2DGaussian/wandb/run-20240229_133012-z9r7f0eq/logs/debug.log
+2024-02-29 13:30:12,660 INFO    MainThread:34878 [wandb_init.py:_log_setup():527] Logging internal logs to /home/luyao/amortized_vi_trpl/2DGaussian/wandb/run-20240229_133012-z9r7f0eq/logs/debug-internal.log
+2024-02-29 13:30:12,660 INFO    MainThread:34878 [wandb_init.py:init():566] calling init triggers
+2024-02-29 13:30:12,661 INFO    MainThread:34878 [wandb_init.py:init():574] wandb.init called with sweep_config: {}
+config: {'n_epochs': 10, 'batch_size': 16, 'n_context': 640, 'fc_layer_size': 64, 'init_lr': 0.01, 'initialization_type': 'orthogonal', 'weight_decay': 1e-05}
+2024-02-29 13:30:12,661 INFO    MainThread:34878 [wandb_init.py:init():616] starting backend
+2024-02-29 13:30:12,661 INFO    MainThread:34878 [wandb_init.py:init():620] setting up manager
+2024-02-29 13:30:12,665 INFO    MainThread:34878 [backend.py:_multiprocessing_setup():107] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2024-02-29 13:30:12,667 INFO    MainThread:34878 [wandb_init.py:init():628] backend started and connected
+2024-02-29 13:30:12,676 INFO    MainThread:34878 [wandb_init.py:init():720] updated telemetry
+2024-02-29 13:30:12,699 INFO    MainThread:34878 [wandb_init.py:init():753] communicating run to backend with 90.0 second timeout
+2024-02-29 13:30:13,142 INFO    MainThread:34878 [wandb_run.py:_on_init():2262] communicating current version
+2024-02-29 13:30:13,349 INFO    MainThread:34878 [wandb_run.py:_on_init():2271] got version response 
+2024-02-29 13:30:13,349 INFO    MainThread:34878 [wandb_init.py:init():804] starting run threads in backend
+2024-02-29 13:30:15,161 INFO    MainThread:34878 [wandb_run.py:_console_start():2241] atexit reg
+2024-02-29 13:30:15,161 INFO    MainThread:34878 [wandb_run.py:_redirect():2096] redirect: wrap_raw
+2024-02-29 13:30:15,161 INFO    MainThread:34878 [wandb_run.py:_redirect():2161] Wrapping output streams.
+2024-02-29 13:30:15,162 INFO    MainThread:34878 [wandb_run.py:_redirect():2186] Redirects installed.
+2024-02-29 13:30:15,162 INFO    MainThread:34878 [wandb_init.py:init():847] run started, returning control to user process
+2024-02-29 13:30:23,479 WARNING MsgRouterThr:34878 [router.py:message_loop():77] message_loop has been closed

@@ -1,0 +1,80 @@
+{
+    "os": "Linux-5.15.0-100-generic-x86_64-with-debian-bullseye-sid",
+    "python": "3.7.12",
+    "heartbeatAt": "2024-03-20T20:57:17.576333",
+    "startedAt": "2024-03-20T20:57:16.542066",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/luyao/amortized_vi_trpl/Gaussian/model.py",
+    "codePathLocal": "model.py",
+    "codePath": "Gaussian/model.py",
+    "git": {
+        "remote": "git@github.com:ALRhub/amortized_vi_trpl.git",
+        "commit": "d1b9095a7feed67440f1518b2bc8471a2c3d99f6"
+    },
+    "email": "Deng@fzi.de",
+    "root": "/home/luyao/amortized_vi_trpl",
+    "host": "luyao-PC",
+    "username": "luyao",
+    "executable": "/home/luyao/miniconda3/envs/ITPAL_luyao/bin/python",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 2562.64175,
+        "min": 800.0,
+        "max": 3800.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 901.134,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 54.84476089477539,
+            "used": 18.74029541015625
+        }
+    },
+    "memory": {
+        "total": 15.36514663696289
+    }
+}

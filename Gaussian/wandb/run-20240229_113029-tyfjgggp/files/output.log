@@ -1,0 +1,44 @@
+/home/luyao/amortized_vi_trpl/2DGaussian/model.py:129: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  contexts = torch.tensor(contexts, dtype=torch.float32).to(device)
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/2DGaussian/model.py", line 159, in <module>
+    model_samples = model.get_samples(mean_pred, chol_pred)
+  File "/home/luyao/amortized_vi_trpl/2DGaussian/model.py", line 56, in get_samples
+    normal_distribution = torch.distributions.MultivariateNormal(mean, cov)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/distributions/multivariate_normal.py", line 150, in __init__
+    super(MultivariateNormal, self).__init__(batch_shape, event_shape, validate_args=validate_args)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/distributions/distribution.py", line 57, in __init__
+    f"Expected parameter {param} "
+ValueError: Expected parameter covariance_matrix (Tensor of shape (16, 2, 2)) of distribution MultivariateNormal(loc: torch.Size([16, 2]), covariance_matrix: torch.Size([16, 2, 2])) to satisfy the constraint PositiveDefinite(), but found invalid values:
+tensor([[[2.8339e+02, 6.6625e-04],
+         [6.6625e-04, 8.4717e-03]],
+        [[8.1582e+00, 7.6090e-01],
+         [7.6090e-01, 3.1719e+01]],
+        [[1.5061e+02, 6.5165e-03],
+         [6.5165e-03, 1.3847e-02]],
+        [[9.6912e+00, 5.9779e+06],
+         [5.9779e+06, 3.6874e+12]],
+        [[1.5011e+02, 2.3251e+06],
+         [2.3251e+06, 3.6012e+10]],
+        [[6.6988e+01, 3.3703e+00],
+         [3.3703e+00, 1.0981e+01]],
+        [[2.6003e+02, 1.6417e-03],
+         [1.6417e-03, 5.3268e-03]],
+        [[1.4589e+01, 2.3502e+04],
+         [2.3502e+04, 3.7862e+07]],
+        [[5.1892e+00, 5.6980e+00],
+         [5.6980e+00, 1.0361e+01]],
+        [[6.8046e+00, 3.7907e+00],
+         [3.7907e+00, 5.1492e+03]],
+        [[3.2948e+01, 9.2856e+03],
+         [9.2856e+03, 2.6172e+06]],
+        [[1.2743e+00, 3.1489e+01],
+         [3.1489e+01, 1.2036e+03]],
+        [[8.2180e-01, 5.0216e+04],
+         [5.0216e+04, 3.1876e+09]],
+        [[1.7912e+02, 2.0938e+06],
+         [2.0938e+06, 2.4477e+10]],
+        [[5.8281e+00, 3.5930e+01],
+         [3.5930e+01, 2.3221e+02]],
+        [[2.6705e+01, 1.3039e+01],
+         [1.3039e+01, 1.5242e+01]]], grad_fn=<ExpandBackward0>)

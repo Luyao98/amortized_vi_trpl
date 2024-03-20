@@ -1,0 +1,31 @@
+/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/autograd/__init__.py:199: UserWarning: Error detected in AddmmBackward0. Traceback of forward call that caused the error:
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 161, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, beta, optimizer, device)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 68, in train_model
+    gate_old, mean_old, chol_old = model(shuffled_contexts)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 40, in forward
+    mean, chol = gaussian(x)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/luyao/amortized_vi_trpl/Gaussian/model.py", line 34, in forward
+    flat_chol = self.fc3_chol(x)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/nn/modules/linear.py", line 114, in forward
+    return F.linear(input, self.weight, self.bias)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/fx/traceback.py", line 57, in format_stack
+    return traceback.format_stack()
+ (Triggered internally at ../torch/csrc/autograd/python_anomaly_mode.cpp:114.)
+  allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 161, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, beta, optimizer, device)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 110, in train_model
+    loss.backward(retain_graph=True)
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/_tensor.py", line 489, in backward
+    self, gradient, retain_graph, create_graph, inputs=inputs
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/torch/autograd/__init__.py", line 199, in backward
+    allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
+RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.FloatTensor [64, 3]], which is output 0 of AsStridedBackward0, is at version 2; expected version 1 instead. Hint: the backtrace further above shows the operation that failed to compute its gradient. The variable in question was changed in there or anywhere later. Good luck!

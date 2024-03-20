@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 161, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, beta, optimizer, device)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 91, in train_model
+    log_model_j = likelihood(mean_proj_j, cov_proj_j, model.get_samples(mean_pred_j, chol_pred))
+NameError: name 'chol_pred' is not defined
