@@ -67,6 +67,8 @@ def train_model(model, target, n_epochs, batch_size, n_context, eps, alpha, opti
         indices = torch.randperm(train_size)
         shuffled_contexts = contexts[indices]
         mean_old, chol_old = model(shuffled_contexts)
+        mean_old = mean_old.detach()
+        chol_old = chol_old.detach()
 
         for batch_idx in range(0, train_size, batch_size):
             b_contexts = shuffled_contexts[batch_idx:batch_idx+batch_size]
@@ -82,7 +84,7 @@ def train_model(model, target, n_epochs, batch_size, n_context, eps, alpha, opti
             # projection step
             if split_proj:
                 # split project mean and cov
-                mean_proj = mean_projection(mean_pred, b_mean_old, b_chol_old, 2 * eps)
+                mean_proj = mean_projection(mean_pred, b_mean_old, b_chol_old, 0.1)
                 cov_proj = CovKLProjection.apply(b_chol_old, chol_pred, cov_pred, eps)
             else:
                 mean_proj, cov_proj = KLProjection.apply((mean_pred, cov_pred), (b_mean_old, b_cov_old), eps)
@@ -151,11 +153,11 @@ if __name__ == "__main__":
     init_lr = 0.01
     weight_decay = 1e-5
     eps = 0.1  # projection
-    alpha = 50  # regerssion
-    split_proj = True
+    alpha = 25  # regerssion
+    split_proj = False
 
     # Wandb
-    wandb.init(project="ELBOopt_2D", config={
+    wandb.init(project="ELBOopt_2D", save_code=False, config={
         "n_epochs": n_epochs,
         "batch_size": batch_size,
         "n_context": n_context,

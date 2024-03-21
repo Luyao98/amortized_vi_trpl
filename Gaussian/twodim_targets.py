@@ -15,9 +15,8 @@ class ConditionalGaussianTarget(ch.nn.Module):
         self.std_fn = std_fn
 
     def get_contexts(self, n_contexts):
-        abc = self.context_dist.sample((n_contexts, self.context_dim))  # return shape(n_contexts, 1)
-        print(abc)
-        return abc
+        c = self.context_dist.sample((n_contexts, self.context_dim))  # return shape(n_contexts, 1)
+        return c
 
     def log_prob(self, c, x):
         return ch.distributions.MultivariateNormal(loc=self.mean_fn(c), covariance_matrix=self.std_fn(c)).log_prob(x)
@@ -73,5 +72,7 @@ if __name__ == '__main__':
 
     target = ConditionalGaussianTarget(mean_fn, std_fn_sin)
     n = 5
-    n_target = target.get_contexts(n)
+    # n_target = target.get_contexts(n)
+    # print(n_target)
+    n_target = ch.tensor([[-1.1443], [-0.1062], [-0.4056], [0.9927], [1.1044]])
     target.visualize(n_target)

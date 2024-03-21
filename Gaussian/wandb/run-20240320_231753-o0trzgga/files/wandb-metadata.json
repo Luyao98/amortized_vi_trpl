@@ -1,0 +1,80 @@
+{
+    "os": "Linux-5.15.0-100-generic-x86_64-with-debian-bullseye-sid",
+    "python": "3.7.12",
+    "heartbeatAt": "2024-03-20T22:17:54.657252",
+    "startedAt": "2024-03-20T22:17:53.472918",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/luyao/amortized_vi_trpl/Gaussian/model.py",
+    "codePathLocal": "model.py",
+    "codePath": "Gaussian/model.py",
+    "git": {
+        "remote": "git@github.com:ALRhub/amortized_vi_trpl.git",
+        "commit": "b6f880d4cf374ac1788294629d59594f00c6151e"
+    },
+    "email": "Deng@fzi.de",
+    "root": "/home/luyao/amortized_vi_trpl",
+    "host": "luyao-PC",
+    "username": "luyao",
+    "executable": "/home/luyao/miniconda3/envs/ITPAL_luyao/bin/python",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 3030.216875,
+        "min": 800.0,
+        "max": 3800.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3415.936,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2496.049,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 3429.882,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 3413.125,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2656.378,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2556.682,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2867.216,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 3406.467,
+            "min": 800.0,
+            "max": 3800.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 54.84476089477539,
+            "used": 18.723003387451172
+        }
+    },
+    "memory": {
+        "total": 15.36514663696289
+    }
+}

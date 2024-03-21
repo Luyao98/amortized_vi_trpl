@@ -1,8 +1,0 @@
-/home/luyao/amortized_vi_trpl/2DGaussian/model.py:133: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-  contexts = torch.tensor(contexts, dtype=torch.float32).to(device)
-Traceback (most recent call last):
-  File "/home/luyao/amortized_vi_trpl/2DGaussian/model.py", line 169, in <module>
-    proj_mean, proj_cov = KLProjection.apply((mean_pred, cov_pred), (old_mean, old_cov), eps, beta)
-  File "/home/luyao/amortized_vi_trpl/2DGaussian/kl_projection.py", line 22, in forward
-    proj_mean, proj_cov = projection_op.forward(eps * np.ones(batch_shape), beta, old_mean, old_cov, mean, cov)
-ValueError: Nd Arrays with dim > 3 not supported

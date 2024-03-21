@@ -63,5 +63,3 @@ class CovKLProjection(ch.autograd.Function):
         df_covs = np.atleast_2d(df_covs)
         return d_covs.new(df_covs), None, None, None
 
-
-print("split projection done")

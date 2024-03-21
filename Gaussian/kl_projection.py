@@ -41,6 +41,3 @@ class KLProjection(ch.autograd.Function):
         d_means, d_covs = grad_outputs
         df_means, df_covs = projection_op.backward(d_means.numpy(), d_covs.numpy())
         return ch.tensor(df_means), ch.tensor(df_covs)
-
-
-print("projection done")
