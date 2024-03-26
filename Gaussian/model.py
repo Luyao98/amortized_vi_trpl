@@ -31,7 +31,7 @@ class GaussianNN(nn.Module):
         self.diag_activation = nn.Softplus()
         self.diag_activation_inv = inverse_softplus
         self.init_std = torch.tensor(1.0)
-        self.minimal_std = 1e-5
+        self.minimal_std = 1e-3
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     weight_decay = 1e-5
     eps = 0.1  # projection
     alpha = 25  # regerssion
-    split_proj = False
+    split_proj = True
 
     # Wandb
     wandb.init(project="ELBOopt_2D", save_code=False, config={

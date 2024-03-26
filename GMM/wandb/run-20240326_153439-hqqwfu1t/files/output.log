@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 242, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, alpha, optimizer, split)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 191, in train_model
+    print(f'Epoch {epoch}: Approximate KL Divergence = {kl.item()}')
+ValueError: only one element tensors can be converted to Python scalars

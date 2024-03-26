@@ -93,4 +93,4 @@ def mahalanobis_distance(x, mean, precision):
 
 
 def likelihood(mean, cov, samples):
-    return ch.distributions.MultivariateNormal(mean, cov).log_prob(samples)
+    return ch.distributions.MultivariateNormal(loc=mean, covariance_matrix=cov).log_prob(samples)

@@ -1,0 +1,12 @@
+
+Training done!
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 210, in <module>
+    plot2d_matplotlib(target, model, contexts)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_plot.py", line 41, in plot2d_matplotlib
+    max_y=max_y,
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_plot.py", line 160, in compute_data_for_plot2d
+    log_p_model = model.log_prob_gmm(means, scale_trils, weights, xy)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 73, in log_prob_gmm
+    log = log + ch.log(gates[c, i]) + sub_log
+TypeError: log(): argument 'input' (position 1) must be Tensor, not numpy.float32

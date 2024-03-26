@@ -1,0 +1,717 @@
+2024-03-26 13:09:09,239 INFO    StreamThr :56218 [internal.py:wandb_internal():89] W&B internal server running at pid: 56218, started at: 2024-03-26 13:09:09.238368
+2024-03-26 13:09:09,243 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status
+2024-03-26 13:09:09,250 INFO    WriterThread:56218 [datastore.py:open_for_write():87] open: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/run-h8anczqd.wandb
+2024-03-26 13:09:09,252 DEBUG   SenderThread:56218 [sender.py:send():378] send: header
+2024-03-26 13:09:09,268 DEBUG   SenderThread:56218 [sender.py:send():378] send: run
+2024-03-26 13:09:09,847 INFO    SenderThread:56218 [dir_watcher.py:__init__():211] watching files in: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files
+2024-03-26 13:09:09,847 INFO    SenderThread:56218 [sender.py:_start_run_threads():1102] run started: h8anczqd with start time 1711454949.238047
+2024-03-26 13:09:09,865 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: check_version
+2024-03-26 13:09:09,865 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: check_version
+2024-03-26 13:09:09,938 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: run_start
+2024-03-26 13:09:09,940 DEBUG   HandlerThread:56218 [system_info.py:__init__():26] System info init
+2024-03-26 13:09:09,940 DEBUG   HandlerThread:56218 [system_info.py:__init__():41] System info init done
+2024-03-26 13:09:09,940 INFO    HandlerThread:56218 [system_monitor.py:start():194] Starting system monitor
+2024-03-26 13:09:09,940 INFO    SystemMonitor:56218 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2024-03-26 13:09:09,940 INFO    HandlerThread:56218 [system_monitor.py:probe():214] Collecting system info
+2024-03-26 13:09:09,941 INFO    SystemMonitor:56218 [interfaces.py:start():190] Started cpu monitoring
+2024-03-26 13:09:09,941 INFO    SystemMonitor:56218 [interfaces.py:start():190] Started disk monitoring
+2024-03-26 13:09:09,942 INFO    SystemMonitor:56218 [interfaces.py:start():190] Started memory monitoring
+2024-03-26 13:09:09,942 INFO    SystemMonitor:56218 [interfaces.py:start():190] Started network monitoring
+2024-03-26 13:09:09,966 DEBUG   HandlerThread:56218 [system_info.py:probe():150] Probing system
+2024-03-26 13:09:09,973 DEBUG   HandlerThread:56218 [system_info.py:_probe_git():135] Probing git
+2024-03-26 13:09:09,987 DEBUG   HandlerThread:56218 [system_info.py:_probe_git():143] Probing git done
+2024-03-26 13:09:09,987 DEBUG   HandlerThread:56218 [system_info.py:probe():198] Probing system done
+2024-03-26 13:09:09,987 DEBUG   HandlerThread:56218 [system_monitor.py:probe():223] {'os': 'Linux-5.15.0-101-generic-x86_64-with-debian-bullseye-sid', 'python': '3.7.12', 'heartbeatAt': '2024-03-26T12:09:09.966859', 'startedAt': '2024-03-26T12:09:09.224185', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': '/home/luyao/amortized_vi_trpl/GMM/GMM_model.py', 'codePathLocal': 'GMM_model.py', 'codePath': 'GMM/GMM_model.py', 'git': {'remote': 'git@github.com:ALRhub/amortized_vi_trpl.git', 'commit': 'ca869605d480a06930199ca00aed1278e31144ed'}, 'email': 'Deng@fzi.de', 'root': '/home/luyao/amortized_vi_trpl', 'host': 'luyao-PC', 'username': 'luyao', 'executable': '/home/luyao/miniconda3/envs/ITPAL_luyao/bin/python', 'cpu_count': 4, 'cpu_count_logical': 8, 'cpu_freq': {'current': 2674.02125, 'min': 800.0, 'max': 3800.0}, 'cpu_freq_per_core': [{'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 3620.911, 'min': 800.0, 'max': 3800.0}, {'current': 3504.816, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 1716.067, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 2800.0, 'min': 800.0, 'max': 3800.0}, {'current': 3434.744, 'min': 800.0, 'max': 3800.0}], 'disk': {'/': {'total': 54.84476089477539, 'used': 18.661941528320312}}, 'memory': {'total': 15.365142822265625}}
+2024-03-26 13:09:09,987 INFO    HandlerThread:56218 [system_monitor.py:probe():224] Finished collecting system info
+2024-03-26 13:09:09,987 INFO    HandlerThread:56218 [system_monitor.py:probe():227] Publishing system info
+2024-03-26 13:09:09,987 DEBUG   HandlerThread:56218 [system_info.py:_save_conda():208] Saving list of conda packages installed into the current environment
+2024-03-26 13:09:10,848 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/conda-environment.yaml
+2024-03-26 13:09:11,668 DEBUG   HandlerThread:56218 [system_info.py:_save_conda():219] Saving conda packages done
+2024-03-26 13:09:11,668 INFO    HandlerThread:56218 [system_monitor.py:probe():229] Finished publishing system info
+2024-03-26 13:09:11,672 DEBUG   SenderThread:56218 [sender.py:send():378] send: files
+2024-03-26 13:09:11,672 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-metadata.json with policy now
+2024-03-26 13:09:11,709 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: python_packages
+2024-03-26 13:09:11,709 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: python_packages
+2024-03-26 13:09:11,710 DEBUG   SenderThread:56218 [sender.py:send():378] send: telemetry
+2024-03-26 13:09:11,711 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:09:11,711 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:09:11,713 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:09:11,847 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/conda-environment.yaml
+2024-03-26 13:09:11,848 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/requirements.txt
+2024-03-26 13:09:11,848 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-metadata.json
+2024-03-26 13:09:12,501 INFO    wandb-upload_0:56218 [upload_job.py:push():131] Uploaded file /tmp/tmpe5kiyb14wandb/ii1cto4b-wandb-metadata.json
+2024-03-26 13:09:12,819 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:12,820 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:12,821 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:12,822 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:12,848 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:13,914 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:13,915 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:13,915 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:13,915 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:14,848 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:14,909 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:14,910 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:14,910 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:14,911 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:14,912 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:15,849 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:15,983 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:15,984 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:15,984 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:15,985 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:16,849 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:16,932 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:16,932 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:16,933 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:16,934 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:17,849 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:17,948 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:17,949 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:17,949 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:17,949 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:18,850 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:18,940 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:18,941 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:18,941 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:18,943 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:19,850 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:19,938 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:19,938 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:19,938 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:19,939 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:19,939 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:20,850 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:20,881 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:20,881 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:20,881 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:20,882 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:21,816 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:21,817 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:21,817 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:21,819 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:21,851 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:22,760 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:22,761 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:22,761 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:22,761 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:22,851 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:23,684 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:23,685 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:23,685 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:23,685 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:23,851 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:24,656 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:24,657 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:24,657 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:24,659 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:24,851 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:25,601 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:25,601 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:25,601 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:25,601 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:25,602 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:25,852 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:26,689 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:26,689 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:26,689 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:26,691 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:26,710 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:09:26,710 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:09:26,713 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:09:26,852 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:27,763 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:27,764 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:27,764 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:27,765 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:27,852 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:28,755 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:28,756 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:28,756 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:28,757 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:28,853 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:29,944 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:29,944 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:29,944 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:29,945 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:30,853 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:30,883 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:30,883 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:30,883 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:30,885 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:30,885 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:31,808 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:31,809 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:31,809 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:31,809 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:31,853 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:32,782 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:32,782 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:32,782 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:32,783 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:32,854 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:33,762 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:33,763 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:33,764 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:33,767 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:33,854 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:34,807 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:34,808 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:34,808 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:34,808 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:34,854 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:35,981 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:35,982 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:35,982 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:35,983 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:35,984 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:36,855 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:37,028 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:37,028 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:37,028 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:37,029 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:37,855 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:38,015 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:38,016 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:38,016 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:38,019 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:38,856 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:39,335 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:39,336 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:39,336 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:39,336 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:39,856 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:40,280 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:40,281 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:40,281 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:40,282 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:40,856 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:41,248 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:41,248 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:41,252 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:41,710 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:09:41,710 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:09:41,886 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:41,886 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:41,887 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:09:42,183 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:42,292 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:42,293 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:42,295 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:42,857 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/config.yaml
+2024-03-26 13:09:42,857 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:43,132 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:43,132 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:43,132 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:43,133 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:43,857 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:44,087 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:44,088 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:44,088 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:44,088 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:44,857 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:45,090 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:45,091 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:45,091 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:45,093 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:45,858 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:46,271 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:46,271 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:46,271 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:46,272 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:46,858 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:47,235 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:47,235 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:47,235 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:47,237 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:47,238 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:47,858 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:48,296 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:48,297 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:48,297 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:48,297 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:48,859 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:49,243 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:49,243 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:49,243 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:49,245 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:49,859 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:50,231 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:50,231 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:50,232 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:50,232 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:50,859 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:51,192 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:51,192 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:51,192 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:51,214 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:51,860 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:52,195 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:52,195 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:52,195 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:52,198 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:52,860 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:53,154 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:53,155 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:53,155 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:53,155 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:53,155 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:53,860 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:54,141 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:54,142 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:54,142 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:54,142 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:54,861 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:55,075 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:55,076 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:55,076 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:55,078 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:55,861 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:56,012 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:56,013 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:56,013 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:56,013 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:56,710 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:09:56,711 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:09:56,711 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:09:56,861 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:56,935 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:56,937 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:56,937 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:56,937 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:57,862 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:57,915 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:57,915 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:57,915 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:57,917 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:58,854 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:58,855 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:58,855 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:58,855 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:09:58,856 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:58,862 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:09:59,818 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:09:59,819 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:09:59,819 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:09:59,819 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:09:59,862 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:00,756 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:00,757 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:00,757 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:00,757 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:00,862 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:01,783 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:01,784 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:01,784 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:01,784 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:01,862 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:02,798 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:02,798 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:02,798 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:02,800 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:02,863 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:03,746 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:03,747 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:03,747 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:03,747 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:03,863 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:04,673 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:04,673 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:04,673 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:04,673 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:04,674 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:04,863 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:05,657 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:05,658 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:05,658 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:05,660 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:05,864 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:06,592 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:06,593 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:06,593 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:06,593 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:06,864 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:07,538 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:07,539 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:07,539 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:07,539 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:07,864 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:08,479 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:08,479 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:08,479 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:08,481 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:08,864 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:09,417 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:09,417 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:09,417 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:09,418 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:09,865 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:09,942 DEBUG   SystemMonitor:56218 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2024-03-26 13:10:09,943 DEBUG   SenderThread:56218 [sender.py:send():378] send: stats
+2024-03-26 13:10:09,944 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:10,417 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:10,417 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:10,417 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:10,418 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:10,865 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:11,382 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:11,383 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:11,383 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:11,383 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:11,710 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:10:11,710 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:10:11,712 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:10:11,865 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:12,317 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:12,318 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:12,318 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:12,318 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:12,865 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:13,249 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:13,249 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:13,249 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:13,250 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:13,866 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:14,218 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:14,219 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:14,219 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:14,219 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:14,866 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:15,144 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:15,144 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:15,145 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:15,145 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:15,145 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:15,866 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:16,084 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:16,084 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:16,084 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:16,085 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:16,866 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:17,022 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:17,023 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:17,023 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:17,023 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:17,867 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:18,011 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:18,012 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:18,012 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:18,012 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:18,867 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:18,937 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:18,937 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:18,938 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:18,939 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:19,867 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:19,871 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:19,872 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:19,872 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:19,872 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:20,811 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:20,812 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:20,812 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:20,812 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:20,812 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:20,868 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:21,796 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:21,797 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:21,797 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:21,797 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:21,868 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:22,735 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:22,735 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:22,735 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:22,736 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:22,868 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:23,666 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:23,666 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:23,666 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:23,667 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:23,868 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:24,585 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:24,586 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:24,586 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:24,587 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:24,869 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:25,557 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:25,558 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:25,558 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:25,558 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:25,869 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:26,490 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:26,490 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:26,491 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:26,491 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:26,491 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:26,711 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:10:26,711 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:10:26,711 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:10:26,869 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:27,430 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:28,365 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:29,317 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:29,808 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:29,808 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:29,810 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:29,811 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:29,811 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:29,811 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:29,811 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:29,811 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:29,811 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:29,870 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:30,295 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:30,296 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:30,296 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:30,296 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:30,871 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:31,235 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:31,236 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:31,236 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:31,236 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:31,871 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:32,169 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:32,169 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:32,169 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:32,169 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:32,170 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:32,871 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:33,127 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:33,128 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:33,128 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:33,129 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:33,871 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:34,141 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:34,141 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:34,141 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:34,142 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:34,872 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:35,108 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:35,108 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:35,108 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:35,109 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:35,872 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:36,064 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:36,065 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:36,065 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:36,065 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:36,872 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:37,033 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:37,033 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:37,033 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:37,034 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:37,873 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:38,022 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:38,023 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:38,023 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:38,023 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:38,024 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:38,873 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:38,962 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:38,963 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:38,963 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:38,964 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:39,873 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:39,900 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:39,900 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:39,900 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:39,903 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:39,943 DEBUG   SenderThread:56218 [sender.py:send():378] send: stats
+2024-03-26 13:10:40,874 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:40,874 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:40,875 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:40,875 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:40,875 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:41,711 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-26 13:10:41,711 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: stop_status
+2024-03-26 13:10:41,713 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:10:41,874 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:41,917 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:42,097 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:42,097 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:42,097 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:42,857 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:42,857 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:42,858 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:42,858 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:42,874 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:43,802 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:43,802 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:43,803 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:43,803 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:43,803 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:43,875 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:44,760 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:44,760 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:44,761 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:44,761 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:44,875 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:45,776 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:45,777 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:45,777 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:45,778 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:45,875 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:46,732 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:46,733 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:46,733 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:46,733 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:46,875 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:47,668 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:47,669 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:47,669 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:47,669 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:47,876 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:48,602 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:48,603 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:48,603 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:48,603 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:48,876 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:49,532 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: partial_history
+2024-03-26 13:10:49,533 DEBUG   SenderThread:56218 [sender.py:send():378] send: history
+2024-03-26 13:10:49,533 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: summary_record
+2024-03-26 13:10:49,533 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:49,534 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:49,876 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:49,877 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_created():271] file/dir created: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/output.log
+2024-03-26 13:10:50,800 DEBUG   SenderThread:56218 [sender.py:send():378] send: exit
+2024-03-26 13:10:50,800 INFO    SenderThread:56218 [sender.py:send_exit():585] handling exit code: 0
+2024-03-26 13:10:50,800 INFO    SenderThread:56218 [sender.py:send_exit():587] handling runtime: 100
+2024-03-26 13:10:50,803 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:50,803 INFO    SenderThread:56218 [sender.py:send_exit():593] send defer
+2024-03-26 13:10:50,803 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,803 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 0
+2024-03-26 13:10:50,804 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,804 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 0
+2024-03-26 13:10:50,804 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 1
+2024-03-26 13:10:50,804 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,804 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 1
+2024-03-26 13:10:50,804 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,804 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 1
+2024-03-26 13:10:50,804 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 2
+2024-03-26 13:10:50,804 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,804 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 2
+2024-03-26 13:10:50,805 INFO    HandlerThread:56218 [system_monitor.py:finish():203] Stopping system monitor
+2024-03-26 13:10:50,805 DEBUG   SystemMonitor:56218 [system_monitor.py:_start():179] Finished system metrics aggregation loop
+2024-03-26 13:10:50,805 DEBUG   SystemMonitor:56218 [system_monitor.py:_start():183] Publishing last batch of metrics
+2024-03-26 13:10:50,805 INFO    HandlerThread:56218 [interfaces.py:finish():202] Joined cpu monitor
+2024-03-26 13:10:50,806 INFO    HandlerThread:56218 [interfaces.py:finish():202] Joined disk monitor
+2024-03-26 13:10:50,806 INFO    HandlerThread:56218 [interfaces.py:finish():202] Joined memory monitor
+2024-03-26 13:10:50,806 INFO    HandlerThread:56218 [interfaces.py:finish():202] Joined network monitor
+2024-03-26 13:10:50,806 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,806 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 2
+2024-03-26 13:10:50,806 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 3
+2024-03-26 13:10:50,807 DEBUG   SenderThread:56218 [sender.py:send():378] send: stats
+2024-03-26 13:10:50,807 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,807 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 3
+2024-03-26 13:10:50,807 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,807 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 3
+2024-03-26 13:10:50,807 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 4
+2024-03-26 13:10:50,807 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,808 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 4
+2024-03-26 13:10:50,808 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,808 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 4
+2024-03-26 13:10:50,808 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 5
+2024-03-26 13:10:50,808 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,808 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 5
+2024-03-26 13:10:50,808 DEBUG   SenderThread:56218 [sender.py:send():378] send: summary
+2024-03-26 13:10:50,809 INFO    SenderThread:56218 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-26 13:10:50,809 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,809 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 5
+2024-03-26 13:10:50,809 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 6
+2024-03-26 13:10:50,809 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,809 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 6
+2024-03-26 13:10:50,809 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,809 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 6
+2024-03-26 13:10:50,809 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 7
+2024-03-26 13:10:50,810 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: status_report
+2024-03-26 13:10:50,810 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:50,810 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 7
+2024-03-26 13:10:50,810 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:50,810 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 7
+2024-03-26 13:10:50,877 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:51,536 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 8
+2024-03-26 13:10:51,536 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:51,537 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 8
+2024-03-26 13:10:51,537 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:51,537 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 8
+2024-03-26 13:10:51,538 INFO    SenderThread:56218 [job_builder.py:build():298] Attempting to build job artifact
+2024-03-26 13:10:51,538 INFO    SenderThread:56218 [job_builder.py:_get_source_type():428] is repo sourced job
+2024-03-26 13:10:51,801 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-26 13:10:51,877 INFO    Thread-12 :56218 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/output.log
+2024-03-26 13:10:51,879 INFO    SenderThread:56218 [job_builder.py:build():404] adding wandb-job metadata file
+2024-03-26 13:10:52,043 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 9
+2024-03-26 13:10:52,043 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: poll_exit
+2024-03-26 13:10:52,044 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:52,046 DEBUG   SenderThread:56218 [sender.py:send():378] send: artifact
+2024-03-26 13:10:52,046 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 9
+2024-03-26 13:10:52,802 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-26 13:10:53,039 INFO    SenderThread:56218 [sender.py:send_artifact():1443] sent artifact job-git_github.com_ALRhub_amortized_vi_trpl.git_GMM_GMM_model.py - {'id': 'QXJ0aWZhY3Q6NzcxMTYxMDIx', 'state': 'COMMITTED', 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjE0OTc1NDg2Nw==', 'latestArtifact': {'id': 'QXJ0aWZhY3Q6NzcxMTYxMDIx', 'versionIndex': 9}}}
+2024-03-26 13:10:53,039 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:53,039 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 9
+2024-03-26 13:10:53,039 INFO    SenderThread:56218 [dir_watcher.py:finish():358] shutting down directory watcher
+2024-03-26 13:10:53,879 INFO    SenderThread:56218 [dir_watcher.py:finish():388] scan: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files
+2024-03-26 13:10:53,880 INFO    SenderThread:56218 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/output.log output.log
+2024-03-26 13:10:53,880 INFO    SenderThread:56218 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/config.yaml config.yaml
+2024-03-26 13:10:53,889 INFO    SenderThread:56218 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json wandb-summary.json
+2024-03-26 13:10:53,890 INFO    SenderThread:56218 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/requirements.txt requirements.txt
+2024-03-26 13:10:53,891 INFO    SenderThread:56218 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-metadata.json wandb-metadata.json
+2024-03-26 13:10:53,891 INFO    SenderThread:56218 [dir_watcher.py:finish():402] scan save: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/conda-environment.yaml conda-environment.yaml
+2024-03-26 13:10:53,892 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 10
+2024-03-26 13:10:53,898 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: poll_exit
+2024-03-26 13:10:53,910 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:53,910 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 10
+2024-03-26 13:10:53,922 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:53,923 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 10
+2024-03-26 13:10:53,923 INFO    SenderThread:56218 [file_pusher.py:finish():172] shutting down file pusher
+2024-03-26 13:10:54,347 INFO    wandb-upload_0:56218 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/config.yaml
+2024-03-26 13:10:54,654 INFO    wandb-upload_2:56218 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/conda-environment.yaml
+2024-03-26 13:10:54,656 INFO    wandb-upload_4:56218 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/requirements.txt
+2024-03-26 13:10:54,658 INFO    wandb-upload_3:56218 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/wandb-summary.json
+2024-03-26 13:10:54,660 INFO    wandb-upload_1:56218 [upload_job.py:push():131] Uploaded file /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/files/output.log
+2024-03-26 13:10:54,804 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-26 13:10:54,805 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: poll_exit
+2024-03-26 13:10:54,861 INFO    Thread-11 :56218 [sender.py:transition_state():613] send defer: 11
+2024-03-26 13:10:54,862 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:54,862 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 11
+2024-03-26 13:10:54,863 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:54,863 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 11
+2024-03-26 13:10:54,863 INFO    SenderThread:56218 [file_pusher.py:join():178] waiting for file pusher
+2024-03-26 13:10:54,864 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 12
+2024-03-26 13:10:54,864 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:54,865 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 12
+2024-03-26 13:10:54,865 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:54,865 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 12
+2024-03-26 13:10:54,866 INFO    SenderThread:56218 [file_stream.py:finish():595] file stream finish called
+2024-03-26 13:10:55,355 INFO    SenderThread:56218 [file_stream.py:finish():599] file stream finish is done
+2024-03-26 13:10:55,355 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 13
+2024-03-26 13:10:55,356 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:55,356 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 13
+2024-03-26 13:10:55,357 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:55,357 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 13
+2024-03-26 13:10:55,357 INFO    SenderThread:56218 [sender.py:transition_state():613] send defer: 14
+2024-03-26 13:10:55,358 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: defer
+2024-03-26 13:10:55,359 INFO    HandlerThread:56218 [handler.py:handle_request_defer():172] handle defer: 14
+2024-03-26 13:10:55,359 DEBUG   SenderThread:56218 [sender.py:send():378] send: final
+2024-03-26 13:10:55,360 DEBUG   SenderThread:56218 [sender.py:send():378] send: footer
+2024-03-26 13:10:55,360 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: defer
+2024-03-26 13:10:55,361 INFO    SenderThread:56218 [sender.py:send_request_defer():609] handle sender defer: 14
+2024-03-26 13:10:55,362 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-26 13:10:55,363 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: poll_exit
+2024-03-26 13:10:55,364 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-26 13:10:55,365 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: poll_exit
+2024-03-26 13:10:55,366 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: server_info
+2024-03-26 13:10:55,367 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: server_info
+2024-03-26 13:10:55,374 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: get_summary
+2024-03-26 13:10:55,376 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: sampled_history
+2024-03-26 13:10:55,379 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-26 13:10:55,380 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: job_info
+2024-03-26 13:10:55,500 DEBUG   SenderThread:56218 [sender.py:send_request():405] send_request: job_info
+2024-03-26 13:10:55,500 INFO    MainThread:56218 [wandb_run.py:_footer_history_summary_info():3851] rendering history
+2024-03-26 13:10:55,501 INFO    MainThread:56218 [wandb_run.py:_footer_history_summary_info():3883] rendering summary
+2024-03-26 13:10:55,501 INFO    MainThread:56218 [wandb_run.py:_footer_sync_info():3810] logging synced files
+2024-03-26 13:10:55,501 DEBUG   HandlerThread:56218 [handler.py:handle_request():146] handle_request: shutdown
+2024-03-26 13:10:55,501 INFO    HandlerThread:56218 [handler.py:finish():869] shutting down handler
+2024-03-26 13:10:56,381 INFO    WriterThread:56218 [datastore.py:close():296] close: /home/luyao/amortized_vi_trpl/GMM/wandb/run-20240326_130909-h8anczqd/run-h8anczqd.wandb
+2024-03-26 13:10:56,500 INFO    SenderThread:56218 [sender.py:finish():1521] shutting down sender
+2024-03-26 13:10:56,501 INFO    SenderThread:56218 [file_pusher.py:finish():172] shutting down file pusher
+2024-03-26 13:10:56,501 INFO    SenderThread:56218 [file_pusher.py:join():178] waiting for file pusher
