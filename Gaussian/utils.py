@@ -90,7 +90,3 @@ def mahalanobis_distance(x, mean, precision):
     maha_dist = ch.matmul(diff_precision, diff.transpose(-2, -1))
     maha_dist = maha_dist.squeeze(-1)
     return maha_dist
-
-
-def likelihood(mean, cov, samples):
-    return ch.distributions.MultivariateNormal(loc=mean, covariance_matrix=cov).log_prob(samples)
