@@ -1,8 +1,0 @@
-
-Epoch 0: Approximate KL Divergence = 16.276147842407227
-Epoch 5: Approximate KL Divergence = 16.34693145751953
-Epoch 10: Approximate KL Divergence = 16.580890655517578
-Epoch 15: Approximate KL Divergence = 16.351367950439453
-Training done!
-weight here [[0.4600027  0.5399973 ]
- [0.5160695  0.48393056]]

@@ -10,7 +10,7 @@ from Gaussian.utils import fill_triangular, diag_bijector, inverse_softplus, ini
 from Gaussian.Gaussian_targets import ConditionalGaussianTarget, get_cov_fn, get_mean_fn
 from Gaussian.Gaussian_plot import gaussian_plot
 from Gaussian.kl_projection import KLProjection
-from Gaussian.split_kl_projection import mean_projection, CovKLProjection
+from Gaussian.split_kl_projection import split_projection
 
 
 # np.random.seed(37)
@@ -97,13 +97,13 @@ def train_model(model,
             # projection step
             if split_proj:
                 # project mean and cov separately, with TRPL
-                mean_proj = mean_projection(mean_pred, b_mean_old, b_chol_old, eps_mean)
-                cov_proj = CovKLProjection.apply(b_chol_old, chol_pred, cov_pred, eps_cov)
+                mean_proj, chol_proj = split_projection(mean_pred, chol_pred, b_mean_old, b_chol_old, eps_mean, eps_cov)
+                cov_proj = covariance(chol_proj)
             else:
                 # project together with MORE
                 b_cov_old = covariance(b_chol_old)
                 b_cov_old = b_cov_old.clone().detach()
-                mean_proj, cov_proj = KLProjection.apply((mean_pred, cov_pred), (b_mean_old, b_cov_old), 0.00001)
+                mean_proj, cov_proj = KLProjection.apply((mean_pred, cov_pred), (b_mean_old, b_cov_old), 0.1)
 
             if sample_dist:
                 # draw samples from projected distribution
@@ -130,7 +130,7 @@ def train_model(model,
 
             optimizer.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.8)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
             # scheduler.step()
 
@@ -147,15 +147,15 @@ if __name__ == "__main__":
     print("Current device:", device)
 
     # Training parameters
-    n_epochs = 50
-    batch_size = 512
-    n_context = 12800
+    n_epochs = 100
+    batch_size = 64
+    n_context = 1280
     fc_layer_size = 64
     init_lr = 0.01
     weight_decay = 1e-5
-    eps_mean = 0.005       # mean projection bound
-    eps_cov = 0.0001       # cov projection bound
-    alpha = 80           # regression penalty
+    eps_mean = 0.05       # mean projection bound
+    eps_cov = 0.005       # cov projection bound
+    alpha = 75           # regression penalty
     split_proj = True    # True: projection separately else together
     sample_dist = True    # True: draw samples from projected dist. else from predicted dist.
 

@@ -3,11 +3,47 @@ import cpp_projection
 import numpy as np
 import torch as ch
 
+from Gaussian.utils import gaussian_kl
 
-def mean_projection(mean, old_mean, old_chol, eps_mu):
 
-    mean_diff = (mean - old_mean).unsqueeze(-1)
-    maha = ch.linalg.solve_triangular(old_chol, mean_diff, upper=False).pow(2).sum([-2, -1])
+def split_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
+    maha_part, cov_part = gaussian_kl(mean, chol, old_mean, old_chol)
+
+    # project mean
+    mean_proj = mean_projection(mean, old_mean, maha_part, eps_mean)
+
+    # project covariance
+    cov = chol @ chol.transpose(-1, -2)
+    try:
+        mask = cov_part > eps_cov
+        chol_proj = ch.zeros_like(chol)
+        chol_proj[~mask] = chol[~mask]
+        if mask.any():
+            cov_proj = CovKLProjection.apply(old_chol, chol, cov, eps_cov)
+            # needs projection and projection failed
+            # mean propagates the nan values to the batch dimensions, in case any of entries is nan
+            is_nan = cov_proj.mean([-2, -1]).isnan() * mask
+            if is_nan.any():
+                chol_proj[is_nan] = old_chol[is_nan]
+                mask *= ~is_nan
+            chol_proj[mask], failed_mask = ch.linalg.cholesky_ex(cov_proj[mask])
+            # check if any of the cholesky decompositions failed and keep old_std in that case
+            failed_mask = failed_mask.type(ch.bool)
+            if ch.any(failed_mask):
+                chol_proj[failed_mask] = old_chol[failed_mask]
+    except Exception as e:
+        import logging
+        logging.error('Projection failed, taking old cholesky for projection.')
+        print("Projection failed, taking old cholesky for projection.")
+        chol_proj = old_chol
+        raise e
+    return mean_proj, chol_proj
+
+
+def mean_projection(mean, old_mean, maha, eps_mu):
+
+    # mean_diff = (mean - old_mean).unsqueeze(-1)
+    # maha = ch.linalg.solve_triangular(old_chol, mean_diff, upper=False).pow(2).sum([-2, -1])
     batch_shape = mean.shape[:-1]
     mask = maha > eps_mu
 
@@ -29,7 +65,7 @@ class CovKLProjection(ch.autograd.Function):
     sop = None
 
     @staticmethod
-    def get_sop(batch_shape, dim, max_eval=100):
+    def get_sop(batch_shape, dim, max_eval=200):
         if not CovKLProjection.sop:
             CovKLProjection.sop = \
                 cpp_projection.BatchedCovOnlyProjection(batch_shape, dim, max_eval=max_eval)
