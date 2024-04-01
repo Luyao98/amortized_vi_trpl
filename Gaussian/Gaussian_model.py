@@ -50,7 +50,7 @@ class GaussianNN(nn.Module):
 
 
 def covariance(chol):
-    cov_matrix = chol @ chol.permute(0, 2, 1)
+    cov_matrix = chol @ chol.transpose(-1, -2)
     return cov_matrix
 
 
@@ -62,17 +62,17 @@ def log_prob(mean, cov, samples):
     return torch.distributions.MultivariateNormal(loc=mean, covariance_matrix=cov).log_prob(samples)
 
 
-def train_model(model,
-                target,
-                n_epochs,
-                batch_size,
-                n_context,
-                eps_mean,
-                eps_cov,
-                alpha,
-                optimizer,
-                split_proj,
-                sample_dist
+def train_model(model: GaussianNN,
+                target: ConditionalGaussianTarget,
+                n_epochs: int,
+                batch_size: int,
+                n_context: int,
+                eps_mean: float,
+                eps_cov: float,
+                alpha: int,
+                optimizer: optim.Optimizer,
+                split_proj: bool,
+                sample_dist: bool
                 ):
 
     train_size = int(n_context)
