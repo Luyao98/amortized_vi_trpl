@@ -1,0 +1,18 @@
+Training done!
+contexts: tensor([[1.2315],
+        [2.8364],
+        [1.7915]])
+target mean: tensor([[[ 9.4300,  3.3280]],
+        [[ 3.0047, -9.5379]],
+        [[ 9.7573, -2.1896]]])
+weight here [[0.]
+ [0.]
+ [0.]]
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/test.py", line 183, in <module>
+    plot2d_matplotlib(target, model, contexts)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_plot.py", line 41, in plot2d_matplotlib
+    max_y=max_y,
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_plot.py", line 131, in compute_data_for_plot2d
+    relevant_means[:, 0].min(),
+RuntimeError: min(): Expected reduction dim to be specified for input.numel() == 0. Specify the reduction dim with the 'dim' argument.

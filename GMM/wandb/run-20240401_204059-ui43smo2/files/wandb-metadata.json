@@ -1,0 +1,80 @@
+{
+    "os": "Linux-5.15.0-101-generic-x86_64-with-debian-bullseye-sid",
+    "python": "3.7.12",
+    "heartbeatAt": "2024-04-01T18:41:00.059618",
+    "startedAt": "2024-04-01T18:40:59.368773",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py",
+    "codePathLocal": "GMM_model.py",
+    "codePath": "GMM/GMM_model.py",
+    "git": {
+        "remote": "git@github.com:ALRhub/amortized_vi_trpl.git",
+        "commit": "53d2b9bfee0c67aa8e50efbe4c0ab967d27fed8d"
+    },
+    "email": "luyao.deng@student.kit.edu",
+    "root": "/home/luyao/amortized_vi_trpl",
+    "host": "luyao-PC",
+    "username": "luyao",
+    "executable": "/home/luyao/miniconda3/envs/ITPAL_luyao/bin/python",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 2572.230375,
+        "min": 800.0,
+        "max": 3800.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 1425.417,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        },
+        {
+            "current": 2800.0,
+            "min": 800.0,
+            "max": 3800.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 54.84476089477539,
+            "used": 18.774646759033203
+        }
+    },
+    "memory": {
+        "total": 15.365142822265625
+    }
+}

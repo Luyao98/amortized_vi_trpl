@@ -1,0 +1,34 @@
+
+Epoch 5: KL Divergence = 6.790866851806641
+Epoch 10: KL Divergence = 7.246631622314453
+Epoch 15: KL Divergence = 7.516013145446777
+Epoch 20: KL Divergence = 7.689371585845947
+Epoch 25: KL Divergence = 8.1650390625
+Epoch 30: KL Divergence = 9.106282234191895
+Epoch 35: KL Divergence = 9.443732261657715
+Epoch 40: KL Divergence = 9.309579849243164
+Epoch 45: KL Divergence = 9.552689552307129
+Epoch 50: KL Divergence = 9.351393699645996
+Epoch 55: KL Divergence = 9.607693672180176
+Epoch 60: KL Divergence = 9.543127059936523
+Epoch 65: KL Divergence = 9.683574676513672
+Epoch 70: KL Divergence = 10.096348762512207
+Epoch 75: KL Divergence = 10.050976753234863
+Epoch 80: KL Divergence = 10.131330490112305
+Epoch 85: KL Divergence = 10.16976547241211
+Epoch 90: KL Divergence = 10.000394821166992
+Epoch 95: KL Divergence = 9.799478530883789
+Epoch 100: KL Divergence = 10.003558158874512
+Training done!
+contexts: tensor([[ 0.9688],
+        [-0.5728],
+        [-2.9873]])
+target mean: tensor([[[ 8.2422,  5.6627]],
+        [[-5.4203,  8.4036]],
+        [[-1.5365, -9.8813]]])
+weight here [[1.]
+ [1.]
+ [1.]]
+model mean: [[[-2.7673693  -0.02372424]]
+ [[-2.777126   -0.0320005 ]]
+ [[-2.8182788  -0.03729317]]]

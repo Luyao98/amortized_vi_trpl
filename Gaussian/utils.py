@@ -82,14 +82,24 @@ def initialize_weights(model: nn.Module, initialization_type: str, scale: float 
                 "Not a valid initialization type. Choose one of 'normal', 'uniform', 'xavier', and 'orthogonal'")
 
 
-# def mahalanobis_distance(x, mean, precision):
-#     # return shape (batch_size, 1)
-#     diff = x - mean
-#     diff = diff.unsqueeze(1)
-#     diff_precision = ch.matmul(diff, precision)
-#     maha_dist = ch.matmul(diff_precision, diff.transpose(-2, -1))
-#     maha_dist = maha_dist.squeeze(-1)
-#     return maha_dist
+def fill_triangular_gmm(chols, n_components):
+    init_std = ch.tensor(1.0)
+    minimal_std = 1e-3
+    diag_activation = nn.Softplus()
+
+    batch_size = chols.shape[0]
+    chols = chols.view(batch_size, n_components, -1)
+    tril_matrices = []
+
+    for i in range(n_components):
+        chol_vec = chols[:, i, :]
+        tril_matrix = fill_triangular(chol_vec)
+        # tril_matrix = diag_bijector(ch.exp, tril_matrix)
+        tril_matrix = diag_bijector(lambda z: diag_activation(z + inverse_softplus(init_std - minimal_std)) + minimal_std, tril_matrix)
+        tril_matrices.append(tril_matrix)
+
+    tril_matrices_stacked = ch.stack(tril_matrices, dim=1)
+    return tril_matrices_stacked
 
 
 def maha(mean: ch.Tensor, old_mean: ch.Tensor, old_chol: ch.Tensor):

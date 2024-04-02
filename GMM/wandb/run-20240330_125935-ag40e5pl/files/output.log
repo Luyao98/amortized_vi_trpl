@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 264, in <module>
+    train_model(model, target, n_epochs, batch_size, n_context, n_components, eps, alpha, optimizer, split)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 151, in train_model
+    mean_proj_j = mean_projection(mean_pred_j, mean_old_j, chol_old_j, 0.1)
+  File "/home/luyao/amortized_vi_trpl/Gaussian/split_kl_projection.py", line 17, in mean_projection
+    omega[mask] = ch.sqrt(maha[mask] / eps_mu) - 1.
+IndexError: too many indices for tensor of dimension 1

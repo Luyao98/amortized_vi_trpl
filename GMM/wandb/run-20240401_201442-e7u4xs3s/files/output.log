@@ -1,0 +1,39 @@
+
+Epoch 5: KL Divergence = 7.05003547668457
+Epoch 10: KL Divergence = 7.697075843811035
+Epoch 15: KL Divergence = 8.755579948425293
+Epoch 20: KL Divergence = 9.224477767944336
+Epoch 25: KL Divergence = 9.484508514404297
+Epoch 30: KL Divergence = 9.509565353393555
+Epoch 35: KL Divergence = 9.602441787719727
+Epoch 40: KL Divergence = 10.189263343811035
+Epoch 45: KL Divergence = 10.056636810302734
+Epoch 50: KL Divergence = 10.248625755310059
+Epoch 55: KL Divergence = 11.773796081542969
+Epoch 60: KL Divergence = 11.975475311279297
+Epoch 65: KL Divergence = 11.555657386779785
+Epoch 70: KL Divergence = 10.954232215881348
+Epoch 75: KL Divergence = 10.90917682647705
+Epoch 80: KL Divergence = 10.48752212524414
+Epoch 85: KL Divergence = 10.918220520019531
+Epoch 90: KL Divergence = 10.746500968933105
+Epoch 95: KL Divergence = 10.219499588012695
+Epoch 100: KL Divergence = 10.220494270324707
+Training done!
+contexts: tensor([[-0.2841],
+        [ 2.9698],
+        [ 2.3775]])
+target mean: tensor([[[-2.8033,  9.5990]],
+        [[ 1.7097, -9.8528]],
+        [[ 6.9186, -7.2203]]])
+weight here [[0.]
+ [0.]
+ [0.]]
+Traceback (most recent call last):
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_model.py", line 253, in <module>
+    plot2d_matplotlib(target, model, contexts)
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_plot.py", line 41, in plot2d_matplotlib
+    max_y=max_y,
+  File "/home/luyao/amortized_vi_trpl/GMM/GMM_plot.py", line 131, in compute_data_for_plot2d
+    relevant_means[:, 0].min(),
+RuntimeError: min(): Expected reduction dim to be specified for input.numel() == 0. Specify the reduction dim with the 'dim' argument.

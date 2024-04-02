@@ -9,7 +9,7 @@ def plot2d_matplotlib(
         contexts,
         # fig,
         # axes,
-        normalize_output=False,
+        normalize_output=True,
         device: str = "cpu",
         min_x: int or None = None,
         max_x: int or None = None,
@@ -53,6 +53,7 @@ def plot2d_matplotlib(
     locs = data["locs"]
     scale_trils = data["scale_trils"]
     weights = data["weights"]
+    print("model mean:", locs)
     # plot
     fig, axes = plt.subplots(3, n_tasks, figsize=(15, 10))
     for l in range(n_tasks):
@@ -62,8 +63,8 @@ def plot2d_matplotlib(
         contour_plot = ax.contourf(xx, yy, p_tgt[:, l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
         ax.set_title("Target density")
-        ax.set_xlabel("$z_1$")
-        ax.set_ylabel("$z_2$")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
 
         # plot model distribution
         ax = axes[1, l]
@@ -81,8 +82,8 @@ def plot2d_matplotlib(
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
         ax.set_title("Model density")
-        ax.set_xlabel("$z_1$")
-        ax.set_ylabel("$z_2$")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
         # ax.set_xlim(min_x, max_x)
         # ax.set_ylim(min_y, max_y)
 
@@ -92,9 +93,9 @@ def plot2d_matplotlib(
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
         ax.set_title("Mixture weights")
-    ax = axes[0, -1]
-    # color bar of last target density
-    cbar = plt.colorbar(contour_plot, cax=ax)
+    # ax = axes[0, -1]
+    # # color bar of last target density
+    # cbar = plt.colorbar(contour_plot, cax=ax)
 
     fig.tight_layout()
     plt.show()
@@ -116,7 +117,7 @@ def compute_data_for_plot2d(
 
     # extract weights already here, to figure out which components are relevant
     weights, means, scale_trils = model(contexts)
-    weights = weights.detach().to("cpu").numpy()
+    weights = np.exp(weights.detach().to("cpu").numpy())
     print("weight here", weights)
     mask = (weights > 0.01).flatten()
     relevant_means = torch.reshape(means, (-1, 2))[mask, :]
@@ -157,7 +158,7 @@ def compute_data_for_plot2d(
 
     # evaluate distributions
     with torch.no_grad():
-        log_p_tgt = target_dist.log_prob(contexts, xy)  # (n_plt ** 2, n_c)
+        log_p_tgt = target_dist.log_prob_tgt(contexts, xy)  # (n_plt ** 2, n_c)
         log_p_model = model.log_prob_gmm(means, scale_trils, weights, xy)
 
     log_p_tgt = log_p_tgt.to("cpu").numpy()
