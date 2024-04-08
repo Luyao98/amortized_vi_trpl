@@ -62,6 +62,26 @@ def log_prob(mean, cov, samples):
     return torch.distributions.MultivariateNormal(loc=mean, covariance_matrix=cov).log_prob(samples)
 
 
+def log_prob_gmm(means, chols, gates, samples):
+    """
+    gates are log of gate
+    """
+    n_contexts, n_components, _ = means.shape
+    if means.shape[0] == samples.shape[0]:
+        log_component = [gates[:, i] + MultivariateNormal(means[:, i], scale_tril=chols[:, i]).log_prob(samples) for i in range(n_components)]
+        log = torch.stack(log_component, dim=1)  # (batch_size, n_components)
+        log_c = torch.logsumexp(log, dim=1)
+        return log_c
+    else:
+        # for plotting
+        log_c = []
+        for mean, chol, gate in zip(means, chols, gates):
+            log = [gate[o] + MultivariateNormal(mean[o], scale_tril=chol[o]).log_prob(samples) for o in range(n_components)]
+            log = torch.stack(log, dim=1)  # (sample_size, n_components)
+            log_c.append(torch.logsumexp(log, dim=1))
+        return torch.stack(log_c, dim=0)  # ( n_contexts, sample_size)
+
+
 def train_model(model: GaussianNN,
                 target: ConditionalGaussianTarget,
                 n_epochs: int,
@@ -72,11 +92,12 @@ def train_model(model: GaussianNN,
                 alpha: int,
                 optimizer: optim.Optimizer,
                 split_proj: bool,
-                sample_dist: bool
+                sample_dist: bool,
+                device
                 ):
 
     train_size = int(n_context)
-    contexts = target.get_contexts_1g(n_context)
+    contexts = target.get_contexts_1g(n_context).to(device)
 
     for epoch in range(n_epochs):
         indices = torch.randperm(train_size)
@@ -186,8 +207,8 @@ if __name__ == "__main__":
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
 
     # Training
-    train_model(model, target, n_epochs, batch_size, n_context, eps_mean, eps_cov, alpha, optimizer, split_proj, sample_dist)
+    train_model(model, target, n_epochs, batch_size, n_context, eps_mean, eps_cov, alpha, optimizer, split_proj, sample_dist, device)
 
     # Plot
-    contexts = target.get_contexts_1g(5)
-    gaussian_plot(model, target, contexts)
+    contexts = target.get_contexts_1g(5).to('cpu')
+    gaussian_plot(model.to('cpu'), target, contexts)

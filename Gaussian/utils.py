@@ -83,6 +83,9 @@ def initialize_weights(model: nn.Module, initialization_type: str, scale: float 
 
 
 def fill_triangular_gmm(chols, n_components):
+    """
+    for GMM_model_v2, may be needed later
+    """
     init_std = ch.tensor(1.0)
     minimal_std = 1e-3
     diag_activation = nn.Softplus()
@@ -100,6 +103,10 @@ def fill_triangular_gmm(chols, n_components):
 
     tril_matrices_stacked = ch.stack(tril_matrices, dim=1)
     return tril_matrices_stacked
+
+
+def get_numpy(x):
+    return x.cpu().detach().numpy()
 
 
 def maha(mean: ch.Tensor, old_mean: ch.Tensor, old_chol: ch.Tensor):

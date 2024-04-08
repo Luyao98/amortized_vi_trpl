@@ -7,8 +7,6 @@ from Gaussian.kl_projection import KLProjection
 from Gaussian.split_kl_projection import split_projection
 from Gaussian.Gaussian_model import GaussianNN, train_model
 
-# Ensure wandb is logged in, adjust accordingly
-# wandb.login()
 
 sweep_config = {
     'method': 'bayes',
@@ -23,11 +21,12 @@ sweep_config = {
 
 sweep_id = wandb.sweep(sweep_config, project="ELBOopt_2D")
 
+
 def train():
     wandb.init()
 
     config = wandb.config
-    device =  'cpu'
+    device = 'cpu'
 
     model = GaussianNN(64).to(device)
     initialize_weights(model, initialization_type="xavier")
@@ -49,6 +48,5 @@ def train():
     wandb.finish()
 
 
-# Adjust `count` as per your requirement
 wandb.agent(sweep_id, function=train, count=30)
 

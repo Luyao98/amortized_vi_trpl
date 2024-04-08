@@ -1,6 +1,11 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from Gaussian.Gaussian_model import log_prob_gmm
+
+"""
+the current version for GMM case plotting, based on the code from Philipp Dahlinger.
+"""
 
 
 def plot2d_matplotlib(
@@ -9,22 +14,13 @@ def plot2d_matplotlib(
         contexts,
         # fig,
         # axes,
-        normalize_output=True,
+        normalize_output=False,
         device: str = "cpu",
         min_x: int or None = None,
         max_x: int or None = None,
         min_y: int or None = None,
         max_y: int or None = None,
 ):
-    # def plot_gaussian_ellipse(ax, mean, scale_tril, color):
-    #     n_plot = 100
-    #     evals, evecs = np.linalg.eig(scale_tril @ scale_tril.T)
-    #     theta = np.linspace(0, 2 * np.pi, n_plot)
-    #     ellipsis = (np.sqrt(evals[None, :]) * evecs) @ [np.sin(theta), np.cos(theta)]
-    #     ellipsis = ellipsis + mean[:, None]
-    #     ax.plot(ellipsis[0, :], ellipsis[1, :], color=color)
-
-    # assert model.d_z == 2, "Only 2D models are supported"
 
     model.eval()
 
@@ -52,15 +48,15 @@ def plot2d_matplotlib(
     p_model = data["p_model"]
     locs = data["locs"]
     scale_trils = data["scale_trils"]
-    weights = data["weights"]
+    # weights = data["weights"]
     print("model mean:", locs)
     # plot
-    fig, axes = plt.subplots(3, n_tasks, figsize=(15, 10))
+    fig, axes = plt.subplots(2, n_tasks, figsize=(15, 10))
     for l in range(n_tasks):
         # plot target distribution
         ax = axes[0, l]
         ax.clear()
-        contour_plot = ax.contourf(xx, yy, p_tgt[:, l].reshape(n_plt, n_plt), levels=100)
+        contour_plot = ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
         ax.set_title("Target density")
         ax.set_xlabel("$x_1$")
@@ -69,8 +65,7 @@ def plot2d_matplotlib(
         # plot model distribution
         ax = axes[1, l]
         ax.clear()
-        # ax.contourf(xx, yy, p_tgt[:, l].reshape(n_plt, n_plt), levels=100)
-        ax.contourf(xx, yy, p_model[:, l].reshape(n_plt, n_plt), levels=100)
+        ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
         colors = []
         for k in range(n_components):
             color = next(ax._get_lines.prop_cycler)["color"]
@@ -87,12 +82,12 @@ def plot2d_matplotlib(
         # ax.set_xlim(min_x, max_x)
         # ax.set_ylim(min_y, max_y)
 
-        # plot weights
-        ax = axes[2, l]
-        ax.clear()
-        ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
-        ax.axis("scaled")
-        ax.set_title("Mixture weights")
+        # # plot weights
+        # ax = axes[2, l]
+        # ax.clear()
+        # ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l], colors=colors)
+        # ax.axis("scaled")
+        # ax.set_title("Mixture weights")
     # ax = axes[0, -1]
     # # color bar of last target density
     # cbar = plt.colorbar(contour_plot, cax=ax)
@@ -116,8 +111,12 @@ def compute_data_for_plot2d(
     n_plt = 100
 
     # extract weights already here, to figure out which components are relevant
-    weights, means, scale_trils = model(contexts)
-    weights = np.exp(weights.detach().to("cpu").numpy())
+    means, scale_trils = model(contexts)
+    # determine n_task. i.e. n_contexts
+    n_tasks, n_components, _ = means.shape
+    weights = (1.0 / n_components) * torch.ones(n_tasks, n_components)  # for uniform weights
+    # weights = np.exp(weights.detach().to("cpu").numpy())
+    weights = weights.detach().to("cpu").numpy()
     print("weight here", weights)
     mask = (weights > 0.01).flatten()
     relevant_means = torch.reshape(means, (-1, 2))[mask, :]
@@ -152,21 +151,22 @@ def compute_data_for_plot2d(
     xy = np.vstack([xx.ravel(), yy.ravel()]).T
     xy = torch.tensor(xy, dtype=torch.float32).to(device)
 
-    # determine n_task. i.e. n_contexts
-    n_tasks, n_components, _ = means.shape
-    # xy = torch.broadcast_to(xy[:, None, :], (n_plt ** 2, n_tasks, 2))
-
     # evaluate distributions
     with torch.no_grad():
-        log_p_tgt = target_dist.log_prob_tgt(contexts, xy)  # (n_plt ** 2, n_c)
-        log_p_model = model.log_prob_gmm(means, scale_trils, weights, xy)
+        log_sum = []
+        for c in contexts:
+            c_expanded = c.unsqueeze(0).expand(xy.shape[0], -1)
+            log_prob = target_dist.log_prob_tgt(c_expanded, xy).exp().view(xx.shape).detach() + 1e-6
+            log_sum.append(log_prob)
+        log_p_tgt = torch.stack(log_sum, dim=0)
+        log_p_model = log_prob_gmm(means, scale_trils, torch.log(torch.from_numpy(weights)), xy)
 
     log_p_tgt = log_p_tgt.to("cpu").numpy()
     if normalize_output:
         # maximum is now 0, so exp(0) = 1
         log_p_tgt -= log_p_tgt.max()
     log_p_model = log_p_model.to("cpu").numpy()
-    p_tgt = np.exp(log_p_tgt)  # (n_plt ** 2, n_c)
+    p_tgt = np.exp(log_p_tgt)
     p_model = np.exp(log_p_model)
     # extract gmm parameters
     locs = means.detach().to("cpu").numpy()

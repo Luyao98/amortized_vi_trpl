@@ -3,7 +3,7 @@ import cpp_projection
 import numpy as np
 import torch as ch
 
-from Gaussian.utils import gaussian_kl
+from Gaussian.utils import gaussian_kl, get_numpy
 
 
 def split_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
@@ -74,9 +74,9 @@ class CovKLProjection(ch.autograd.Function):
     @staticmethod
     def forward(ctx, *args, **kwargs):
         old_chol, target_chol, target_cov, eps = args
-        old_chol_np = old_chol.numpy()
-        target_chol_np = target_chol.numpy()
-        target_cov_np = target_cov.numpy()
+        old_chol_np = get_numpy(old_chol)
+        target_chol_np = get_numpy(target_chol)
+        target_cov_np = get_numpy(target_cov)
 
         batch_shape = old_chol.shape[0]
         dim = old_chol.shape[-1]
@@ -93,7 +93,7 @@ class CovKLProjection(ch.autograd.Function):
     def backward(ctx, *grad_outputs):
         sop = ctx.proj
         d_covs, = grad_outputs
-        d_covs_np = d_covs.numpy()
+        d_covs_np = get_numpy(d_covs)
         d_covs_np = np.atleast_2d(d_covs_np)
         df_covs = sop.backward(d_covs_np)
         df_covs = np.atleast_2d(df_covs)

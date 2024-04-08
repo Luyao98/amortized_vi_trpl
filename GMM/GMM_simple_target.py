@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # np.random.seed(37)
 
 
-class ConditionalGMMTarget(ch.nn.Module):
+class ConditionalGMMSimpleTarget(ch.nn.Module):
     def __init__(self, mean_fn, cov_fn, context_dim=1, context_bound_low=-3, context_bound_high=3):
         super().__init__()
         self.context_bound_low = context_bound_low
@@ -32,9 +32,9 @@ class ConditionalGMMTarget(ch.nn.Module):
         gate = ch.tensor(1.0 / n_components).to(contexts.device)
         if means.shape[0] == samples.shape[0]:
             # for easy use in plotting
-            log = [ch.log(gate) + MultivariateNormal(means[:, i], covs[:, i]).log_prob(samples) for i in range(n_components)]
+            log = [MultivariateNormal(means[:, i], covs[:, i]).log_prob(samples) for i in range(n_components)]
             log = ch.stack(log, dim=1)  # batch_size, n_components
-            log_sum = ch.logsumexp(log, dim=1)  # batch_size
+            log_sum = ch.logsumexp(ch.log(gate) + log, dim=1)  # batch_size
             return log_sum
         else:
             # log_c = []
@@ -76,34 +76,34 @@ def gaussian_target_simple_plot(target, contexts):
     plt.show()
 
 
-def get_cov_fn(n_components):
+def get_cov_fns(n_components):
     def cat_cov(c):
         covs = []
         for i in range(n_components):
             chol = ch.stack([
-                ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 1.1, ch.zeros_like(c[:, 0])], dim=1),
-                ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 0]) + 1.1], dim=1)], dim=1)
+                ch.stack([0.5 * ch.sin(c[:, 0]) + 1.1, ch.zeros_like(c[:, 0])], dim=1),
+                ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos(c[:, 0]) + 1.1], dim=1)], dim=1)
             cov = chol @ chol.permute(0, 2, 1)
             covs.append(cov)
         return ch.stack(covs, dim=1)
     return cat_cov
 
 
-def get_mean_fn(n_components):
+def get_mean_fns(n_components):
     def cat_mean(c):
         mean = []
         for i in range(n_components):
-            sub_mean = ch.stack([15 * ch.sin((i + 1) * c[:, 0]), 15 * ch.cos((i + 1) * c[:, 0])], dim=1)
+            sub_mean = ch.stack([15 * ch.sin(c[:, 0]), 15 * ch.cos(c[:, 0])], dim=1)
             mean.append(sub_mean)
         return ch.stack(mean, dim=1)
     return cat_mean
 
 
 # test
-# mean_fn = get_mean_fn(4)
-# std_fn_sin = get_cov_fn(4)
+# mean_fn = get_mean_fns(4)
+# std_fn_sin = get_cov_fns(4)
 #
-# target = ConditionalGMMTarget(mean_fn, std_fn_sin)
+# target = ConditionalGMMSimpleTarget(mean_fn, std_fn_sin)
 # c = target.get_contexts_gmm(2)
 # print(mean_fn(c))
 # gaussian_target_simple_plot(target, c)
