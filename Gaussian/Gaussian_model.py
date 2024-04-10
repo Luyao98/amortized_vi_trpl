@@ -20,7 +20,7 @@ from Gaussian.split_kl_projection import split_projection
 
 
 class GaussianNN(nn.Module):
-    def __init__(self, fc_layer_size):
+    def __init__(self, fc_layer_size, init_bias_mean=None, init_bias_chol=None):
         super(GaussianNN, self).__init__()
         self.fc1 = nn.Linear(1, fc_layer_size)
         self.fc2 = nn.Linear(fc_layer_size, fc_layer_size)
@@ -33,6 +33,14 @@ class GaussianNN(nn.Module):
         self.init_std = torch.tensor(1.0)
         self.minimal_std = 1e-3
 
+        if init_bias_mean is not None:
+            with torch.no_grad():
+                self.fc_mean.bias.copy_(torch.tensor(init_bias_mean, dtype=self.fc_mean.bias.dtype))
+
+        if init_bias_chol is not None:
+            with torch.no_grad():
+                self.fc_chol.bias.copy_(torch.tensor(init_bias_chol, dtype=self.fc_chol.bias.dtype))
+
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
@@ -40,7 +48,8 @@ class GaussianNN(nn.Module):
         mean = self.fc_mean(x)
         flat_chol = self.fc_chol(x)
         chol_matrix = fill_triangular(flat_chol)
-        chol = diag_bijector(lambda z: self.diag_activation(z + self.get_activation_shift()) + self.minimal_std, chol_matrix)
+        chol = diag_bijector(lambda z: self.diag_activation(z + self.get_activation_shift()) + self.minimal_std,
+                             chol_matrix)
         return mean, chol
 
     def get_activation_shift(self):
@@ -168,7 +177,7 @@ if __name__ == "__main__":
     print("Current device:", device)
 
     # Training parameters
-    n_epochs = 100
+    n_epochs = 150
     batch_size = 64
     n_context = 1280
     fc_layer_size = 64
@@ -179,6 +188,9 @@ if __name__ == "__main__":
     alpha = 75           # regression penalty
     split_proj = True    # True: projection separately else together
     sample_dist = True    # True: draw samples from projected dist. else from predicted dist.
+
+    init_bias_mean = [1.0, -1.0]
+    # init_bias_chol = [5.0, 0.0, 5.0]
 
     # Wandb
     wandb.init(project="ELBOopt_2D", config={
@@ -201,10 +213,9 @@ if __name__ == "__main__":
     target = ConditionalGaussianTarget(mean_target, cov_target)
 
     # Model
-    model = GaussianNN(fc_layer_size).to(device)
-    initialize_weights(model, initialization_type="xavier")
+    model = GaussianNN(fc_layer_size, init_bias_mean).to(device)
+    initialize_weights(model, initialization_type="orthogonal", preserve_bias_layers=['fc_mean'])
     optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=weight_decay)
-    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
 
     # Training
     train_model(model, target, n_epochs, batch_size, n_context, eps_mean, eps_cov, alpha, optimizer, split_proj, sample_dist, device)

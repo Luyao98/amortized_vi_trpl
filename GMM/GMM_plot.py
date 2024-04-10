@@ -39,8 +39,6 @@ def plot2d_matplotlib(
     n_tasks = data["n_tasks"]
     n_components = data["n_components"]
     n_plt = data["n_plt"]
-    x = data["x"]
-    y = data["y"]
     xx = data["xx"]
     yy = data["yy"]
     xy = data["xy"]
@@ -117,7 +115,7 @@ def compute_data_for_plot2d(
     weights = (1.0 / n_components) * torch.ones(n_tasks, n_components)  # for uniform weights
     # weights = np.exp(weights.detach().to("cpu").numpy())
     weights = weights.detach().to("cpu").numpy()
-    print("weight here", weights)
+    # print("weight here", weights)
     mask = (weights > 0.01).flatten()
     relevant_means = torch.reshape(means, (-1, 2))[mask, :]
     relevant_scale_trils = torch.reshape(scale_trils, (-1, 2, 2))[mask, :, :]

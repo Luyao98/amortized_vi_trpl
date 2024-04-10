@@ -91,10 +91,19 @@ def get_cov_fn(n_components):
 
 def get_mean_fn(n_components):
     def cat_mean(c):
-        mean = []
-        for i in range(n_components):
-            sub_mean = ch.stack([15 * ch.sin((i + 1) * c[:, 0]), 15 * ch.cos((i + 1) * c[:, 0])], dim=1)
-            mean.append(sub_mean)
+        # mean = []
+        # for i in range(n_components):
+        #     sub_mean = ch.stack([10 * ch.sin((i + 1) * c[:, 0]), 10 * ch.cos((i + 1) * c[:, 0])], dim=1)
+        #     mean.append(sub_mean)
+        # mean1 = ch.stack([10 * ch.abs(ch.sin(c[:, 0])), 10 * ch.abs(ch.cos(c[:, 0]))], dim=1)
+        # mean2 = ch.stack([-10 * ch.abs(ch.sin(2 * c[:, 0])), -10 * ch.abs(ch.cos(2 * c[:, 0]))], dim=1)
+        # mean3 = ch.stack([10 * ch.abs(ch.sin(6 * c[:, 0])), -10 * ch.abs(ch.cos(6 * c[:, 0]))], dim=1)
+        # mean4 = ch.stack([-10 * ch.abs(ch.sin(4 * c[:, 0])), 10 * ch.abs(ch.cos(4 * c[:, 0]))], dim=1)
+        mean1 = ch.stack([2 + c[:, 0], 7 + c[:, 0]], dim=1)
+        mean2 = ch.stack([-7 + c[:, 0], -2 + c[:, 0]], dim=1)
+        mean3 = ch.stack([4 + c[:, 0], -5 + c[:, 0]], dim=1)
+        mean4 = ch.stack([-3 + c[:, 0], 3 + c[:, 0]], dim=1)
+        mean = [mean1, mean2, mean3, mean4]
         return ch.stack(mean, dim=1)
     return cat_mean
 

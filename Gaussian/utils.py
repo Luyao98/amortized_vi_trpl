@@ -55,9 +55,22 @@ def inverse_softplus(x):
     return (x.exp() - 1.).log()
 
 
-def initialize_weights(model: nn.Module, initialization_type: str, scale: float = 2 ** 0.5, init_w=3e-3):
-    for p in model.parameters():
-        if initialization_type == "normal":
+def initialize_weights(model: nn.Module, initialization_type: str, scale: float = 2 ** 0.5, init_w=3e-3,
+                       preserve_bias_layers=None):
+    if preserve_bias_layers is None:
+        preserve_bias_layers = []
+
+    for name, p in model.named_parameters():
+        # Set weights to zero for the specified layers
+        if 'fc_mean.weight' in name:
+            ch.nn.init.zeros_(p)
+        # if 'fc_chol.weight' in name:
+        #     ch.nn.init.zeros_(p)
+        # Skip the bias of layers in the preserve_bias_layers list
+        elif 'bias' in name and any(layer in name for layer in preserve_bias_layers):
+            continue  # Preserve the bias for these layers
+        # Initialize other parameters
+        elif initialization_type == "normal":
             if len(p.data.shape) >= 2:
                 p.data.normal_(init_w)  # 0.01
             else:

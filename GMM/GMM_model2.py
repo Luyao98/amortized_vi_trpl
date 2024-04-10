@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import MultivariateNormal, kl_divergence
 import wandb
+import time
 
 from GMM.GMM_target import ConditionalGMMTarget, get_cov_fn, get_mean_fn
 from GMM.GMM_simple_target import ConditionalGMMSimpleTarget, get_cov_fns, get_mean_fns
@@ -29,12 +30,30 @@ ch.autograd.set_detect_anomaly(True)
 
 
 class ConditionalGMM(nn.Module):
-    def __init__(self, fc_layer_size, n_components):
+    def __init__(self,
+                 fc_layer_size,
+                 n_components,
+                 init_lr,
+                 init_bias_mean_list=None,
+                 init_bias_chol_list=None,
+                 weight_decay=1e-5):
+
         super(ConditionalGMM, self).__init__()
         # self.gate = GateNN(fc_layer_size, n_components)
-        self.gaussian_list = nn.ModuleList([GaussianNN(fc_layer_size) for _ in range(n_components)])
-        self.optimizers = [optim.Adam(gaussian.parameters(), lr=init_lr, weight_decay=weight_decay) for gaussian in
-                           self.gaussian_list]
+        # self.gaussian_list = nn.ModuleList([GaussianNN(fc_layer_size, init_bias_mean) for _ in range(n_components)])
+        self.gaussian_list = nn.ModuleList()
+        self.optimizers = []
+        self.schedulers = []
+
+        for i in range(n_components):
+            init_bias_mean = init_bias_mean_list[i] if init_bias_mean_list is not None else None
+            init_bias_chol = init_bias_chol_list[i] if init_bias_chol_list is not None else None
+            gaussian = GaussianNN(fc_layer_size, init_bias_mean=init_bias_mean, init_bias_chol=init_bias_chol)
+            self.gaussian_list.append(gaussian)
+            optimizer = optim.Adam(gaussian.parameters(), lr=init_lr, weight_decay=weight_decay)
+            self.optimizers.append(optimizer)
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+            self.schedulers.append(scheduler)
 
     def forward(self, x):
         # gate = self.gate(x)
@@ -72,6 +91,8 @@ def train_model(model: ConditionalGMM,
     train_size = int(n_context)
 
     for epoch in range(n_epochs):
+        start_time = time.time()
+
         # shuffle sampled contexts, since I use the same sample set
         indices = ch.randperm(train_size)
         shuffled_contexts = contexts[indices]
@@ -90,43 +111,71 @@ def train_model(model: ConditionalGMM,
             for optimizer in model.optimizers:
                 optimizer.zero_grad()
             # prediction step
-            # mean_pred, chol_pred = model(b_contexts)
             for j, (gaussian, optimizer) in enumerate(zip(model.gaussian_list, model.optimizers)):
                 mean_pred_j, chol_pred_j = gaussian(b_contexts)
 
                 # component-wise calculation
+                # with TRPL
+                eps_mean = 0.05       # mean projection bound
+                eps_cov = 0.005       # cov projection bound
+                alpha = 75            # regression penalty
+                mean_proj_j, chol_proj_j = split_projection(mean_pred_j, chol_pred_j, b_mean_old[:, j], b_chol_old[:, j], eps_mean, eps_cov)
+                cov_proj_j = covariance(chol_proj_j)
 
-                # # with TRPL
-                # eps_mean = 0.005       # mean projection bound
-                # eps_cov = 0.001       # cov projection bound
-                # alpha = 75            # regression penalty
-                # mean_proj_j, chol_proj_j = split_projection(mean_pred_j, chol_pred_j, b_mean_old[:, j], b_chol_old[:, j], eps_mean, eps_cov)
-                # cov_proj_j = covariance(chol_proj_j)
-                #
-                # # model and target log probability
-                # model_samples = get_samples(mean_proj_j, cov_proj_j)  # shape (n_c, 2)
-                # log_model_j = log_prob(mean_proj_j, cov_proj_j, model_samples)
-                # log_target_j = target.log_prob_tgt(b_contexts, model_samples)
-                #
-                # # regression step
-                # pred_dist = MultivariateNormal(mean_pred_j, scale_tril=chol_pred_j)
-                # proj_dist = MultivariateNormal(mean_proj_j, scale_tril=chol_proj_j)
-                # reg_loss = kl_divergence(pred_dist, proj_dist)
-                #
-                # auxiliary_loss = model.auxiliary_reward2(j, b_mean_old, b_chol_old, model_samples)
-                # loss_j = (log_model_j - log_target_j - auxiliary_loss + alpha * reg_loss).mean()
-
-                cov_pred_j = covariance(chol_pred_j)
-                model_samples = get_samples(mean_pred_j, cov_pred_j)
-                log_model_j = log_prob(mean_pred_j, cov_pred_j, model_samples)
+                # model and target log probability
+                model_samples = get_samples(mean_proj_j, cov_proj_j)  # shape (n_c, 2)
+                log_model_j = log_prob(mean_proj_j, cov_proj_j, model_samples)
                 log_target_j = target.log_prob_tgt(b_contexts, model_samples)
-                # loss_j = (log_model_j - log_target_j).mean()
+
+                # regression step
+                pred_dist = MultivariateNormal(mean_pred_j, scale_tril=chol_pred_j)
+                proj_dist = MultivariateNormal(mean_proj_j, scale_tril=chol_proj_j)
+                reg_loss = kl_divergence(pred_dist, proj_dist)
+
                 auxiliary_loss = model.auxiliary_reward2(j, b_mean_old, b_chol_old, model_samples)
-                loss_j = (log_model_j - log_target_j - auxiliary_loss).mean()
+                loss_j = (log_model_j - log_target_j - auxiliary_loss + alpha * reg_loss).mean()
+
+                # cov_pred_j = covariance(chol_pred_j)
+                # model_samples = get_samples(mean_pred_j, cov_pred_j)
+                # log_model_j = log_prob(mean_pred_j, cov_pred_j, model_samples)
+                # log_target_j = target.log_prob_tgt(b_contexts, model_samples)
+                # # loss_j = (log_model_j - log_target_j).mean()
+                # auxiliary_loss = model.auxiliary_reward2(j, b_mean_old, b_chol_old, model_samples)
+                # loss_j = (log_model_j - log_target_j - auxiliary_loss).mean()
 
                 loss_j.backward(retain_graph=j < n_components - 1)
                 optimizer.step()
-                wandb.log({f"training loss {j}": loss_j.item()})
+                wandb.log({f"training loss {j}": loss_j.item(),
+                           f"regression loss {j}": reg_loss.mean()})
+
+        # for scheduler in model.schedulers:
+        #     scheduler.step()
+        # end_time = time.time()
+        # epoch_duration = end_time - start_time
+        # print(f"Epoch {epoch+1} completed in {epoch_duration:.2f} seconds.")
+
+        # evaluation step, only consider kl divergence between components
+        if (epoch + 1) % 5 == 0:
+            model.eval()
+
+            eval_contexts = target.get_contexts_gmm(500).to(device)
+            target_mean = target.mean_fn(eval_contexts)
+            target_cov = target.cov_fn(eval_contexts)
+            model_mean, model_chol = model(eval_contexts)
+            model_cov = covariance(model_chol)
+
+            kl = []
+            for i in range(500):
+                model_dist = MultivariateNormal(model_mean[i], model_cov[i])
+                target_dist = MultivariateNormal(target_mean[i], target_cov[i])
+                kl_i = kl_divergence(model_dist, target_dist)
+                kl.append(kl_i)
+            kl = ch.stack(kl, dim=0)
+            kl = ch.mean(kl)
+            print(f'Epoch {epoch+1}: KL Divergence = {kl.item()}')
+            model.train()
+
+            wandb.log({"kl_divergence": kl.item()})
 
     print("Training done!")
 
@@ -140,10 +189,21 @@ if __name__ == "__main__":
     n_epochs = 150
     batch_size = 64
     n_context = 1280
-    n_components = 2
-    fc_layer_size = 64
-    init_lr = 0.001
+    n_components = 4
+    fc_layer_size = 128
+    init_lr = 0.01
     weight_decay = 1e-5
+
+    init_bias_mean_list = [
+        [10.0, 10.0],
+        [-10.0, -10.0],
+        [10.0, -10.0],
+        [-10.0, 10.0]
+    ]
+    # init_bias_chol_list = [
+    #     [5.0, 0.0, 5.0],
+    #     [5.0, 0.0, 5.0],
+    # ]
 
     # Wandb
     wandb.init(project="ELBOopt_GMM", config={
@@ -163,9 +223,8 @@ if __name__ == "__main__":
     target = ConditionalGMMTarget(mean_target, cov_target)
 
     # Model
-    model = ConditionalGMM(fc_layer_size, n_components).to(device)
-    initialize_weights(model, initialization_type="xavier")
-    #  optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=weight_decay)
+    model = ConditionalGMM(fc_layer_size, n_components, init_lr, init_bias_mean_list).to(device)
+    initialize_weights(model, initialization_type="orthogonal", preserve_bias_layers=['fc_mean'])
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=400, gamma=0.1)
 
     # Training
@@ -175,4 +234,4 @@ if __name__ == "__main__":
     contexts = target.get_contexts_gmm(3).to('cpu')
     mean = target.mean_fn(contexts)
     print("target mean:", mean)
-    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-20, max_x=20, min_y=-20, max_y=20)
+    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-15, max_x=15, min_y=-15, max_y=15)
