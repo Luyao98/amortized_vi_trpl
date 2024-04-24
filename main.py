@@ -1,3 +1,6 @@
+from cw2 import cluster_work, cw_error, experiment
+from cw2.cw_data import cw_logging
+
 import torch as ch
 import wandb
 
@@ -6,34 +9,29 @@ from toy_task.GMM.targets.GMM_target import get_gmm_target
 from toy_task.GMM.algorithms.algorithm import train_model, plot
 
 
-if __name__ == "__main__":
+def toy_task(config: dict):
     # Device
     device = ch.device("cuda" if ch.cuda.is_available() else "cpu")
     print("Current device:", device)
 
     # Training parameters
-    n_epochs = 150
-    batch_size = 64
-    n_context = 640
-    n_components = 4
-    n_samples = 15
-    fc_layer_size = 256
-    init_lr = 0.01
-    eps_mean = 0.1       # mean projection bound
-    eps_cov = 0.5       # cov projection bound
-    alpha = 2            # regression penalty
+    configs = config["params"]
+    n_epochs = configs["n_epochs"]
+    batch_size = configs["batch_size"]
+    n_context = configs["n_context"]
+    n_components = configs["n_components"]
+    n_samples = configs["n_samples"]
+    fc_layer_size = configs["fc_layer_size"]
+    init_lr = configs["init_lr"]
+    eps_mean = configs["eps_mean"]       # mean projection bound
+    eps_cov = configs["eps_cov"]       # cov projection bound
+    alpha = configs["alpha"]            # regression penalty
 
-    project = False        # calling projection or not
+    project = configs["project"]        # calling projection or not
 
-    model_name = "toy_task_model"
-    initialization_type = "xavier"
+    model_name = configs["model_name"]
+    initialization_type = configs["initialization_type"]
 
-    init_bias_mean_list = [
-        [10.0, 10.0],
-        [-10.0, -10.0],
-        [10.0, -10.0],
-        [-10.0, 10.0]
-    ]
     # Wandb
     wandb.init(project="ELBOopt_GMM", config={
         "n_epochs": n_epochs,
@@ -44,9 +42,10 @@ if __name__ == "__main__":
         "init_lr": init_lr,
         "eps_mean": eps_mean,
         "eps_cov": eps_cov,
-        "alpha": alpha
-    })
-    config = wandb.config
+        "alpha": alpha,
+        "project": project,
+        "model_name": model_name,
+        "initialization_type": initialization_type})
 
     # Target
     target = get_gmm_target(n_components)
@@ -56,7 +55,6 @@ if __name__ == "__main__":
                       device,
                       fc_layer_size,
                       n_components,
-                      init_bias_mean_list,
                       initialization_type)
 
     # Training
@@ -67,3 +65,35 @@ if __name__ == "__main__":
 
     # Plotting
     plot(model, target)
+
+
+class MyExperiment(experiment.AbstractExperiment):
+    def initialize(
+        self, config: dict, rep: int, logger: cw_logging.LoggerArray
+    ) -> None:
+        cw_logging.getLogger().info(
+            "Ready to start repetition {}. Resetting everything.".format(rep)
+        )
+
+    def run(self, config: dict, rep: int, logger: cw_logging.LoggerArray) -> None:
+        # # Do Something non-iteratively and logging the result.
+        # cw_logging.getLogger().info("Doing Something.")
+        # logger.process("Some Result")
+        # cw_logging.getLogger().warning("Something went wrong")
+        print(config)
+        toy_task(config)
+
+    def finalize(
+        self, surrender: cw_error.ExperimentSurrender = None, crash: bool = False
+    ):
+        if surrender is not None:
+            cw_logging.getLogger().info("Run was surrendered early.")
+
+        if crash:
+            cw_logging.getLogger().warning("Run crashed with an exception.")
+        cw_logging.getLogger().info("Finished. Closing Down.")
+
+
+if __name__ == "__main__":
+    cw = cluster_work.ClusterWork(MyExperiment)
+    cw.run()

@@ -1,0 +1,24 @@
+[2024-04-24 20:06:18,649]:[cw2] [ERROR] EXCEPTION: /home/luyao/amortized_vi_trpl/result/toy_task/log/rep_00
+Traceback (most recent call last):
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/cw2/job.py", line 90, in run_task
+    self.exp.run(c, r, self.logger)
+  File "main.py", line 84, in run
+    toy_task(config)
+  File "main.py", line 28, in toy_task
+    alpha = config["alpha"]            # regression penalty
+KeyError: 'alpha'
+[2024-04-24 20:08:20,093]:[cw2] [ERROR] EXCEPTION: /home/luyao/amortized_vi_trpl/result/toy_task/log/rep_00
+Traceback (most recent call last):
+  File "/home/luyao/miniconda3/envs/ITPAL_luyao/lib/python3.7/site-packages/cw2/job.py", line 90, in run_task
+    self.exp.run(c, r, self.logger)
+  File "main.py", line 84, in run
+    toy_task(config)
+  File "main.py", line 64, in toy_task
+    init_lr, device, project)
+  File "/home/luyao/amortized_vi_trpl/toy_task/GMM/algorithms/algorithm.py", line 63, in train_model
+    mean_proj_j, chol_proj_j = split_projection(mean_pred_j, chol_pred_j, mean_old_j, chol_old_j, eps_mean, eps_cov)
+  File "/home/luyao/amortized_vi_trpl/toy_task/GMM/projections/split_kl_projection.py", line 40, in split_projection
+    raise e
+  File "/home/luyao/amortized_vi_trpl/toy_task/GMM/projections/split_kl_projection.py", line 34, in split_projection
+    chol_proj[failed_mask] = old_chol[failed_mask]
+IndexError: The shape of the mask [22] at index 0 does not match the shape of the indexed tensor [64, 2, 2] at index 0

@@ -98,9 +98,9 @@ def train_model(model: ConditionalGMM,
             wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        if (epoch + 1) % 25 == 0:
+        if (epoch + 1) % 10 == 0:
             model.eval()
-            eval_contexts = target.get_contexts_gmm(250).to(device)
+            eval_contexts = target.get_contexts_gmm(200).to(device)
             target_mean = target.mean_fn(eval_contexts)
             target_cov = target.cov_fn(eval_contexts)
             target_chol = ch.linalg.cholesky(target_cov)

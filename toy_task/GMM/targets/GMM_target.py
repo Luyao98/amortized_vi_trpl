@@ -11,7 +11,6 @@ class ConditionalGMMTarget(ch.nn.Module):
         self.context_bound_low = context_bound_low
         self.context_bound_high = context_bound_high
         self.context_dim = context_dim
-
         self.context_dist = uniform.Uniform(context_bound_low, context_bound_high)
 
         self.mean_fn = mean_fn
@@ -19,7 +18,6 @@ class ConditionalGMMTarget(ch.nn.Module):
 
     def get_contexts_gmm(self, n_contexts):
         contexts = self.context_dist.sample((n_contexts, self.context_dim))  # return shape(n_contexts, 1)
-        # print(contexts)
         return contexts
 
     def log_prob_tgt(self, contexts, samples):
@@ -41,35 +39,23 @@ class ConditionalGMMTarget(ch.nn.Module):
 
         if samples.dim() == 3:
             n_samples = samples.shape[1]
-            means_expanded = means.unsqueeze(1).expand(-1, n_samples, -1, -1)
-            covs_expanded = covs.unsqueeze(1).expand(-1, n_samples, -1, -1, -1)
-            samples_expanded = samples.unsqueeze(2).expand(-1, -1, n_components, -1)
-
-            mvn = MultivariateNormal(means_expanded, covariance_matrix=covs_expanded)
-            log_probs = mvn.log_prob(samples_expanded)  # [batch_size, n_samples, n_components]
-
-            gate_expanded = gate.unsqueeze(1).expand(-1, n_samples, -1)
-            log_probs += gate_expanded
-
-            log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
-            # return ch.mean(log_probs, dim=1)
-            return log_probs
         else:
             # for plotting
             n_samples = samples.shape[0]
-            means_expanded = means.unsqueeze(1).expand(-1, n_samples, -1, -1)
-            covs_expanded = covs.unsqueeze(1).expand(-1, n_samples, -1, -1, -1)
             samples = samples.unsqueeze(0).expand(batch_size, -1, -1)
-            samples_expanded = samples.unsqueeze(2).expand(-1, -1, n_components, -1)
 
-            mvn = MultivariateNormal(means_expanded, covariance_matrix=covs_expanded)
-            log_probs = mvn.log_prob(samples_expanded)  # [batch_size, n_samples, n_components]
+        means_expanded = means.unsqueeze(1).expand(-1, n_samples, -1, -1)
+        covs_expanded = covs.unsqueeze(1).expand(-1, n_samples, -1, -1, -1)
+        samples_expanded = samples.unsqueeze(2).expand(-1, -1, n_components, -1)
 
-            gate_expanded = gate.unsqueeze(1).expand(-1, n_samples, -1)
-            log_probs += gate_expanded
+        mvn = MultivariateNormal(means_expanded, covariance_matrix=covs_expanded)
+        log_probs = mvn.log_prob(samples_expanded)  # [batch_size, n_samples, n_components]
 
-            log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
-            return log_probs
+        gate_expanded = gate.unsqueeze(1).expand(-1, n_samples, -1)
+        log_probs += gate_expanded
+
+        log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
+        return log_probs
 
 
 def get_weights(c):
@@ -106,8 +92,8 @@ def get_mean_fn(n_components):
         # mean3 = ch.stack([10 * ch.abs(ch.sin(6 * c[:, 0])), -10 * ch.abs(ch.cos(6 * c[:, 0]))], dim=1)
         # mean4 = ch.stack([-10 * ch.abs(ch.sin(4 * c[:, 0])), 10 * ch.abs(ch.cos(4 * c[:, 0]))], dim=1)
         mean1 = ch.stack([2 + c[:, 0], 7 + c[:, 0]], dim=1)
-        mean2 = ch.stack([-7 + c[:, 0], -2 + c[:, 0]], dim=1)
-        mean3 = ch.stack([4 + c[:, 0], -5 + c[:, 0]], dim=1)
+        mean2 = ch.stack([-9 + c[:, 0], -2 + c[:, 0]], dim=1)
+        mean3 = ch.stack([10 + c[:, 0], -5 + c[:, 0]], dim=1)
         mean4 = ch.stack([-3 + c[:, 0], 3 + c[:, 0]], dim=1)
         mean = [mean1, mean2, mean3, mean4]
         return ch.stack(mean, dim=1)

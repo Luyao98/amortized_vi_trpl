@@ -6,11 +6,15 @@ def get_model(model_name,
               device,
               fc_layer_size,
               n_components,
-              init_bias_mean_list,
               initialization_type,
               ):
 
     if model_name == "toy_task_model":
+        init_bias_mean_list = [
+            [10.0, 10.0],
+            [-10.0, -10.0],
+            [10.0, -10.0],
+            [-10.0, 10.0]]
         model = ConditionalGMM(fc_layer_size, n_components, init_bias_mean_list)
         initialize_weights(model, initialization_type, preserve_bias_layers=['fc_mean', 'fc_gate'])
     else:
