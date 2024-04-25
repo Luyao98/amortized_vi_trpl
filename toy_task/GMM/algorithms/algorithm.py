@@ -29,6 +29,7 @@ def train_model(model: ConditionalGMM,
     optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=1e-5)
     contexts = target.get_contexts_gmm(n_context).to(device)
     train_size = int(n_context)
+    prev_js = float('inf')
 
     for epoch in range(n_epochs):
         # shuffle sampled contexts, since I use the same sample set
@@ -103,23 +104,25 @@ def train_model(model: ConditionalGMM,
             eval_contexts = target.get_contexts_gmm(200).to(device)
             target_mean = target.mean_fn(eval_contexts)
             target_cov = target.cov_fn(eval_contexts)
-            target_chol = ch.linalg.cholesky(target_cov)
-            # for uniform gating
-            # target_gate = (1 / n_components) * ch.ones(eval_contexts.shape[0], n_components).to(device)
-
-            # for non-uniform but fixed gating
-            # values = [0.5, 0.1, 0.3, 0.1]
-            # target_gate = ch.stack([ch.full((1000,), value) for value in values], dim=1).to(eval_contexts.device)
-            # target_gate = ch.log(target_gate)
 
             # for non-uniform but random gating
             target_gate = get_weights(eval_contexts)
-            p = (target_gate, target_mean, target_chol)
+            p = (target_gate, target_mean, target_cov)
 
             model_gate, model_mean, model_chol = model(eval_contexts)
-            q = (model_gate, model_mean, model_chol)
+            model_cov = model.covariance(model_chol)
+            q = (model_gate, model_mean, model_cov)
 
             js_div = js_divergence_gmm(p, q)
+            # # trick from TRPL paper
+            # current_js = js_div.item()
+            # if current_js < prev_js:
+            #     eps_mean *= 0.8
+            #     eps_cov *= 0.8
+            # else:
+            #     eps_mean *= 1.1
+            #     eps_cov *= 1.1
+            # prev_js = current_js
             model.train()
             wandb.log({"JS Divergence": js_div.item()})
 
