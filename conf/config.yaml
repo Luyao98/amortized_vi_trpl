@@ -1,3 +1,12 @@
 defaults:
-  - db: gmm_target
+  - _self_
+  - seed: seed_a
+  - model: gmm_target
   - schema: projection
+
+hydra:
+  sweeper:
+    params:
+      seed: seed_a, seed_b, seed_c
+      model: gmm_target
+      schema: projection, no_projection

@@ -1,5 +1,8 @@
 import torch as ch
 import torch.nn as nn
+import torch.backends.cudnn
+import numpy as np
+import random
 
 
 def initialize_weights(model: nn.Module, initialization_type: str, scale: float = 2 ** 0.5, init_w=3e-3,
@@ -46,3 +49,12 @@ def initialize_weights(model: nn.Module, initialization_type: str, scale: float 
 
 def add_value_to_diag(diag_elements):
     return diag_elements + 1e-5
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    ch.manual_seed(seed)
+    ch.cuda.manual_seed_all(seed)
+    ch.backends.cudnn.deterministic = True
+    ch.backends.cudnn.benchmark = False

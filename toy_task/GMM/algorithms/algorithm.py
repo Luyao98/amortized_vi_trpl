@@ -179,8 +179,10 @@ def toy_task(n_epochs: int,
 
     # Training
     train_model(model, target,
-                n_epochs, batch_size, n_context, n_components, n_samples, init_lr, device,  # training hyperparameter
-                project, eps_mean, eps_cov, alpha)  # projection hyperparameter
+                n_epochs, batch_size, n_context, n_components, n_samples, init_lr, device,
+                project, eps_mean, eps_cov, alpha)
 
     # Plotting
-    plot(model, target)
+    # plot(model, target)
+
+    wandb.finish()
