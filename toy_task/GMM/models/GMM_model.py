@@ -7,11 +7,12 @@ from toy_task.GMM.utils.torch_utils import diag_bijector, fill_triangular, inver
 
 
 class GateNN(nn.Module):
-    def __init__(self, n_components):
+    def __init__(self, n_components, gate_size=256):
         super(GateNN, self).__init__()
-        self.fc1 = nn.Linear(1, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc_gate = nn.Linear(128, n_components)
+        self.fc1 = nn.Linear(1, gate_size)
+        self.fc2 = nn.Linear(gate_size, gate_size)
+        # self.fc3 = nn.Linear(gate_size, gate_size)
+        self.fc_gate = nn.Linear(gate_size, n_components)
 
         # set init uniform bias for gates
         self.init_bias_gate = [0, 0, 0, 0]
@@ -21,6 +22,7 @@ class GateNN(nn.Module):
     def forward(self, x):
         x = ch.relu(self.fc1(x))
         x = ch.relu(self.fc2(x))
+        # x = ch.relu(self.fc3(x))
         x = ch.log_softmax(self.fc_gate(x), dim=-1)
         return x
 
@@ -112,7 +114,6 @@ class ConditionalGMM(AbstractGMM, nn.Module):
             return log_probs
         else:
             print("Shape of samples is not correct!")
-
 
     def log_prob_gmm(self, means, chols, log_gates, samples):
         n_samples = samples.shape[1]

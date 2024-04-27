@@ -1,0 +1,10 @@
+n_epochs: 400
+batch_size: 64
+n_context: 640
+n_components: 4
+n_samples: 10
+fc_layer_size: 256
+init_lr: 0.01
+
+model_name: "toy_task_model"
+initialization_type: "xavier"
