@@ -1,23 +1,23 @@
 import torch as ch
 import torch.nn as nn
-from torch.distributions import MultivariateNormal
+from torch.distributions import MultivariateNormal, Categorical
 
 from toy_task.GMM.models.abstract_gmm_model import AbstractGMM
 from toy_task.GMM.utils.torch_utils import diag_bijector, fill_triangular, inverse_softplus
 
 
 class GateNN(nn.Module):
-    def __init__(self, n_components, gate_size=256):
+    def __init__(self, n_components, init_bias_gate=None, gate_size=256):
         super(GateNN, self).__init__()
         self.fc1 = nn.Linear(1, gate_size)
         self.fc2 = nn.Linear(gate_size, gate_size)
-        # self.fc3 = nn.Linear(gate_size, gate_size)
+        self.fc3 = nn.Linear(gate_size, gate_size)
         self.fc_gate = nn.Linear(gate_size, n_components)
 
         # set init uniform bias for gates
-        self.init_bias_gate = [0, 0, 0, 0]
-        with ch.no_grad():
-            self.fc_gate.bias.copy_(ch.tensor(self.init_bias_gate, dtype=self.fc_gate.bias.dtype))
+        if init_bias_gate is not None:
+            with ch.no_grad():
+                self.fc_gate.bias.copy_(ch.tensor(init_bias_gate, dtype=self.fc_gate.bias.dtype))
 
     def forward(self, x):
         x = ch.relu(self.fc1(x))
@@ -28,17 +28,17 @@ class GateNN(nn.Module):
 
 
 class GaussianNN(nn.Module):
-    def __init__(self, fc_layer_size, init_bias_mean=None, init_bias_chol=None):
+    def __init__(self, fc_layer_size, dim_mean, dim_chol, init_bias_mean=None, init_bias_chol=None):
         super(GaussianNN, self).__init__()
         self.fc1 = nn.Linear(1, fc_layer_size)
         self.fc2 = nn.Linear(fc_layer_size, fc_layer_size)
         self.fc3 = nn.Linear(fc_layer_size, fc_layer_size)
-        self.fc_mean = nn.Linear(fc_layer_size, 2)
-        self.fc_chol = nn.Linear(fc_layer_size, 3)
+        self.fc_mean = nn.Linear(fc_layer_size, dim_mean)
+        self.fc_chol = nn.Linear(fc_layer_size, dim_chol)
 
         self.diag_activation = nn.Softplus()
         self.diag_activation_inv = inverse_softplus
-        self.init_std = ch.tensor(1.0)
+        self.init_std = ch.tensor(1)
         self.minimal_std = 1e-3
 
         if init_bias_mean is not None:
@@ -70,16 +70,24 @@ class ConditionalGMM(AbstractGMM, nn.Module):
     def __init__(self,
                  fc_layer_size,
                  n_components,
+                 dim,
+                 init_bias_gate=None,
                  init_bias_mean_list=None,
                  init_bias_chol_list=None):
         super(ConditionalGMM, self).__init__()
-        self.gate = GateNN(n_components)
+        self.gate = GateNN(n_components, init_bias_gate=init_bias_gate)
         self.gaussian_list = nn.ModuleList()
+        self.dim_mean = dim
+        self.dim_chol = (1 + dim) * dim // 2
 
         for i in range(n_components):
             init_bias_mean = init_bias_mean_list[i] if init_bias_mean_list is not None else None
             init_bias_chol = init_bias_chol_list[i] if init_bias_chol_list is not None else None
-            gaussian = GaussianNN(fc_layer_size, init_bias_mean=init_bias_mean, init_bias_chol=init_bias_chol)
+            gaussian = GaussianNN(fc_layer_size,
+                                  dim_mean=self.dim_mean,
+                                  dim_chol=self.dim_chol,
+                                  init_bias_mean=init_bias_mean,
+                                  init_bias_chol=init_bias_chol)
             self.gaussian_list.append(gaussian)
 
     def forward(self, x):
@@ -102,6 +110,22 @@ class ConditionalGMM(AbstractGMM, nn.Module):
         rsamples = MultivariateNormal(loc=mean, scale_tril=chol).rsample(ch.Size([n_samples]))
         return rsamples.transpose(0, 1)
 
+    def get_samples_gmm(self, log_gates, means, chols, num_samples):
+        if log_gates.shape[1] == 1:
+            # print("target has only one component")
+            samples = MultivariateNormal(means.squeeze(1), scale_tril=chols.squeeze(1)).sample((num_samples,))
+            return samples.transpose(0, 1)
+        else:
+            samples = []
+            for i in range(log_gates.shape[0]):
+                cat = Categorical(log_gates[i])
+                indices = cat.sample((num_samples,))
+                chosen_means = means[i, indices]
+                chosen_chols = chols[i, indices]
+                normal = MultivariateNormal(chosen_means, scale_tril=chosen_chols)
+                samples.append(normal.sample())
+            return ch.stack(samples)  # [n_contexts, n_samples, n_features]
+
     def log_prob(self, mean, chol, samples):
         if samples.dim() == 3:
             batch_size, n_samples, _ = samples.shape
@@ -113,7 +137,7 @@ class ConditionalGMM(AbstractGMM, nn.Module):
             # return log_probs.mean(dim=1)  # [batch_size]
             return log_probs
         else:
-            print("Shape of samples is not correct!")
+            raise ValueError("Shape of samples should be [batch_size, n_samples, n_features]")
 
     def log_prob_gmm(self, means, chols, log_gates, samples):
         n_samples = samples.shape[1]

@@ -10,8 +10,7 @@ import torch.optim as optim
 from torch.distributions import MultivariateNormal, kl_divergence
 import wandb
 
-from toy_task.GMM.targets.GMM_target import ConditionalGMMTarget, get_cov_fn, get_mean_fn
-from toy_task.GMM.targets.GMM_simple_target import ConditionalGMMSimpleTarget
+from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_cov_fn, get_mean_fn
 from toy_task.GMM.algorithms.visualization import plot2d_matplotlib
 from toy_task.Gaussian.Gaussian_model import GaussianNN, covariance, get_samples, log_prob, log_prob_gmm
 from toy_task.GMM.projections.split_kl_projection import split_projection
@@ -82,7 +81,7 @@ class ConditionalGMM(nn.Module):
     @staticmethod
     def auxiliary_reward2(j, mean_old, chol_old, samples):
         """
-        used for the model without gating network. However, to calculate the auxiliary reward, the gate value is needed.
+        used for the target without gating network. However, to calculate the auxiliary reward, the gate value is needed.
         To use the closed-form solution to calculate the gate value, the auxiliary reward is needed.
         So here I just set the gate value to 1/n_components.
         """
@@ -136,7 +135,7 @@ def train_model(model: ConditionalGMM,
                 mean_proj_j, chol_proj_j = split_projection(mean_pred_j, chol_pred_j, b_mean_old[:, j], b_chol_old[:, j], eps_mean, eps_cov)
                 cov_proj_j = covariance(chol_proj_j)
 
-                # model and target log probability
+                # target and target log probability
                 model_samples = get_samples(mean_proj_j, cov_proj_j)  # shape (n_c, 2)
                 log_model_j = log_prob(mean_proj_j, cov_proj_j, model_samples)
                 log_target_j = target.log_prob_tgt(b_contexts, model_samples)
@@ -147,7 +146,7 @@ def train_model(model: ConditionalGMM,
                 reg_loss = kl_divergence(pred_dist, proj_dist)
 
                 auxiliary_loss = model.auxiliary_reward2(j, b_mean_old, b_chol_old, model_samples)
-                # auxiliary_loss = model.auxiliary_reward(j, b_gate_old, b_mean_old, b_chol_old, model_samples)
+                # auxiliary_loss = target.auxiliary_reward(j, b_gate_old, b_mean_old, b_chol_old, model_samples)
                 loss_j = log_model_j - log_target_j - auxiliary_loss + alpha * reg_loss
 
 
@@ -156,7 +155,7 @@ def train_model(model: ConditionalGMM,
                 # log_model_j = log_prob(mean_pred_j, cov_pred_j, model_samples)
                 # log_target_j = target.log_prob_tgt(b_contexts, model_samples)
                 # # loss_j = (log_model_j - log_target_j).mean()
-                # auxiliary_loss = model.auxiliary_reward2(j, b_mean_old, b_chol_old, model_samples)
+                # auxiliary_loss = target.auxiliary_reward2(j, b_mean_old, b_chol_old, model_samples)
                 # loss_j = (log_model_j - log_target_j - auxiliary_loss).mean()
 
                 loss_j.backward(retain_graph=j < n_components - 1)
@@ -164,7 +163,7 @@ def train_model(model: ConditionalGMM,
                 wandb.log({f"training loss {j}": loss_j.mean(),
                            f"regression loss {j}": reg_loss.mean()})
 
-        # for scheduler in model.schedulers:
+        # for scheduler in target.schedulers:
         #     scheduler.step()
         # end_time = time.time()
         # epoch_duration = end_time - start_time

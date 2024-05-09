@@ -146,7 +146,7 @@ def train_model(model: GaussianNN,
             wandb.log({"training loss": loss.item(),
                        "regression loss": reg_loss.item(),
                        "projection loss": proj_loss.item()})
-            # make_dot(loss, params=dict(model.named_parameters())).render("full_graph", format="png")
+            # make_dot(loss, params=dict(target.named_parameters())).render("full_graph", format="png")
     print("Training done!")
 
 

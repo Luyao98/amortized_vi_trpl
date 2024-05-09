@@ -1,9 +1,8 @@
 import torch as ch
-from torch.distributions import uniform, MultivariateNormal
+from torch.distributions import uniform, MultivariateNormal, Categorical
 from toy_task.GMM.targets.abstract_target import AbstractTarget
-
-# ch.manual_seed(37)
-# np.random.seed(37)
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
@@ -20,6 +19,22 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
     def get_contexts(self, n_contexts):
         contexts = self.context_dist.sample((n_contexts, self.context_dim))  # return shape(n_contexts, 1)
         return contexts
+
+    def sample(self, contexts, n_samples):
+        means = self.mean_fn(contexts).to(contexts.device)
+        chols = self.chol_fn(contexts).to(contexts.device)
+
+        gate = get_weights(contexts)
+        samples = []
+        for i in range(contexts.shape[0]):
+            cat = Categorical(gate[i])
+            indices = cat.sample((n_samples,))
+            chosen_means = means[i, indices]
+            chosen_chols = chols[i, indices]
+            normal = MultivariateNormal(chosen_means, scale_tril=chosen_chols)
+            sample = normal.sample()
+            samples.append(sample)
+        return ch.stack(samples)  # [n_contexts, n_samples, n_features]
 
     def log_prob_tgt(self, contexts, samples):
         means = self.mean_fn(contexts).to(contexts.device)
@@ -47,6 +62,24 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
 
         log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
         return log_probs
+
+    def visualize(self, contexts, n_samples=None):
+        fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
+        for i, c in enumerate(contexts):
+            x, y = np.meshgrid(np.linspace(-15, 15, 300), np.linspace(-15, 15, 300))
+            grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
+            pdf_values = ch.exp(self.log_prob_tgt(c.unsqueeze(1), grid))
+            pdf_values = pdf_values.view(300, 300).numpy()
+
+            ax = axes[i]
+            ax.contourf(x, y, pdf_values, levels=50, cmap='viridis')
+            if n_samples is not None:
+                samples = self.sample(c.unsqueeze(1), n_samples)
+                ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
+            ax.set_title(f'Target {i + 1} with context {c.item()}')
+
+        plt.tight_layout()
+        plt.show()
 
 
 def get_weights(c):
@@ -93,3 +126,13 @@ def get_gmm_target(n_components):
     chol_target = get_chol_fn(n_components)
     target = ConditionalGMMTarget(mean_target, chol_target)
     return target
+
+
+# test
+# target = get_gmm_target(4)
+# contexts = target.get_contexts(3)  # (3, 1)
+# samples = target.sample(contexts, 1000)  # (3, 1000, 2)
+# log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
+# target.visualize(contexts, n_samples=1000)
+# contexts = ch.tensor([[-2.619831], [-2.6058419], [-2.871721]])
+# target.visualize(contexts)

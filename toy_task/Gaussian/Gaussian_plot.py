@@ -22,7 +22,7 @@ def gaussian_plot(model, target, contexts):
         ax.set_xlabel('x1')
         ax.set_ylabel('x2')
 
-        # plot model distribution
+        # plot target distribution
         ax = axes[1, i]
         ax.clear()
         mean, chol = model(c_expanded)

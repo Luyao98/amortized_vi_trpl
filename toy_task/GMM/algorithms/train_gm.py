@@ -6,10 +6,12 @@ import wandb
 
 from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.model_factory import get_model
-from toy_task.GMM.targets.GMM_target import ConditionalGMMTarget, get_weights, get_gmm_target
+from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_gmm_target
 from toy_task.GMM.algorithms.visualization.GMM_plot import plot2d_matplotlib
-from toy_task.GMM.algorithms.evaluation.GMM_evaluation import js_divergence_gmm
+
 from toy_task.GMM.projections.split_kl_projection import split_projection
+from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence
+from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 
 
 def train_model(model: ConditionalGMM,
@@ -29,6 +31,7 @@ def train_model(model: ConditionalGMM,
 
     optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=1e-5)
     contexts = target.get_contexts(n_context).to(device)
+    eval_contexts = target.get_contexts(200).to(device)
     train_size = int(n_context)
     # prev_js = float('inf')
 
@@ -62,9 +65,10 @@ def train_model(model: ConditionalGMM,
                 chol_old_j = b_chol_old[:, j]
 
                 if project:
-                    mean_proj_j, chol_proj_j = split_projection(mean_pred_j, chol_pred_j, mean_old_j, chol_old_j, eps_mean, eps_cov)
+                    mean_proj_j, chol_proj_j = split_projection(mean_pred_j, chol_pred_j, mean_old_j, chol_old_j,
+                                                                eps_mean, eps_cov)
 
-                    # model and target log probability
+                    # target and target log probability
                     model_samples = model.get_rsamples(mean_proj_j, chol_proj_j, n_samples)  # shape (n_c, n_samples, 2)
                     log_model_j = model.log_prob(mean_proj_j, chol_proj_j, model_samples)
                     log_target_j = target.log_prob_tgt(b_contexts, model_samples)
@@ -76,7 +80,8 @@ def train_model(model: ConditionalGMM,
 
                     aux_loss = model.auxiliary_reward(j, b_gate_old, b_mean_old, b_chol_old, model_samples)
                     gate_pred_j = gate_pred[:, j].unsqueeze(1).expand(-1, model_samples.shape[1])
-                    loss_j = ch.exp(gate_pred_j) * (log_model_j - log_target_j - aux_loss + alpha * reg_loss + gate_pred_j)
+                    loss_j = ch.exp(gate_pred_j) * (log_model_j - log_target_j - aux_loss +
+                                                    alpha * reg_loss + gate_pred_j)
                 else:
                     model_samples = model.get_rsamples(mean_pred_j, chol_pred_j, n_samples)
                     log_model_j = model.log_prob(mean_pred_j, chol_pred_j, model_samples)
@@ -84,7 +89,6 @@ def train_model(model: ConditionalGMM,
                     if responsibility:
                         # loss: with log responsibility but without projection
                         aux_loss = model.auxiliary_reward(j, b_gate_old, b_mean_old, b_chol_old, model_samples)
-                        # loss_j = log_model_j - log_target_j - auxiliary_loss
                         gate_pred_j = gate_pred[:, j].unsqueeze(1).expand(-1, model_samples.shape[1])
                         loss_j = ch.exp(gate_pred_j) * (log_model_j - log_target_j - aux_loss + gate_pred_j)
                     else:
@@ -102,29 +106,22 @@ def train_model(model: ConditionalGMM,
         # Evaluation
         if (epoch + 1) % 10 == 0:
             model.eval()
-            eval_contexts = target.get_contexts(200).to(device)
-            target_mean = target.mean_fn(eval_contexts)
-            target_chol = target.chol_fn(eval_contexts)
+            with ch.no_grad():
+                js_div = js_divergence(model, target, eval_contexts, device)
+                j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
-            # for non-uniform but random gating
-            target_gate = get_weights(eval_contexts)
-            p = (target_gate, target_mean, target_chol)
-
-            model_gate, model_mean, model_chol = model(eval_contexts)
-            q = (model_gate, model_mean, model_chol)
-
-            js_div = js_divergence_gmm(p, q)
-            # # trick from TRPL paper
-            # current_js = js_div.item()
-            # if current_js < prev_js:
-            #     eps_mean *= 0.8
-            #     eps_cov *= 0.8
-            # else:
-            #     eps_mean *= 1.1
-            #     eps_cov *= 1.1
-            # prev_js = current_js
+                # # trick from TRPL paper
+                # current_js = js_div.item()
+                # if current_js < prev_js:
+                #     eps_mean *= 0.8
+                #     eps_cov *= 0.8
+                # else:
+                #     eps_mean *= 1.1
+                #     eps_cov *= 1.1
+                # prev_js = current_js
             model.train()
-            wandb.log({"JS Divergence": js_div.item()})
+            wandb.log({"Jensen Shannon Divergence": js_div.item(),
+                       "Jeffreys Divergence": j_div.item()})
 
     print("Training done!")
 
@@ -132,7 +129,7 @@ def train_model(model: ConditionalGMM,
 def plot(model: ConditionalGMM,
          target: ConditionalGMMTarget):
     contexts = target.get_contexts(3).to('cpu')
-    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-15, max_x=15, min_y=-15, max_y=15)
+    plot2d_matplotlib(target, model.to('cpu'), contexts, ideal_gates=None, min_x=-15, max_x=15, min_y=-15, max_y=15)
 
 
 def toy_task(n_epochs: int,
@@ -143,6 +140,7 @@ def toy_task(n_epochs: int,
              fc_layer_size: int,
              init_lr: float,
              model_name: str,
+             dim: int,
              initialization_type: str,
              project: bool,
              eps_mean: float,
@@ -153,7 +151,7 @@ def toy_task(n_epochs: int,
     print("Current device:", device)
 
     # Wandb
-    wandb.init(project="ELBOopt_GMM", config={
+    wandb.init(project="ELBO_GMM", config={
         "n_epochs": n_epochs,
         "batch_size": batch_size,
         "n_context": n_context,
@@ -172,6 +170,7 @@ def toy_task(n_epochs: int,
 
     # Model
     model = get_model(model_name,
+                      dim,
                       device,
                       fc_layer_size,
                       n_components,
@@ -183,6 +182,12 @@ def toy_task(n_epochs: int,
                 project, eps_mean, eps_cov, alpha)
 
     # Plotting
-    # plot(model, target)
-
+    plot(model, target)
     wandb.finish()
+
+
+# test
+if __name__ == "__main__":
+    toy_task(n_epochs=400, batch_size=64, n_context=640, n_components=4, n_samples=10, fc_layer_size=256,
+             init_lr=0.01, model_name="toy_task_2d_model", dim=2, initialization_type="xavier",
+             project=False, eps_mean=0.1, eps_cov=0.5, alpha=2)

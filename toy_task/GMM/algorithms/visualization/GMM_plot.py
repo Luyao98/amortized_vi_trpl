@@ -1,7 +1,12 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from toy_task.GMM.targets.GMM_target import get_weights
+from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_weights
+from toy_task.GMM.targets.funnel_target import FunnelTarget
+
+import wandb
+import io
+from PIL import Image
 
 """
 the current version for GMM case plotting, based on the code from Philipp Dahlinger.
@@ -12,6 +17,7 @@ def plot2d_matplotlib(
         target_dist,
         model,
         contexts,
+        ideal_gates,
         # fig,
         # axes,
         normalize_output=False,
@@ -45,12 +51,26 @@ def plot2d_matplotlib(
     locs = data["locs"]
     scale_trils = data["scale_trils"]
     weights = data["weights"]
-    target_weights = np.exp(get_weights(contexts).detach().cpu().numpy())
     # plot
-    fig, axes = plt.subplots(4, n_tasks, figsize=(15, 10))
+    if type(target_dist) == ConditionalGMMTarget:
+        target_weights = np.exp(get_weights(contexts).detach().cpu().numpy())
+        if ideal_gates is not None:
+            fig, axes = plt.subplots(6, n_tasks, figsize=(15, 10))
+        else:
+            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 10))
+    elif not type(target_dist) == ConditionalGMMTarget:
+        if ideal_gates is not None:
+            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 10))
+        else:
+            fig, axes = plt.subplots(4, n_tasks, figsize=(15, 10))
+    else:
+        raise ValueError("plotting failed!")
     for l in range(n_tasks):
         # plot target distribution
-        ax = axes[0, l]
+        if n_tasks == 1:
+            ax = axes[0]
+        else:
+            ax = axes[0, l]
         ax.clear()
         contour_plot = ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
@@ -58,8 +78,11 @@ def plot2d_matplotlib(
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
 
-        # plot model distribution
-        ax = axes[1, l]
+        # plot model distribution with background target distribution
+        if n_tasks == 1:
+            ax = axes[1]
+        else:
+            ax = axes[1, l]
         ax.clear()
         # ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
         ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
@@ -73,31 +96,73 @@ def plot2d_matplotlib(
             ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
-        ax.set_title("Model density")
+        ax.set_title("Model density with target as background")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         # ax.set_xlim(min_x, max_x)
         # ax.set_ylim(min_y, max_y)
 
-        # plot weights
-        ax = axes[2, l]
+        # plot model distribution with background target distribution
+        if n_tasks == 1:
+            ax = axes[2]
+        else:
+            ax = axes[2, l]
         ax.clear()
-        ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
+        ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        ax.set_title("target weights")
+        ax.set_title("Model density with model as background")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
 
         # plot weights
-        ax = axes[3, l]
+        if n_tasks == 1:
+            ax = axes[3]
+        else:
+            ax = axes[3, l]
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
-        ax.set_title("model weights")
+        ax.set_title("target weights")
+
+        if ideal_gates is not None:
+            # plot ideal weights
+            if n_tasks == 1:
+                ax = axes[4]
+            else:
+                ax = axes[4, l]
+            ax.clear()
+            ax.pie(ideal_gates[l], labels=[f"{w * 100:.2f}%" for w in ideal_gates[l]], colors=colors)
+            ax.axis("scaled")
+            ax.set_title("ideal target weights")
+
+            if type(target_dist) == ConditionalGMMTarget:
+                # plot weights
+                ax = axes[5, l]
+                ax.clear()
+                ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
+                ax.axis("scaled")
+                ax.set_title("target weights")
+        elif type(target_dist) == ConditionalGMMTarget and ideal_gates is None:
+            # plot weights
+            ax = axes[4, l]
+            ax.clear()
+            ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
+            ax.axis("scaled")
+            ax.set_title("target weights")
     # ax = axes[0, -1]
     # # color bar of last target density
     # cbar = plt.colorbar(contour_plot, cax=ax)
 
+    img_buf = io.BytesIO()
+    plt.savefig(img_buf, format='png')
+    img_buf.seek(0)
+
+    # Create an image from BytesIO object
+    image = Image.open(img_buf)
+    wandb.log({"Plot": [wandb.Image(image, caption="Plot of target and target distributions")]})
     fig.tight_layout()
     plt.show()
+    plt.close(fig)
 
 
 def compute_data_for_plot2d(
@@ -154,7 +219,12 @@ def compute_data_for_plot2d(
 
     # evaluate distributions
     with torch.no_grad():
-        log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
+        if type(target_dist) == FunnelTarget:
+            # pad with zeros for unused dimensions
+            xy_funnel = torch.cat([xy, torch.zeros(xy.shape[0], 1)], dim=1)
+            log_p_tgt = target_dist.log_prob_tgt(contexts, xy_funnel)
+        else:
+            log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
         log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy.unsqueeze(0).expand(n_tasks, -1, -1))
 
     log_p_tgt = log_p_tgt.to("cpu").numpy()
