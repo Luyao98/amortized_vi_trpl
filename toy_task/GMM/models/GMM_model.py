@@ -38,7 +38,7 @@ class GaussianNN(nn.Module):
 
         self.diag_activation = nn.Softplus()
         self.diag_activation_inv = inverse_softplus
-        self.init_std = ch.tensor(1)
+        self.init_std = ch.tensor(4)  # 1 for gmm target, 4 for banana target
         self.minimal_std = 1e-3
 
         if init_bias_mean is not None:
@@ -118,7 +118,7 @@ class ConditionalGMM(AbstractGMM, nn.Module):
         else:
             samples = []
             for i in range(log_gates.shape[0]):
-                cat = Categorical(log_gates[i])
+                cat = Categorical(ch.exp(log_gates[i]))
                 indices = cat.sample((num_samples,))
                 chosen_means = means[i, indices]
                 chosen_chols = chols[i, indices]

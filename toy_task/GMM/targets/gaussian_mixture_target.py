@@ -27,7 +27,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         gate = get_weights(contexts)
         samples = []
         for i in range(contexts.shape[0]):
-            cat = Categorical(gate[i])
+            cat = Categorical(ch.exp(gate[i]))
             indices = cat.sample((n_samples,))
             chosen_means = means[i, indices]
             chosen_chols = chols[i, indices]

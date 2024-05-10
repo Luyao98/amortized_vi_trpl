@@ -13,13 +13,13 @@ def get_model(model_name,
     if model_name == "toy_task_2d_model":
         if n_components == 4:
             init_bias_mean_list = [
-                [5.0, 5.0],
-                [-5.0, -5.0],
-                [5.0, -5.0],
-                [-5.0, 5.0]]
+                [3.0, 3.0],
+                [-3.0, -3.0],
+                [3.0, -3.0],
+                [-3.0, 3.0]]
             init_bias_gate = [0.0, 0.0, 0.0, 0.0]
         elif n_components == 1:
-            init_bias_mean_list = [[-5.0, 5.0]]
+            init_bias_mean_list = [[-3.0, 3.0]]
             init_bias_gate = [0.0]
         else:
             raise ValueError(f"Invalid n_components {n_components}. Now only support 1 or 4.")
