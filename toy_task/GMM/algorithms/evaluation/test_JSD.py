@@ -1,9 +1,7 @@
 import torch as ch
 from torch.distributions import Categorical, MultivariateNormal
-from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.model_factory import get_model
-from toy_task.GMM.targets.banana_mixture_target import BananaMixtureTarget
-from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_gmm_target, get_weights
+from toy_task.GMM.targets.gaussian_mixture_target import  get_gmm_target, get_weights
 from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence
 
 

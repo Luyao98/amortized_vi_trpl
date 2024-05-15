@@ -1,12 +1,12 @@
 defaults:
   - _self_
   - seed: seed_a
-  - target: bmm_target
+  - target: gmm_target
   - schema: no_projection
 
 hydra:
   sweeper:
     params:
-      seed: seed_a
-      target: bmm_target
+      seed: seed_a, seed_b, seed_c
+      target: gmm_target
       schema: no_projection, projection

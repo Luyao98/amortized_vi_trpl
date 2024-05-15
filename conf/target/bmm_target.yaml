@@ -1,11 +1,12 @@
-n_epochs: 1500
+n_epochs: 5000
 batch_size: 128
 n_context: 1280
-n_components: 4
+n_components: 8
 n_samples: 10
 fc_layer_size: 256
 init_lr: 0.0005
 
 model_name: "toy_task_2d_model"
+target_name: "bmm"
 dim: 2
 initialization_type: "xavier"

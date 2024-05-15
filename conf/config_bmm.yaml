@@ -1,0 +1,12 @@
+defaults:
+  - _self_
+  - seed: seed_b
+  - target: bmm_target
+  - schema: projection
+
+hydra:
+  sweeper:
+    params:
+      seed: seed_b
+      target: bmm_target
+      schema: projection, p5, p10, p20, p30, p40, p50

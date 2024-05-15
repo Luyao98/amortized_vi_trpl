@@ -21,6 +21,21 @@ class AbstractTarget(ABC):
         pass
 
     @abstractmethod
+    def sample(self, contexts: ch.Tensor, n_samples: int) -> ch.Tensor:
+        """
+        Samples from the target distribution given the specified contexts.
+
+        Parameters:
+        - contexts (torch.Tensor): The context vectors parameterizing the target distribution.
+        - n_samples (int): The number of samples to draw from the target distribution.
+
+        Returns:
+        - torch.Tensor: A tensor containing the samples drawn from the target distribution.
+        """
+        pass
+
+
+    @abstractmethod
     def log_prob_tgt(self, contexts: ch.Tensor, samples: ch.Tensor) -> ch.Tensor:
         """
         Calculates the logarithm of the probability density/mass function of the target distribution

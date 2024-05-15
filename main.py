@@ -1,10 +1,10 @@
 from omegaconf import DictConfig, OmegaConf
 import hydra
-from toy_task.GMM.algorithms.train_bm import toy_task
+from toy_task.GMM.algorithms.algorithm import toy_task
 from toy_task.GMM.utils.network_utils import set_seed
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config_bmm")
 def my_app(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
@@ -17,6 +17,7 @@ def my_app(cfg: DictConfig) -> None:
              fc_layer_size=cfg.target.fc_layer_size,
              init_lr=cfg.target.init_lr,
              model_name=cfg.target.model_name,
+             target_name=cfg.target.target_name,
              dim=cfg.target.dim,
              initialization_type=cfg.target.initialization_type,
              project=cfg.schema.project,

@@ -17,7 +17,7 @@ def plot2d_matplotlib(
         target_dist,
         model,
         contexts,
-        ideal_gates,
+        ideal_gates=None,
         # fig,
         # axes,
         normalize_output=False,
@@ -55,14 +55,14 @@ def plot2d_matplotlib(
     if type(target_dist) == ConditionalGMMTarget:
         target_weights = np.exp(get_weights(contexts).detach().cpu().numpy())
         if ideal_gates is not None:
-            fig, axes = plt.subplots(6, n_tasks, figsize=(15, 10))
+            fig, axes = plt.subplots(6, n_tasks, figsize=(15, 30))
         else:
-            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 10))
+            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 25))
     elif not type(target_dist) == ConditionalGMMTarget:
         if ideal_gates is not None:
-            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 10))
+            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 25))
         else:
-            fig, axes = plt.subplots(4, n_tasks, figsize=(15, 10))
+            fig, axes = plt.subplots(4, n_tasks, figsize=(15, 20))
     else:
         raise ValueError("plotting failed!")
     for l in range(n_tasks):
@@ -161,7 +161,7 @@ def plot2d_matplotlib(
     image = Image.open(img_buf)
     wandb.log({"Plot": [wandb.Image(image, caption="Plot of target and target distributions")]})
     fig.tight_layout()
-    plt.show()
+    # plt.show()
     plt.close(fig)
 
 

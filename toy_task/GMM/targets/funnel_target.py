@@ -20,17 +20,15 @@ class FunnelTarget(ch.nn.Module):
         samples = []
 
         for i in range(n_contexts):
-            # Sample 'v' from a normal distribution
             v_samples = Normal(loc=0., scale=sigs[i]).sample((n_samples,))
 
-            # Calculate the variance for other dimensions
             variance_other = ch.exp(v_samples)
             other_dim = self.dim - 1
 
             # For each sample of 'v', sample the remaining dimensions from their respective normal distributions
             other_samples = []
             for var in variance_other:
-                cov_other = ch.eye(other_dim, device=contexts.device) * (var + 1e-8)  # Add a small epsilon for numerical stability
+                cov_other = ch.eye(other_dim, device=contexts.device) * (var + 1e-8)  # for numerical stability
                 normal_dist = MultivariateNormal(loc=ch.zeros(other_dim, device=contexts.device), covariance_matrix=cov_other)
                 other_samples.append(normal_dist.sample())
 

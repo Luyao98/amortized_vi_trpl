@@ -8,9 +8,8 @@ from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.model_factory import get_model
 from toy_task.GMM.targets.funnel_target import FunnelTarget, get_sig_fn
 from toy_task.GMM.algorithms.visualization.GMM_plot import plot2d_matplotlib
-from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence
+from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, ideal_js_divergence
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
-from toy_task.GMM.algorithms.evaluation.ideal_gates import ideal_calculated_gates
 from toy_task.GMM.projections.split_kl_projection import split_projection
 
 
@@ -31,16 +30,22 @@ def train_model(model: ConditionalGMM,
 
     optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=1e-5)
     contexts = target.get_contexts(n_context).to(device)
-    # eval_contexts = contexts.clone().to(device)
-    # plot_contexts = contexts.clone().to(device)
-    eval_contexts = target.get_contexts(100).to(device)
-    plot_contexts = ch.tensor([[0.0],
-                               [-0.5],
-                               [0.8]])
+    eval_contexts = target.get_contexts(200).to(device)
+    plot_contexts = ch.tensor([[-0.2],
+                               [1.0],
+                               [-1.9]])
     train_size = int(n_context)
     # prev_js = float('inf')
 
     for epoch in range(n_epochs):
+        # plot initial model
+        if epoch == 0:
+            model.eval()
+            with ch.no_grad():
+                plot(model, target, plot_contexts)
+                model.to(device)
+            model.train()
+
         # shuffle sampled contexts, since I use the same sample set
         indices = ch.randperm(train_size)
         shuffled_contexts = contexts[indices]
@@ -51,19 +56,20 @@ def train_model(model: ConditionalGMM,
         mean_old = mean_old.clone().detach()
         chol_old = chol_old.clone().detach()
 
+        batched_approx_reward = []
         for batch_idx in range(0, train_size, batch_size):
             # get old distribution for current batch
-            b_contexts = shuffled_contexts[batch_idx:batch_idx+batch_size]
-            b_gate_old = gate_old[batch_idx:batch_idx+batch_size]
-            b_mean_old = mean_old[batch_idx:batch_idx+batch_size]
-            b_chol_old = chol_old[batch_idx:batch_idx+batch_size]
+            b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
+            b_gate_old = gate_old[batch_idx:batch_idx + batch_size]
+            b_mean_old = mean_old[batch_idx:batch_idx + batch_size]
+            b_chol_old = chol_old[batch_idx:batch_idx + batch_size]
 
             # prediction step
             gate_pred, mean_pred, chol_pred = model(b_contexts)
 
             # component-wise calculation
             loss_component = []
-            elbo_component = []
+            approx_reward_component = []
             for j in range(n_components):
                 mean_pred_j = mean_pred[:, j]  # (batched_c, 2)
                 chol_pred_j = chol_pred[:, j]
@@ -86,8 +92,8 @@ def train_model(model: ConditionalGMM,
 
                     aux_loss = model.auxiliary_reward(j, b_gate_old, b_mean_old, b_chol_old, model_samples)
                     gate_pred_j = gate_pred[:, j].unsqueeze(1).expand(-1, model_samples.shape[1])
-                    elbo = log_model_j - log_target_j - aux_loss + alpha * reg_loss + gate_pred_j
-                    loss_j = ch.exp(gate_pred_j) * elbo
+                    approx_reward_j = log_model_j - log_target_j - aux_loss + alpha * reg_loss + gate_pred_j
+                    loss_j = ch.exp(gate_pred_j) * approx_reward_j
                 else:
                     model_samples = model.get_rsamples(mean_pred_j, chol_pred_j, n_samples)
                     log_model_j = model.log_prob(mean_pred_j, chol_pred_j, model_samples)
@@ -96,16 +102,16 @@ def train_model(model: ConditionalGMM,
                         # loss: with log responsibility but without projection
                         aux_loss = model.auxiliary_reward(j, b_gate_old, b_mean_old, b_chol_old, model_samples)
                         gate_pred_j = gate_pred[:, j].unsqueeze(1).expand(-1, model_samples.shape[1])
-                        elbo = log_model_j - log_target_j - aux_loss + gate_pred_j
-                        loss_j = ch.exp(gate_pred_j) * elbo
+                        approx_reward_j = log_model_j - log_target_j - aux_loss + gate_pred_j
+                        loss_j = ch.exp(gate_pred_j) * approx_reward_j
                     else:
                         # loss: without log responsibility or projection
                         loss_j = log_model_j - log_target_j
-                        elbo = loss_j
+                        approx_reward_j = loss_j
                 loss_component.append(loss_j)
-                elbo_component.append(elbo)
+                approx_reward_component.append(approx_reward_j)
 
-            stack_elbo = ch.stack(elbo_component)
+            batched_approx_reward.append(ch.stack(approx_reward_component))
             loss = ch.sum(ch.stack(loss_component))
             optimizer.zero_grad()
             loss.backward()
@@ -115,14 +121,15 @@ def train_model(model: ConditionalGMM,
             wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        if (epoch + 1) % 100 == 0:
+        n_plot = n_epochs // 10
+        if (epoch + 1) % n_plot == 0:
             model.eval()
             with ch.no_grad():
+                approx_reward = ch.cat(batched_approx_reward, dim=1)  # [n_components, n_contexts, n_samples]
+                ideal_js_div = ideal_js_divergence(model, approx_reward, shuffled_contexts, device)
                 js_div = js_divergence(model, target, eval_contexts, device)
                 j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
-                # ideal_gates = ideal_calculated_gates(stack_elbo.clone())
-                # plot(target, target, eval_contexts, ideal_gates.to('cpu'))
                 plot(model, target, plot_contexts)
                 model.to(device)
 
@@ -136,7 +143,8 @@ def train_model(model: ConditionalGMM,
                 #     eps_cov *= 1.1
                 # prev_js = current_js
             model.train()
-            wandb.log({"Jenson Shannon Divergence": js_div.item(),
+            wandb.log({"ideal Jensen Shannon Divergence": ideal_js_div.item(),
+                       "Jensen Shannon Divergence": js_div.item(),
                        "Jeffreys Divergence": j_div.item()})
 
     print("Training done!")
