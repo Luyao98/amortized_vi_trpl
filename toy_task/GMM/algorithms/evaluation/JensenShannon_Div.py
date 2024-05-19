@@ -25,10 +25,15 @@ def js_divergence(model: ConditionalGMM,
     eval_gate, eval_mean, eval_chol = model(eval_contexts)
     model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
     target_samples = target.sample(eval_contexts, num_samples).to(device)
-
+    # TODO make here more general, now only for funnel with 3D
+    if target_samples.shape[-1] == 3:
+        target_samples_m = target_samples[..., 1:]
+        m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples_m)
+    else:
+        m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
     t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
     t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
-    m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
+    # m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
     m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
 
     midpoint_t = ch.logsumexp(ch.stack([t_log_t, m_log_t]), dim=0) - ch.log(ch.tensor(2.0))

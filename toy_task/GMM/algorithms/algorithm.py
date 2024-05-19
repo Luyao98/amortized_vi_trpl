@@ -21,7 +21,8 @@ def train_model(model: ConditionalGMM,
                 n_context: int,
                 n_components: int,
                 n_samples: int,
-                init_lr,
+                gate_lr: float,
+                gaussian_lr: float,
                 device,
                 project,
                 eps_mean: float or None,
@@ -29,12 +30,20 @@ def train_model(model: ConditionalGMM,
                 alpha: int or None,
                 responsibility=True):
 
-    optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=1e-5)
+    # optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=1e-5)
+    optimizer = optim.Adam([
+        {'params': model.gate.parameters(), 'lr': gate_lr},
+        {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
+    ], weight_decay=1e-5)
     contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     plot_contexts = ch.tensor([[-0.3],
-                               [1.3],
-                               [-1.9]])
+                               [0.7],
+                               [-1.8]])
+    # funnel
+    # plot_contexts = ch.tensor([[-0.3],
+    #                            [0.5],
+    #                            [-0.9]])
     train_size = int(n_context)
     prev_js = float('inf')
 
@@ -134,15 +143,16 @@ def train_model(model: ConditionalGMM,
                 plot(model, target, plot_contexts)
                 model.to(device)
 
-                # # trick from TRPL paper
-                # current_js = js_div.item()
-                # if current_js < prev_js:
-                #     eps_mean *= 0.8
-                #     eps_cov *= 0.8
-                # else:
-                #     eps_mean *= 1.1
-                #     eps_cov *= 1.1
-                # prev_js = current_js
+                # trick from TRPL paper
+                if project:
+                    current_js = js_div.item()
+                    if current_js < prev_js:
+                        eps_mean *= 0.8
+                        eps_cov *= 0.8
+                    else:
+                        eps_mean *= 1.1
+                        eps_cov *= 1.1
+                    prev_js = current_js
             model.train()
             wandb.log({"ideal Jensen Shannon Divergence": ideal_js_div.item(),
                        "Jensen Shannon Divergence": js_div.item(),
@@ -159,47 +169,34 @@ def plot(model: ConditionalGMM,
     else:
         contexts = contexts.clone().to('cpu')
 
-    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-5, max_x=5, min_y=-5, max_y=5)
+    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
 
 
-def toy_task(n_epochs: int,
-             batch_size: int,
-             n_context: int,
-             n_components: int,
-             n_samples: int,
-             fc_layer_size: int,
-             init_lr: float,
-             model_name: str,
-             target_name: str,
-             dim: int,
-             initialization_type: str,
-             project: bool,
-             eps_mean: float,
-             eps_cov: float,
-             alpha: int):
+def toy_task(config):
+    n_epochs = config['n_epochs']
+    batch_size = config['batch_size']
+    n_context = config['n_context']
+    n_components = config['n_components']
+    n_samples = config['n_samples']
+    fc_layer_size = config['fc_layer_size']
+    # init_lr = config['init_lr']
+    gate_lr = config['gate_lr']
+    gaussian_lr = config['gaussian_lr']
+    model_name = config['model_name']
+    target_name = config['target_name']
+    dim = config['dim']
+    initialization_type = config['initialization_type']
+    project = config['project']
+    eps_mean = config['eps_mean']
+    eps_cov = config['eps_cov']
+    alpha = config['alpha']
 
     # Device
     device = ch.device("cuda" if ch.cuda.is_available() else "cpu")
     print("Current device:", device)
 
-    # Wandb
-    wandb.init(project="ELBOopt_GMM", config={
-        "n_epochs": n_epochs,
-        "batch_size": batch_size,
-        "n_context": n_context,
-        "n_components": n_components,
-        "fc_layer_size": fc_layer_size,
-        "init_lr": init_lr,
-        "eps_mean": eps_mean,
-        "eps_cov": eps_cov,
-        "alpha": alpha,
-        "project": project,
-        "model_name": model_name,
-        "target_name": target_name,
-        "initialization_type": initialization_type})
-
     # Target
-    target = get_target(target_name,3).to(device)
+    target = get_target(target_name, target_components=5).to(device)
 
     # Model
     model = get_model(model_name,
@@ -211,17 +208,20 @@ def toy_task(n_epochs: int,
 
     # Training
     train_model(model, target,
-                n_epochs, batch_size, n_context, n_components, n_samples, init_lr, device,
+                n_epochs, batch_size, n_context, n_components, n_samples, gate_lr, gaussian_lr, device,
                 project, eps_mean, eps_cov, alpha)
 
-    wandb.finish()
 
+# if __name__ == "__main__":
+    # # test funnel
+    # toy_task(n_epochs=2000, batch_size=128, n_context=1280, n_components=4, n_samples=10, fc_layer_size=256,
+    #          init_lr=0.005, model_name="toy_task_2d_model", target_name="funnel", dim=2, initialization_type="xavier",
+    #          project=False, eps_mean=1, eps_cov=10, alpha=75)
 
-if __name__ == "__main__":
-    # test bmm
-    toy_task(n_epochs=2000, batch_size=128, n_context=2560, n_components=6, n_samples=10, fc_layer_size=256,
-             init_lr=0.0005, model_name="toy_task_2d_model", target_name="bmm", dim=2, initialization_type="xavier",
-             project=True, eps_mean=0.1, eps_cov=1, alpha=10)
+    # # test bmm
+    # toy_task(n_epochs=2000, batch_size=128, n_context=1280, n_components=6, n_samples=10, fc_layer_size=256,
+    #          init_lr=0.0005, model_name="toy_task_2d_model", target_name="bmm", dim=2, initialization_type="xavier",
+    #          project=True, eps_mean=1, eps_cov=10, alpha=75)
 
     # # test gmm
     # toy_task(n_epochs=400, batch_size=64, n_context=640, n_components=4, n_samples=10, fc_layer_size=256,

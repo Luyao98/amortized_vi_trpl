@@ -15,10 +15,26 @@ class BananaDistribution:
         self.mean = ch.zeros(self.batch_size, self.dim, device=self.device)
         self.covariance = 0.4 * ch.eye(self.dim, device=self.device).repeat(self.batch_size, 1, 1)
         self.base_dist = MultivariateNormal(self.mean, self.covariance)
-        self.translation = 4 * ch.sin(10 * curvature)
+        self.translation = 4 * ch.sin(2 * curvature + 3)
+        # self.translation = 3 * curvature
         # self.rotation = ch.tensor(special_ortho_group.rvs(self.dim), dtype=ch.float32, device=self.device)
         self.rotation = ch.tensor([[-0.9751, -0.2217], [0.2217, -0.9751]], dtype=ch.float32,
                                   device=self.device).repeat(self.batch_size, 1, 1)
+
+    #     self.rotation = self.get_rotation_matrix(curvature)
+    #
+    # def get_rotation_matrix(self, curvature):
+    #     angles = ch.sin(curvature)
+    #     cos_vals = ch.cos(angles)
+    #     sin_vals = ch.sin(angles)
+    #     rotation_matrices = ch.zeros((self.batch_size, 2, 2), dtype=ch.float32, device=self.device)
+    #
+    #     rotation_matrices[:, 0, 0] = cos_vals
+    #     rotation_matrices[:, 0, 1] = -sin_vals
+    #     rotation_matrices[:, 1, 0] = sin_vals
+    #     rotation_matrices[:, 1, 1] = cos_vals
+    #
+    #     return rotation_matrices
 
     def sample(self, n_samples):
         gaus_samples = self.base_dist.sample((n_samples,)).transpose(0, 1).to(self.device)
@@ -55,31 +71,20 @@ class BananaDistribution:
 
 
 class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
-    def __init__(self, curvature_fn, n_components=3, dim=2):
+    def __init__(self, curvature_fn, n_components, dim=2):
         super().__init__()
         self.curvature_fn = curvature_fn
         self.n_components = n_components
         self.ndim = dim
         self.context_dist = uniform.Uniform(-2, 2)
-        # self.means = [ch.zeros(dim) for _ in range(n_components)]
-        # self.covariances = [ch.eye(dim) * 0.4 for _ in range(n_components)]
-        # self.translations = [ch.rand(dim) * 20 - 10 for _ in range(n_components)]
-        # self.translations = [1 * (ch.sin(curvature) + i) for i in range(n_components)]
-        # self.curvatures = [3.0 for _ in range(n_components)]
-        # self.curvatures = [curvature for _ in range(n_components)]
-        # self.mixture_weights = ch.ones(n_components, device=curvature.device) / n_components
-
-        # self.bananas = [BananaDistribution(curvature=self.curvatures[i], mean=self.means[i],
-        #                                    covariance=self.covariances[i], translation=self.translations[i])
-        #                 for i in range(n_components)]
 
     def get_contexts(self, n_contexts):
         contexts = self.context_dist.sample((n_contexts, 1))
         return contexts
 
     def sample(self, contexts, n_samples):
-        curvatures = self.curvature_fn(contexts).transpose(0, 1).to(contexts.device)
-        log_weights = get_weights(contexts)
+        curvatures = self.curvature_fn(contexts, self.n_components).transpose(0, 1).to(contexts.device)
+        log_weights = get_weights(contexts, self.n_components)
 
         samples = []
         for i in range(contexts.shape[0]):
@@ -92,8 +97,8 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
         # return samples[ch.randperm(n_samples)]  # shuffle the samples
 
     def log_prob_tgt(self, contexts, samples):
-        curvatures = self.curvature_fn(contexts).to(contexts.device)
-        log_weights = get_weights(contexts)
+        curvatures = self.curvature_fn(contexts, self.n_components).to(contexts.device)
+        log_weights = get_weights(contexts, self.n_components)
         banana_for_prob = [BananaDistribution(curvature=curvatures[i], dim=self.ndim)
                            for i in range(self.n_components)]
         if samples.dim() == 3:
@@ -130,38 +135,38 @@ def get_curvature_fn(contexts, n_components=3):
         curvature = ch.stack([contexts])
     elif n_components == 2:
         curvature = ch.stack([contexts, 0.5 * contexts + 1])
-    elif n_components == 3:
-        curvature = ch.stack([contexts, 0.5 * contexts + 1, -0.5 * contexts - 1])
+    elif n_components == 5:
+        curvature = ch.stack([0.2 * contexts + 1.5,
+                              -0.2 * contexts - 1.5,
+                              contexts,
+                              0.5 * contexts + 1,
+                              -0.5 * contexts - 1])
     else:
-        raise ValueError("only support 1, 2 or 3 components")
+        raise ValueError("only support 1, 2 or 5 components")
     return curvature
 
 
-def get_weights(contexts, n_components=3):
+def get_weights(contexts, n_components):
     """
-    the number of components is fixed
+    Generates weight values for a given number of components.
+    The number of components is flexible.
     """
-    if n_components == 1:
-        weights = [ch.sin(3 * contexts[:, 0])]
-    elif n_components == 2:
-        weights = [ch.sin(3 * contexts[:, 0]),
-                   ch.cos(3 * contexts[:, 0])]
-    elif n_components == 3:
-        weights = [ch.sin(3 * contexts[:, 0]),
-                   ch.cos(3 * contexts[:, 0]),
-                   ch.cos(2 * contexts[:, 0])]
-    else:
-        raise ValueError("only support 1, 2 or 3 components")
+    weights = []
+    for i in range(n_components):
+        if i % 2 == 0:
+            weights.append(ch.sin((i + 1) * contexts[:, 0]))
+        else:
+            weights.append(ch.cos((i + 1) * contexts[:, 0]))
     weights = ch.stack(weights, dim=1)
     log_weights = ch.log_softmax(weights, dim=1)
     return log_weights
 
 
 # # test
-# target = BananaMixtureTarget(get_curvature_fn)
+# target = BananaMixtureTarget(get_curvature_fn, n_components=2)
 # # contexts_test = target.get_contexts(3)
 # contexts_test = ch.tensor([[-0.3],
-#                            [1.3],
-#                            [-1.9]])
+#                            [0.7],
+#                            [-1.8]])
 # print(contexts_test)
 # target.visualize(contexts_test)

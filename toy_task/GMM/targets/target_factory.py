@@ -3,11 +3,11 @@ from toy_task.GMM.targets.gaussian_mixture_target import get_gmm_target
 from toy_task.GMM.targets.funnel_target import FunnelTarget, get_sig_fn
 
 
-def get_target(target_name, n_components):
+def get_target(target_name, target_components):
     if target_name == "bmm":
-        return BananaMixtureTarget(get_curvature_fn)
+        return BananaMixtureTarget(get_curvature_fn, target_components)
     elif target_name == "gmm":
-        return get_gmm_target(n_components)
+        return get_gmm_target(target_components)
     elif target_name == "funnel":
         return FunnelTarget(get_sig_fn)
     else:

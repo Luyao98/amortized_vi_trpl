@@ -2,8 +2,10 @@ import torch as ch
 from torch.distributions import uniform, Normal, MultivariateNormal
 import matplotlib.pyplot as plt
 
+from toy_task.GMM.targets.abstract_target import AbstractTarget
 
-class FunnelTarget(ch.nn.Module):
+
+class FunnelTarget(AbstractTarget, ch.nn.Module):
     def __init__(self, sig_fn, dim=3):
         super().__init__()
         self.dim = dim
@@ -17,53 +19,43 @@ class FunnelTarget(ch.nn.Module):
     def sample(self, contexts, n_samples):
         n_contexts = contexts.shape[0]
         sigs = self.sig(contexts).to(contexts.device)
-        samples = []
 
-        for i in range(n_contexts):
-            v_samples = Normal(loc=0., scale=sigs[i]).sample((n_samples,))
-
-            variance_other = ch.exp(v_samples)
-            other_dim = self.dim - 1
-
-            # For each sample of 'v', sample the remaining dimensions from their respective normal distributions
-            other_samples = []
-            for var in variance_other:
-                cov_other = ch.eye(other_dim, device=contexts.device) * (var + 1e-8)  # for numerical stability
-                normal_dist = MultivariateNormal(loc=ch.zeros(other_dim, device=contexts.device), covariance_matrix=cov_other)
-                other_samples.append(normal_dist.sample())
-
-            # Stack and concatenate the samples from 'v' and other dimensions
-            other_samples = ch.stack(other_samples)
-            full_samples = ch.cat((v_samples.unsqueeze(-1), other_samples), dim=-1)
-            samples.append(full_samples)
-
-        return ch.stack(samples)  # [n_contexts, n_samples, dim]
+        samples_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs.squeeze(-1)).sample((n_samples,))
+        samples_v_expand = samples_v.transpose(-1, -2).unsqueeze(-1)  # [n_contexts, n_samples, 1]
+        other_dim = self.dim - 1
+        variance_other = ch.exp(samples_v_expand).expand(-1, -1, 2)  # [n_contexts, n_samples, 2]
+        cov_other = ch.diag_embed(variance_other)
+        mean_other = ch.zeros(n_contexts, n_samples, other_dim).to(contexts.device)  # [n_contexts, n_samples, other_dim]
+        samples_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).sample()  # [n_contexts, n_samples, other_dim]
+        full_samples = ch.cat((samples_v_expand, samples_other), dim=-1)  # [n_contexts, n_samples, dim]
+        return full_samples
 
     def log_prob_tgt(self, contexts, samples):
         n_contexts = contexts.shape[0]
         sigs = self.sig(contexts).to(contexts.device)
-        means = ch.zeros(n_contexts).to(contexts.device)
 
         if samples.dim() == 2:
-            samples = samples.unsqueeze(0).expand(n_contexts, -1, -1)
-        if samples.shape[-1] == self.dim - 1:
-            sample_v = Normal(loc=means, scale=sigs).sample((samples.shape[1],))
-            sample_v = sample_v.transpose(0, 1).unsqueeze(-1)
-            samples = ch.cat([sample_v, samples], dim=-1)
+            # for plotting
+            if samples.shape[-1] == 2:
+                samples = ch.cat([samples, ch.zeros(samples.shape[0], self.dim - 2)], dim=1)
+                samples = samples.unsqueeze(0).expand(n_contexts, -1, -1)
+        elif samples.dim() == 3:
+            if samples.shape[-1] == self.dim - 1:
+                samples_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs.squeeze(-1)).sample((samples.shape[1],))
+                samples_v_expand = samples_v.transpose(-1, -2).unsqueeze(-1)
+                samples = ch.cat((samples_v_expand, samples), dim=-1)
+        else:
+            raise ValueError("dim of samples is wrong")
 
-        log_prob = []
-        for i in range(samples.shape[1]):
-            x = samples[:, i]
-            v = x[:, 0]
-            log_density_v = Normal(loc=0., scale=sigs[i]).log_prob(v)
-            variance_other = ch.exp(v)
-            other_dim = self.dim - 1
-            cov_other = ch.eye(other_dim, device=contexts.device).unsqueeze(0).repeat(x.shape[0], 1, 1) * (variance_other.view(-1, 1, 1) + 1e-8)
-            mean_other = ch.zeros(other_dim, device=contexts.device).unsqueeze(0).repeat(x.shape[0], 1)
-            log_density_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).log_prob(x[:, 1:])
-            log_prob.append(log_density_v + log_density_other)
-        log_prob_tgt = ch.stack(log_prob, dim=1)
-        return log_prob_tgt
+        v = samples[:, :, 0]
+        log_density_v = Normal(loc=ch.zeros(n_contexts, 1).to(contexts.device), scale=sigs).log_prob(v)  # [n_contexts, n_samples]
+        other_dim = self.dim - 1
+        variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, 2)
+        cov_other = ch.diag_embed(variance_other)
+        mean_other = ch.zeros(n_contexts, samples.shape[1], other_dim).to(contexts.device)  # [n_contexts, n_samples, other_dim]
+        log_density_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).log_prob(samples[:, :, 1:])
+        log_prob = log_density_v + log_density_other
+        return log_prob
 
     def visualize(self, contexts, n_samples=None):
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
@@ -73,16 +65,15 @@ class FunnelTarget(ch.nn.Module):
 
             V, O = ch.meshgrid(v_range, other_range, indexing='ij')
             samples = ch.stack([V, O], dim=-1).view(-1, 2)
-            samples = ch.cat([samples, ch.zeros(samples.shape[0], self.dim-2)], dim=1)  # Pad with zeros for unused dimensions
-
-            # Compute log probabilities
             log_probs = self.log_prob_tgt(c.unsqueeze(1), samples).squeeze(0).view(100, 100)
 
-            # Convert log probabilities to probabilities for better visualization
             probs = ch.exp(log_probs)
 
             ax = axes[i]
             ax.contourf(V.numpy(), O.numpy(), probs.numpy(), levels=50, cmap='viridis')
+            if n_samples is not None:
+                samples = self.sample(c.unsqueeze(1), n_samples)
+                ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
             ax.axis("scaled")
             ax.set_title("Funnel Distribution")
             ax.set_xlabel("$v$")
@@ -92,11 +83,16 @@ class FunnelTarget(ch.nn.Module):
         plt.show()
 
 
-def get_sig_fn(c):
-    sig = ch.exp(c[:, 0])
+def get_sig_fn(contexts):
+    sig = ch.exp(contexts)
     return sig
 
 
+# # test
 # target = FunnelTarget(get_sig_fn)
-# c = target.get_contexts(2)
-# target.visualize(c)
+# # contexts_test = target.get_contexts(3)
+# contexts_test = ch.tensor([[-0.3],
+#                            [0.5],
+#                            [-0.9]])
+# target.visualize(contexts_test, 100)
+# # s = target.sample(contexts_test, 100)

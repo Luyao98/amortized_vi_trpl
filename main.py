@@ -1,5 +1,6 @@
 from omegaconf import DictConfig, OmegaConf
 import hydra
+import wandb
 from toy_task.GMM.algorithms.algorithm import toy_task
 from toy_task.GMM.utils.network_utils import set_seed
 
@@ -9,21 +10,22 @@ def my_app(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
     set_seed(cfg.seed.seed)
-    toy_task(n_epochs=cfg.target.n_epochs,
-             batch_size=cfg.target.batch_size,
-             n_context=cfg.target.n_context,
-             n_components=cfg.target.n_components,
-             n_samples=cfg.target.n_samples,
-             fc_layer_size=cfg.target.fc_layer_size,
-             init_lr=cfg.target.init_lr,
-             model_name=cfg.target.model_name,
-             target_name=cfg.target.target_name,
-             dim=cfg.target.dim,
-             initialization_type=cfg.target.initialization_type,
-             project=cfg.schema.project,
-             eps_mean=cfg.schema.eps_mean,
-             eps_cov=cfg.schema.eps_cov,
-             alpha=cfg.schema.alpha)
+    config_dict = {
+        **OmegaConf.to_container(cfg.target, resolve=True),
+        **OmegaConf.to_container(cfg.schema, resolve=True),
+        # 'seed': cfg.seed,
+        # 'job_type': cfg.job_type,
+        # 'exp_name': cfg.exp_name
+    }
+
+    group_name = cfg['exp_name']
+    run_name = f"seed_{cfg.seed.seed}_job_{cfg.job_type}_project_{cfg.schema.project}"
+    # run_name = f"batch_{cfg.target.batch_size}_gate_lr_{cfg.target.gate_lr}_gauss_lr_{cfg.target.gaussian_lr}"
+    wandb.init(project="ELBOopt_GMM", group=group_name, config=config_dict, name=run_name)
+
+    toy_task(config_dict)
+
+    wandb.finish()
 
 
 if __name__ == "__main__":

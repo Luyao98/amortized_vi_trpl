@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_weights
-from toy_task.GMM.targets.funnel_target import FunnelTarget
 
 import wandb
 import io
@@ -219,12 +218,7 @@ def compute_data_for_plot2d(
 
     # evaluate distributions
     with torch.no_grad():
-        if type(target_dist) == FunnelTarget:
-            # pad with zeros for unused dimensions
-            xy_funnel = torch.cat([xy, torch.zeros(xy.shape[0], 1)], dim=1)
-            log_p_tgt = target_dist.log_prob_tgt(contexts, xy_funnel)
-        else:
-            log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
+        log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
         log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy.unsqueeze(0).expand(n_tasks, -1, -1))
 
     log_p_tgt = log_p_tgt.to("cpu").numpy()

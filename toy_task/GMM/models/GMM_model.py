@@ -7,38 +7,43 @@ from toy_task.GMM.utils.torch_utils import diag_bijector, fill_triangular, inver
 
 
 class GateNN(nn.Module):
-    def __init__(self, n_components, init_bias_gate=None, gate_size=256):
+    def __init__(self, n_components, gate_size=128, num_layers=5, init_bias_gate=None):
         super(GateNN, self).__init__()
-        self.fc1 = nn.Linear(1, gate_size)
-        self.fc2 = nn.Linear(gate_size, gate_size)
-        self.fc3 = nn.Linear(gate_size, gate_size)
+        self.num_layers = num_layers
+        self.fc_layers = nn.ModuleList()
+
+        self.fc_layers.append(nn.Linear(1, gate_size))
+        for _ in range(1, num_layers):
+            self.fc_layers.append(nn.Linear(gate_size, gate_size))
         self.fc_gate = nn.Linear(gate_size, n_components)
 
-        # set init uniform bias for gates
+        # Set init uniform bias for gates
         if init_bias_gate is not None:
             with ch.no_grad():
                 self.fc_gate.bias.copy_(ch.tensor(init_bias_gate, dtype=self.fc_gate.bias.dtype))
 
     def forward(self, x):
-        x = ch.relu(self.fc1(x))
-        x = ch.relu(self.fc2(x))
-        # x = ch.relu(self.fc3(x))
+        for fc in self.fc_layers:
+            x = ch.relu(fc(x))
         x = ch.log_softmax(self.fc_gate(x), dim=-1)
         return x
 
 
 class GaussianNN(nn.Module):
-    def __init__(self, fc_layer_size, dim_mean, dim_chol, init_bias_mean=None, init_bias_chol=None):
+    def __init__(self, fc_layer_size, dim_mean, dim_chol, num_layers=8, init_bias_mean=None, init_bias_chol=None):
         super(GaussianNN, self).__init__()
-        self.fc1 = nn.Linear(1, fc_layer_size)
-        self.fc2 = nn.Linear(fc_layer_size, fc_layer_size)
-        self.fc3 = nn.Linear(fc_layer_size, fc_layer_size)
+        self.num_layers = num_layers
+        self.fc_layers = nn.ModuleList()
+
+        self.fc_layers.append(nn.Linear(1, fc_layer_size))
+        for _ in range(1, num_layers):
+            self.fc_layers.append(nn.Linear(fc_layer_size, fc_layer_size))
         self.fc_mean = nn.Linear(fc_layer_size, dim_mean)
         self.fc_chol = nn.Linear(fc_layer_size, dim_chol)
 
         self.diag_activation = nn.Softplus()
         self.diag_activation_inv = inverse_softplus
-        self.init_std = ch.tensor(4)  # 1 for gmm target, 4 for banana target
+        self.init_std = ch.tensor(3.5)  # 1 for gmm target, 3.5 for banana target
         self.minimal_std = 1e-3
 
         if init_bias_mean is not None:
@@ -50,9 +55,8 @@ class GaussianNN(nn.Module):
                 self.fc_chol.bias.copy_(ch.tensor(init_bias_chol, dtype=self.fc_chol.bias.dtype))
 
     def forward(self, x):
-        x = ch.relu(self.fc1(x))
-        x = ch.relu(self.fc2(x))
-        x = ch.relu(self.fc3(x))
+        for fc in self.fc_layers:
+            x = ch.relu(fc(x))
         mean = self.fc_mean(x)
         flat_chol = self.fc_chol(x)
         chol_matrix = fill_triangular(flat_chol)
