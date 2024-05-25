@@ -5,6 +5,7 @@ from torch.distributions import MultivariateNormal, kl_divergence
 import wandb
 
 from toy_task.GMM.models.GMM_model import ConditionalGMM
+from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
 from toy_task.GMM.targets.abstract_target import AbstractTarget
 from toy_task.GMM.models.model_factory import get_model
 from toy_task.GMM.targets.target_factory import get_target
@@ -14,7 +15,7 @@ from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_projection
 
 
-def train_model(model: ConditionalGMM,
+def train_model(model: ConditionalGMM or ConditionalGMM2,
                 target: AbstractTarget,
                 n_epochs: int,
                 batch_size: int,
@@ -37,15 +38,16 @@ def train_model(model: ConditionalGMM,
     ], weight_decay=1e-5)
     contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
-    plot_contexts = ch.tensor([[-0.3],
-                               [0.7],
-                               [-1.8]])
-    # funnel
+    # bmm
     # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.5],
-    #                            [-0.9]])
+    #                            [0.7],
+    #                            [-1.8]])
+    # funnel
+    plot_contexts = ch.tensor([[-0.3],
+                               [0.1],
+                               [-0.8]])
     train_size = int(n_context)
-    prev_js = float('inf')
+    prev_loss = float('inf')
 
     for epoch in range(n_epochs):
         # plot initial model
@@ -145,14 +147,14 @@ def train_model(model: ConditionalGMM,
 
                 # trick from TRPL paper
                 if project:
-                    current_js = js_div.item()
-                    if current_js < prev_js:
+                    current_loss = loss.item()
+                    if current_loss < prev_loss:
                         eps_mean *= 0.8
                         eps_cov *= 0.8
                     else:
                         eps_mean *= 1.1
                         eps_cov *= 1.1
-                    prev_js = current_js
+                    prev_loss = current_loss
             model.train()
             wandb.log({"ideal Jensen Shannon Divergence": ideal_js_div.item(),
                        "Jensen Shannon Divergence": js_div.item(),
@@ -196,7 +198,7 @@ def toy_task(config):
     print("Current device:", device)
 
     # Target
-    target = get_target(target_name, target_components=5).to(device)
+    target = get_target(target_name, target_components=10).to(device)
 
     # Model
     model = get_model(model_name,
@@ -212,18 +214,24 @@ def toy_task(config):
                 project, eps_mean, eps_cov, alpha)
 
 
-# if __name__ == "__main__":
-    # # test funnel
-    # toy_task(n_epochs=2000, batch_size=128, n_context=1280, n_components=4, n_samples=10, fc_layer_size=256,
-    #          init_lr=0.005, model_name="toy_task_2d_model", target_name="funnel", dim=2, initialization_type="xavier",
-    #          project=False, eps_mean=1, eps_cov=10, alpha=75)
-
-    # # test bmm
-    # toy_task(n_epochs=2000, batch_size=128, n_context=1280, n_components=6, n_samples=10, fc_layer_size=256,
-    #          init_lr=0.0005, model_name="toy_task_2d_model", target_name="bmm", dim=2, initialization_type="xavier",
-    #          project=True, eps_mean=1, eps_cov=10, alpha=75)
-
-    # # test gmm
-    # toy_task(n_epochs=400, batch_size=64, n_context=640, n_components=4, n_samples=10, fc_layer_size=256,
-    #          init_lr=0.01, model_name="toy_task_2d_model", target_name="gmm", dim=2, initialization_type="xavier",
-    #          project=True, eps_mean=0.1, eps_cov=0.5, alpha=2)
+# # test
+# config = {
+#     "n_epochs": 200,
+#     "batch_size": 128,
+#     "n_context": 1280,
+#     "n_components": 6,
+#     "n_samples": 10,
+#     "fc_layer_size": 256,
+#     "gate_lr": 0.0001,
+#     "gaussian_lr": 0.0001,
+#     "model_name": "toy_task_2d_model",
+#     "target_name": "funnel",
+#     "dim": 6,
+#     "initialization_type": "xavier",
+#     "project": False,
+#     "eps_mean": 1,
+#     "eps_cov": 0.5,
+#     "alpha": 5
+# }
+#
+# toy_task(config)
