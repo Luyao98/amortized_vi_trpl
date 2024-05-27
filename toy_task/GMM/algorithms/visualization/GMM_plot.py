@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_weights
+from toy_task.GMM.targets.funnel_target import FunnelTarget
 
 import wandb
 import io
@@ -28,7 +29,7 @@ def plot2d_matplotlib(
 ):
     model.eval()
     # get data for plotting
-    data = compute_data_for_plot2d(
+    data = compute_data_for_plot(
         target_dist,
         model,
         contexts,
@@ -44,7 +45,7 @@ def plot2d_matplotlib(
     n_plt = data["n_plt"]
     xx = data["xx"]
     yy = data["yy"]
-    xy = data["xy"]
+    # xy = data["xy"]
     p_tgt = data["p_tgt"]
     p_model = data["p_model"]
     locs = data["locs"]
@@ -92,7 +93,8 @@ def plot2d_matplotlib(
             cur_scale_tril = scale_trils[l, k]
             cur_loc = locs[l, k]
             ax.scatter(x=cur_loc[0], y=cur_loc[1])
-            ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
+            ellipses = compute_gaussian_ellipse(cur_loc[:2], cur_scale_tril[:2, :2])  # modification for funnel
+            # ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
         ax.set_title("Model density with target as background")
@@ -101,7 +103,7 @@ def plot2d_matplotlib(
         # ax.set_xlim(min_x, max_x)
         # ax.set_ylim(min_y, max_y)
 
-        # plot model distribution with background target distribution
+        # plot model distribution with background model distribution
         if n_tasks == 1:
             ax = axes[2]
         else:
@@ -164,7 +166,7 @@ def plot2d_matplotlib(
     plt.close(fig)
 
 
-def compute_data_for_plot2d(
+def compute_data_for_plot(
         target_dist,
         model,
         contexts,
@@ -180,12 +182,13 @@ def compute_data_for_plot2d(
 
     # extract weights already here, to figure out which components are relevant
     weights, means, scale_trils = model(contexts)
+    dim = means.shape[-1]
     # determine n_task. i.e. n_contexts
     n_tasks, n_components, _ = means.shape
     weights = np.exp(weights.detach().to("cpu").numpy())
     mask = (weights > 0.01).flatten()
-    relevant_means = torch.reshape(means, (-1, 2))[mask, :]
-    relevant_scale_trils = torch.reshape(scale_trils, (-1, 2, 2))[mask, :, :]
+    relevant_means = torch.reshape(means, (-1, dim))[mask, :]
+    relevant_scale_trils = torch.reshape(scale_trils, (-1, dim, dim))[mask, :, :]
     if min_x is not None:
         assert max_x is not None
         assert min_y is not None
@@ -219,6 +222,12 @@ def compute_data_for_plot2d(
     # evaluate distributions
     with torch.no_grad():
         log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
+        # if  type(target_dist) == FunnelTarget:
+        #     # with this modification, the funnel target can be plotted with the GMM model
+        #     xy_funnel = torch.cat([xy, torch.zeros(xy.shape[0], dim - 2)], dim=1)
+        #     xy_funnel = xy_funnel.unsqueeze(0).expand(n_tasks, -1, -1)
+        #     log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy_funnel)
+        # else:
         log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy.unsqueeze(0).expand(n_tasks, -1, -1))
 
     log_p_tgt = log_p_tgt.to("cpu").numpy()

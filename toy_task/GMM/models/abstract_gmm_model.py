@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import torch as ch
+from torch.distributions import MultivariateNormal, Categorical
 
 
 class AbstractGMM(ABC):
@@ -20,7 +21,6 @@ class AbstractGMM(ABC):
         """
         pass
 
-    @abstractmethod
     def covariance(self, chol: ch.Tensor) -> ch.Tensor:
         """
         Compute covariance matrices from Cholesky decompositions.
@@ -31,9 +31,9 @@ class AbstractGMM(ABC):
         Returns:
             torch.Tensor: Covariance matrices.
         """
-        pass
+        cov_matrix = chol @ chol.transpose(-1, -2)
+        return cov_matrix
 
-    @abstractmethod
     def get_rsamples(self, mean: ch.Tensor, chol: ch.Tensor, n_samples: int) -> ch.Tensor:
         """
         Generate reparameterized samples from the Gaussian distributions.
@@ -46,9 +46,9 @@ class AbstractGMM(ABC):
         Returns:
             torch.Tensor: Reparameterized samples.
         """
-        pass
+        rsamples = MultivariateNormal(loc=mean, scale_tril=chol).rsample(ch.Size([n_samples]))
+        return rsamples.transpose(0, 1)
 
-    @abstractmethod
     def get_samples_gmm(self, log_gates: ch.Tensor, means: ch.Tensor, chols: ch.Tensor, num_samples: int) -> ch.Tensor:
         """
         Generate samples from the Gaussian Mixture Model.
@@ -62,9 +62,21 @@ class AbstractGMM(ABC):
         Returns:
             torch.Tensor: Samples generated from the GMM.
         """
-        pass
+        if log_gates.shape[1] == 1:
+            # print("target has only one component")
+            samples = MultivariateNormal(means.squeeze(1), scale_tril=chols.squeeze(1)).sample((num_samples,))
+            return samples.transpose(0, 1)
+        else:
+            samples = []
+            for i in range(log_gates.shape[0]):
+                cat = Categorical(ch.exp(log_gates[i]))
+                indices = cat.sample((num_samples,))
+                chosen_means = means[i, indices]
+                chosen_chols = chols[i, indices]
+                normal = MultivariateNormal(chosen_means, scale_tril=chosen_chols)
+                samples.append(normal.sample())
+            return ch.stack(samples)  # [n_contexts, n_samples, n_features]
 
-    @abstractmethod
     def log_prob(self, mean: ch.Tensor, chol: ch.Tensor, samples: ch.Tensor) -> ch.Tensor:
         """
         Calculate the log probabilities of given samples under the Gaussian distributions.
@@ -77,9 +89,18 @@ class AbstractGMM(ABC):
         Returns:
             torch.Tensor: Log probabilities of the samples.
         """
-        pass
+        if samples.dim() == 3:
+            batch_size, n_samples, _ = samples.shape
+            mean_expanded = mean.unsqueeze(1).expand(-1, n_samples, -1)  # [batch_size, n_samples, n_features]
+            chol_expanded = chol.unsqueeze(1).expand(-1, n_samples, -1, -1)
 
-    @abstractmethod
+            mvn = MultivariateNormal(loc=mean_expanded, scale_tril=chol_expanded)
+            log_probs = mvn.log_prob(samples)  # [batch_size, n_samples]
+            # return log_probs.mean(dim=1)  # [batch_size]
+            return log_probs
+        else:
+            raise ValueError("Shape of samples should be [batch_size, n_samples, n_features]")
+
     def log_prob_gmm(self, means: ch.Tensor, chols: ch.Tensor, log_gates: ch.Tensor, samples: ch.Tensor) -> ch.Tensor:
         """
         Calculate the log probabilities of given samples under the Gaussian Mixture Model.
@@ -93,9 +114,28 @@ class AbstractGMM(ABC):
         Returns:
             torch.Tensor: Log probabilities of the samples under the GMM.
         """
-        pass
+        n_samples = samples.shape[1]
+        n_contexts, n_components, _ = means.shape
 
-    @abstractmethod
+        means_expanded = means.unsqueeze(1).expand(-1, n_samples, -1, -1)
+        chols_expanded = chols.unsqueeze(1).expand(-1, n_samples, -1, -1, -1)
+        samples_expanded = samples.unsqueeze(2).expand(-1, -1, n_components, -1)
+
+        # since I only plot 2D, I need to modify here into right shape. This if only happens in plotting
+        if means_expanded.shape[-1] != samples_expanded.shape[-1]:
+            mvn = MultivariateNormal(means_expanded[..., :2], scale_tril=chols_expanded[..., :2, :2])
+            log_probs = mvn.log_prob(samples_expanded)
+        else:
+            mvn = MultivariateNormal(means_expanded, scale_tril=chols_expanded)
+            log_probs = mvn.log_prob(samples_expanded)  # [batch_size, n_samples, n_components]
+
+        gate_expanded = log_gates.unsqueeze(1).expand(-1, n_samples, -1)
+        log_probs += gate_expanded
+
+        log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
+        # return ch.sum(log_probs, dim=1)
+        return log_probs
+
     def auxiliary_reward(self, j: int, gate_old: ch.Tensor, mean_old: ch.Tensor, chol_old: ch.Tensor,
                          samples: ch.Tensor) -> ch.Tensor:
         """
@@ -111,4 +151,8 @@ class AbstractGMM(ABC):
         Returns:
             torch.Tensor: Computed auxiliary rewards.
         """
-        pass
+        gate_old_expanded = gate_old.unsqueeze(1).expand(-1, samples.shape[1], -1)
+        numerator = gate_old_expanded[:, :, j] + self.log_prob(mean_old[:, j], chol_old[:, j], samples)
+        denominator = self.log_prob_gmm(mean_old, chol_old, gate_old, samples)
+        aux_reward = numerator - denominator
+        return aux_reward

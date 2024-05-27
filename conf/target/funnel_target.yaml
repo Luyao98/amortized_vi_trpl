@@ -1,16 +1,18 @@
-n_epochs: 1500
+n_epochs: 250
 batch_size: 128
 n_context: 1280
-n_components: 10
+n_components: 8
 n_samples: 10
 fc_layer_size: 256
 #init_lr: 0.0005
 gate_lr: 0.0001
 gaussian_lr: 0.0001
 
-model_name: "toy_task_model_2"
-dim: 2
+model_name: "toy_task_model_1"
+dim: 10
 initialization_type: "xavier"
 
-target_name: "bmm"
-target_components: 5
+target_name: "funnel"
+target_components: 10
+
+

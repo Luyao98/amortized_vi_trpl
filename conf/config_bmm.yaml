@@ -1,18 +1,15 @@
 defaults:
   - _self_
   - target: bmm_target
-  - schema: projection
+  - schema: no_projection
   - seed: a
 #  - override hydra/sweeper: list
 
-exp_name: BMM
-
-#seed: 1001
-job_type: 5bmm_10gmm
+exp_name: 5BMM_10GMM
 
 hydra:
   sweeper:
     params:
       target: bmm_target
       schema: no_projection
-      seed: b
+      seed:  b, c, d, e, f

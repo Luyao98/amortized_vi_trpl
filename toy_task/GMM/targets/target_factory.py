@@ -9,6 +9,7 @@ def get_target(target_name, target_components):
     elif target_name == "gmm":
         return get_gmm_target(target_components)
     elif target_name == "funnel":
-        return FunnelTarget(get_sig_fn)
+        # funnel function is a bit different, target_components is in fact the dimension of the target
+        return FunnelTarget(get_sig_fn, target_components)
     else:
         raise ValueError(f"Unknown target name: {target_name}")

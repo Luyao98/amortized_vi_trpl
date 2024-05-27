@@ -24,11 +24,10 @@ def fill_triangular(x, upper=False):
     return x
 
 
-def fill_triangular_gmm(chols, n_components):
+def fill_triangular_gmm(chols, n_components, init_std):
     """
     for GMM_model_v2, may be needed later
     """
-    init_std = ch.tensor(1.0)
     minimal_std = 1e-3
     diag_activation = nn.Softplus()
 

@@ -6,7 +6,7 @@ n_samples: 10
 fc_layer_size: 256
 init_lr: 0.01
 
-model_name: "toy_task_2d_model"
+model_name: "toy_task_model_1"
 target_name: "gmm"
 dim: "2"
 initialization_type: "xavier"

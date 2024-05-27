@@ -78,7 +78,7 @@ elif model_type == "random":
 
 elif model_type == "real":
     # real target but no training
-    model = get_model(model_name="toy_task_2d_model",
+    model = get_model(model_name="toy_task_model_1",
                       device=device,
                       dim=2,
                       fc_layer_size=256,

@@ -39,13 +39,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2,
     contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     # bmm
-    # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.7],
-    #                            [-1.8]])
-    # funnel
     plot_contexts = ch.tensor([[-0.3],
-                               [0.1],
-                               [-0.8]])
+                               [0.7],
+                               [-1.8]])
+    # # funnel
+    # plot_contexts = ch.tensor([[-0.3],
+    #                            [0.1],
+    #                            [-0.8]])
     train_size = int(n_context)
     prev_loss = float('inf')
 
@@ -184,10 +184,14 @@ def toy_task(config):
     # init_lr = config['init_lr']
     gate_lr = config['gate_lr']
     gaussian_lr = config['gaussian_lr']
+
     model_name = config['model_name']
-    target_name = config['target_name']
     dim = config['dim']
     initialization_type = config['initialization_type']
+
+    target_name = config['target_name']
+    target_components = config['target_components']
+
     project = config['project']
     eps_mean = config['eps_mean']
     eps_cov = config['eps_cov']
@@ -198,7 +202,7 @@ def toy_task(config):
     print("Current device:", device)
 
     # Target
-    target = get_target(target_name, target_components=10).to(device)
+    target = get_target(target_name, target_components=target_components).to(device)
 
     # Model
     model = get_model(model_name,

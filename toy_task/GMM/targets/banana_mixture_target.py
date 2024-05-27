@@ -130,7 +130,7 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
         plt.show()
 
 
-def get_curvature_fn(contexts, n_components=3):
+def get_curvature_fn(contexts, n_components):
     if n_components == 1:
         curvature = ch.stack([contexts])
     elif n_components == 2:
@@ -142,7 +142,7 @@ def get_curvature_fn(contexts, n_components=3):
                               0.5 * contexts + 1,
                               -0.5 * contexts - 1])
     else:
-        raise ValueError("only support 1, 2 or 5 components")
+        raise ValueError("BMM target now only supports 1, 2 or 5 components")
     return curvature
 
 

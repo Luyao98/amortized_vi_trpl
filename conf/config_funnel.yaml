@@ -1,0 +1,26 @@
+defaults:
+  - _self_
+  - target: funnel_target
+  - schema: no_projection
+  - seed: a
+#  - override hydra/sweeper: list
+
+exp_name: 10D_Funnel
+#exp_name: test
+
+hydra:
+  sweeper:
+    params:
+      target: funnel_target
+      schema: projection_10d_funnel, no_projection
+      seed: a, b, c, d, e, f
+
+#hydra:
+#  sweeper:
+#    grid_params:
+##      schema.eps_mean: 1, 0.5, 0.1, 0.01
+##      schema.eps_cov: 0.5, 0.1, 0.01
+#      schema.alpha: 10, 50, 75
+#    list_params:
+#      schema.eps_mean: 1, 2
+#      schema.eps_cov: 0.5, 0.5

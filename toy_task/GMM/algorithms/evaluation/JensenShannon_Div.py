@@ -1,7 +1,7 @@
 import torch as ch
 from toy_task.GMM.targets.abstract_target import AbstractTarget
 from toy_task.GMM.models.GMM_model import ConditionalGMM
-
+from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
 
 
 def ideal_calculated_gates(stack_loss_component):
@@ -11,7 +11,7 @@ def ideal_calculated_gates(stack_loss_component):
     return log_ideal_gates.transpose(0, 1)
 
 
-def js_divergence(model: ConditionalGMM,
+def js_divergence(model: ConditionalGMM or ConditionalGMM2,
                   target: AbstractTarget,
                   eval_contexts,
                   device,
@@ -25,15 +25,10 @@ def js_divergence(model: ConditionalGMM,
     eval_gate, eval_mean, eval_chol = model(eval_contexts)
     model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
     target_samples = target.sample(eval_contexts, num_samples).to(device)
-    # TODO make here more general, now only for funnel with 3D
-    if target_samples.shape[-1] == 3:
-        target_samples_m = target_samples[..., 1:]
-        m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples_m)
-    else:
-        m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
+
     t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
     t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
-    # m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
+    m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
     m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
 
     midpoint_t = ch.logsumexp(ch.stack([t_log_t, m_log_t]), dim=0) - ch.log(ch.tensor(2.0))
@@ -47,7 +42,7 @@ def js_divergence(model: ConditionalGMM,
     return js_div
 
 
-def ideal_js_divergence(model: ConditionalGMM,
+def ideal_js_divergence(model: ConditionalGMM or ConditionalGMM2,
                         approx_reward,
                         eval_contexts,
                         device,

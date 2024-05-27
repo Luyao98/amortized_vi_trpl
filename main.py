@@ -19,9 +19,11 @@ def my_app(cfg: DictConfig) -> None:
     }
 
     group_name = cfg['exp_name']
-    run_name = f"seed_{cfg.seed.seed}_job_{cfg.job_type}_project_{cfg.schema.project}"
+    job_type = cfg.target.model_name
+    run_name = f"seed_{cfg.seed.seed}_{cfg.target.model_name}_projection_{cfg.schema.project}"
+    # run_name = f"mean{cfg.schema.eps_mean}_cov{cfg.schema.eps_cov}_alpha{cfg.schema.alpha}"
     # run_name = f"batch_{cfg.target.batch_size}_gate_lr_{cfg.target.gate_lr}_gauss_lr_{cfg.target.gaussian_lr}"
-    wandb.init(project="ELBOopt_GMM", group=group_name, config=config_dict, name=run_name)
+    wandb.init(project="ELBO", group=group_name, job_type=job_type, config=config_dict, name=run_name)
 
     toy_task(config_dict)
 

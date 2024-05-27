@@ -6,7 +6,7 @@ from toy_task.GMM.targets.abstract_target import AbstractTarget
 
 
 class FunnelTarget(AbstractTarget, ch.nn.Module):
-    def __init__(self, sig_fn, dim=3):
+    def __init__(self, sig_fn, dim):
         super().__init__()
         self.dim = dim
         self.sig = sig_fn
@@ -23,7 +23,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         samples_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs.squeeze(-1)).sample((n_samples,))
         samples_v_expand = samples_v.transpose(-1, -2).unsqueeze(-1)  # [n_contexts, n_samples, 1]
         other_dim = self.dim - 1
-        variance_other = ch.exp(samples_v_expand).expand(-1, -1, 2)  # [n_contexts, n_samples, 2]
+        variance_other = ch.exp(samples_v_expand).expand(-1, -1, other_dim)  # [n_contexts, n_samples, 9]
         cov_other = ch.diag_embed(variance_other)
         mean_other = ch.zeros(n_contexts, n_samples, other_dim).to(contexts.device)  # [n_contexts, n_samples, other_dim]
         samples_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).sample()  # [n_contexts, n_samples, other_dim]
@@ -37,24 +37,28 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         if samples.dim() == 2:
             # for plotting
             if samples.shape[-1] == 2:
-                samples = ch.cat([samples, ch.zeros(samples.shape[0], self.dim - 2)], dim=1)
+                # samples = ch.cat([samples, ch.zeros(samples.shape[0], self.dim - 2)], dim=1)
                 samples = samples.unsqueeze(0).expand(n_contexts, -1, -1)
-        elif samples.dim() == 3:
-            if samples.shape[-1] == self.dim - 1:
-                samples_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs.squeeze(-1)).sample((samples.shape[1],))
-                samples_v_expand = samples_v.transpose(-1, -2).unsqueeze(-1)
-                samples = ch.cat((samples_v_expand, samples), dim=-1)
+                v = samples[:, :, 0]
+                log_density_v = Normal(loc=ch.zeros(n_contexts, 1).to(contexts.device), scale=sigs).log_prob(
+                    v)  # [n_contexts, n_samples]
+                other_dim = 1
+                variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, other_dim)
+                cov_other = ch.diag_embed(variance_other)
+                mean_other = ch.zeros(n_contexts, samples.shape[1], other_dim).to(
+                    contexts.device)  # [n_contexts, n_samples, other_dim]
+                log_density_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).log_prob(
+                    samples[:, :, 1:])
+                log_prob = log_density_v + log_density_other
         else:
-            raise ValueError("dim of samples is wrong")
-
-        v = samples[:, :, 0]
-        log_density_v = Normal(loc=ch.zeros(n_contexts, 1).to(contexts.device), scale=sigs).log_prob(v)  # [n_contexts, n_samples]
-        other_dim = self.dim - 1
-        variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, 2)
-        cov_other = ch.diag_embed(variance_other)
-        mean_other = ch.zeros(n_contexts, samples.shape[1], other_dim).to(contexts.device)  # [n_contexts, n_samples, other_dim]
-        log_density_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).log_prob(samples[:, :, 1:])
-        log_prob = log_density_v + log_density_other
+            v = samples[:, :, 0]
+            log_density_v = Normal(loc=ch.zeros(n_contexts, 1).to(contexts.device), scale=sigs).log_prob(v)  # [n_contexts, n_samples]
+            other_dim = self.dim - 1
+            variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, other_dim)
+            cov_other = ch.diag_embed(variance_other)
+            mean_other = ch.zeros(n_contexts, samples.shape[1], other_dim).to(contexts.device)  # [n_contexts, n_samples, other_dim]
+            log_density_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).log_prob(samples[:, :, 1:])
+            log_prob = log_density_v + log_density_other
         return log_prob
 
     def visualize(self, contexts, n_samples=None):
@@ -89,10 +93,10 @@ def get_sig_fn(contexts):
 
 
 # # test
-# target = FunnelTarget(get_sig_fn)
+# target = FunnelTarget(get_sig_fn, dim=10)
 # # contexts_test = target.get_contexts(3)
 # contexts_test = ch.tensor([[-0.3],
-#                            [0.5],
+#                            [0.1],
 #                            [-0.9]])
 # target.visualize(contexts_test, 100)
 # # s = target.sample(contexts_test, 100)
