@@ -3,10 +3,12 @@ batch_size: 64
 n_context: 640
 n_components: 4
 n_samples: 10
-fc_layer_size: 256
-init_lr: 0.01
+gate_lr: 0.001
+gaussian_lr: 0.001
 
 model_name: "toy_task_model_1"
-target_name: "gmm"
-dim: "2"
+dim: 2
 initialization_type: "xavier"
+
+target_name: "gmm"
+target_components: 4

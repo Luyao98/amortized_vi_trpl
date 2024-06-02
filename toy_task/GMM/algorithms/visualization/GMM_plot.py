@@ -123,7 +123,7 @@ def plot2d_matplotlib(
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
-        ax.set_title("target weights")
+        ax.set_title("model predicted weights")
 
         if ideal_gates is not None:
             # plot ideal weights

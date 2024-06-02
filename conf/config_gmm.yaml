@@ -1,12 +1,17 @@
 defaults:
   - _self_
-  - seed: seed_a
   - target: gmm_target
   - schema: no_projection
+  - seed: a
+#  - override hydra/sweeper: list
+
+#exp_name: 4GMM_4GMM
+exp_name: 4GMM_4GMM_algorithm_1
 
 hydra:
   sweeper:
     params:
-      seed: seed_a, seed_b, seed_c
       target: gmm_target
-      schema: no_projection, projection
+      schema: projection_4gmm
+#      schema: no_projection
+      seed:  a

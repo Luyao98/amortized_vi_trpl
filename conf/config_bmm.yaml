@@ -5,11 +5,13 @@ defaults:
   - seed: a
 #  - override hydra/sweeper: list
 
-exp_name: 5BMM_10GMM
+#exp_name: 5BMM_10GMM
+exp_name: 5BMM_10GMM_algorithm_1
 
 hydra:
   sweeper:
     params:
       target: bmm_target
-      schema: no_projection
-      seed:  b, c, d, e, f
+      schema: projection_5bmm
+      seed:  a, b, c, d, e, f
+

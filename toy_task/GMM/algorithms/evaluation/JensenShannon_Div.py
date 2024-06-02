@@ -2,7 +2,7 @@ import torch as ch
 from toy_task.GMM.targets.abstract_target import AbstractTarget
 from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
-
+from toy_task.GMM.models.GMM_model_3 import ConditionalGMM3
 
 def ideal_calculated_gates(stack_loss_component):
     eva_loss_component = stack_loss_component.clone().mean(dim=-1)
@@ -11,7 +11,7 @@ def ideal_calculated_gates(stack_loss_component):
     return log_ideal_gates.transpose(0, 1)
 
 
-def js_divergence(model: ConditionalGMM or ConditionalGMM2,
+def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                   target: AbstractTarget,
                   eval_contexts,
                   device,

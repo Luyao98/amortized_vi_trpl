@@ -5,14 +5,15 @@ defaults:
   - seed: a
 #  - override hydra/sweeper: list
 
-exp_name: 10D_Funnel
-#exp_name: test
+#exp_name: 10D_Funnel
+exp_name: 10D_Funnel_algorithm_1
 
 hydra:
   sweeper:
     params:
       target: funnel_target
-      schema: projection_10d_funnel, no_projection
+      schema: projection_10d_funnel
+#      projection_10d_funnel
       seed: a, b, c, d, e, f
 
 #hydra:

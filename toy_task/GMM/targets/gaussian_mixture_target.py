@@ -97,8 +97,8 @@ def get_chol_fn(n_components):
         chols = []
         for i in range(n_components):
             chol = ch.stack([
-                ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 1.1, ch.zeros_like(c[:, 0])], dim=1),
-                ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 0]) + 1.1], dim=1)], dim=1)
+                ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 0.8, ch.zeros_like(c[:, 0])], dim=1),
+                ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 0]) + 0.8], dim=1)], dim=1)
             chols.append(chol)
         return ch.stack(chols, dim=1)
     return cat_chol
@@ -112,8 +112,8 @@ def get_mean_fn(n_components):
         #     mean.append(sub_mean)
 
         mean1 = ch.stack([2 + ch.sin(c[:, 0]), 2 + ch.cos(c[:, 0])], dim=1)
-        mean2 = ch.stack([-6 + 3 * ch.sin(c[:, 0]), -6 + 3 * ch.cos(c[:, 0])], dim=1)
-        mean3 = ch.stack([8 + 4 * ch.sin(c[:, 0]), -8 + 4 * ch.cos(c[:, 0])], dim=1)
+        mean2 = ch.stack([-5 + 3 * ch.sin(c[:, 0]), -5 + 3 * ch.cos(c[:, 0])], dim=1)
+        mean3 = ch.stack([6 + ch.sin(c[:, 0]), -7 + 3 * ch.cos(c[:, 0])], dim=1)
         mean4 = ch.stack([-4 + 2 * ch.sin(c[:, 0]), 4 + 2 * ch.cos(c[:, 0])], dim=1)
 
         mean = [mean1, mean2, mean3, mean4]
