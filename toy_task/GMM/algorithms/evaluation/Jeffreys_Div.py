@@ -2,15 +2,27 @@ def jeffreys_divergence(model,
                         target,
                         eval_contexts,
                         device,
+                        proj_type=None,
                         num_samples=1000):
 
     eval_gate, eval_mean, eval_chol = model(eval_contexts)
-    model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
     target_samples = target.sample(eval_contexts, num_samples).to(device)
-    t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
-    t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
-    m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
-    m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
+    if proj_type == "w2":
+        eval_sqrt = eval_chol @ eval_chol.transpose(-1, -2)
+        eval_cov = eval_sqrt @ eval_sqrt
+        model_samples = model.get_samples_gmm_w2(eval_gate, eval_mean, eval_cov, num_samples).to(device)
+
+        t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
+        t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
+        m_log_t = model.log_prob_gmm_w2(eval_mean, eval_cov, eval_gate, target_samples)
+        m_log_m = model.log_prob_gmm_w2(eval_mean, eval_cov, eval_gate, model_samples)
+    else:
+        model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
+
+        t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
+        t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
+        m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
+        m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
 
     kl_target_model = (t_log_t - m_log_t).mean()
     kl_model_target = (m_log_m - t_log_m).mean()

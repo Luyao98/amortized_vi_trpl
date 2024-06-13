@@ -7,7 +7,7 @@ from toy_task.GMM.utils.torch_utils import get_numpy
 from toy_task.GMM.utils.projection_utils import gaussian_kl
 
 
-def split_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
+def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
     maha_part, cov_part = gaussian_kl(mean, chol, old_mean, old_chol)
 
     # project mean
@@ -43,8 +43,6 @@ def split_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
 
 def mean_projection(mean, old_mean, maha, eps_mu):
 
-    # mean_diff = (mean - old_mean).unsqueeze(-1)
-    # maha = ch.linalg.solve_triangular(old_chol, mean_diff, upper=False).pow(2).sum([-2, -1])
     batch_shape = mean.shape[:-1]
     mask = maha > eps_mu
 

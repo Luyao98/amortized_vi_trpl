@@ -26,6 +26,7 @@ def plot2d_matplotlib(
         max_x: int or None = None,
         min_y: int or None = None,
         max_y: int or None = None,
+        proj_type: int or None = None
 ):
     model.eval()
     # get data for plotting
@@ -39,6 +40,7 @@ def plot2d_matplotlib(
         max_x=max_x,
         min_y=min_y,
         max_y=max_y,
+        proj_type=proj_type,
     )
     n_tasks = data["n_tasks"]
     n_components = data["n_components"]
@@ -176,6 +178,7 @@ def compute_data_for_plot(
         max_x: float or None = None,
         min_y: float or None = None,
         max_y: float or None = None,
+        proj_type: float or None = None,
 ) -> dict:
     # create meshgrid
     n_plt = 100
@@ -222,14 +225,13 @@ def compute_data_for_plot(
     # evaluate distributions
     with torch.no_grad():
         log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
-        # if  type(target_dist) == FunnelTarget:
-        #     # with this modification, the funnel target can be plotted with the GMM model
-        #     xy_funnel = torch.cat([xy, torch.zeros(xy.shape[0], dim - 2)], dim=1)
-        #     xy_funnel = xy_funnel.unsqueeze(0).expand(n_tasks, -1, -1)
-        #     log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy_funnel)
-        # else:
-        log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy.unsqueeze(0).expand(n_tasks, -1, -1))
-
+        if proj_type=="w2":
+            sqrt = scale_trils @ scale_trils.transpose(-1, -2)
+            cov = sqrt @ sqrt
+            log_p_model = model.log_prob_gmm_w2(means, cov, torch.log(torch.tensor(weights)), xy.unsqueeze(0).expand(n_tasks, -1, -1))
+        else:
+            log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)),
+                                             xy.unsqueeze(0).expand(n_tasks, -1, -1))
     log_p_tgt = log_p_tgt.to("cpu").numpy()
     if normalize_output:
         # maximum is now 0, so exp(0) = 1
@@ -239,7 +241,12 @@ def compute_data_for_plot(
     p_model = np.exp(log_p_model)
     # extract gmm parameters
     locs = means.detach().to("cpu").numpy()
-    scale_trils = scale_trils.detach().to("cpu").numpy()
+    if proj_type=="w2":
+        sqrt = scale_trils @ scale_trils.transpose(-1, -2)
+        cov = sqrt @ sqrt
+        scale_trils = torch.linalg.cholesky(cov).detach().to("cpu").numpy()
+    else:
+        scale_trils = scale_trils.detach().to("cpu").numpy()
 
     return {
         "n_tasks": n_tasks,

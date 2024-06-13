@@ -3,15 +3,16 @@ defaults:
   - target: gmm_target
   - schema: no_projection
   - seed: a
-#  - override hydra/sweeper: list
+  - override hydra/sweeper: list
 
-#exp_name: 4GMM_4GMM
-exp_name: 4GMM_4GMM_algorithm_1
+#exp_name: gmm_algo_basic
+#exp_name: gmm_algo_kl
+#exp_name: gmm_algo_direct
+exp_name: gmm_algo_stl
 
 hydra:
   sweeper:
-    params:
-      target: gmm_target
-      schema: projection_4gmm
-#      schema: no_projection
-      seed:  a
+    grid_params:
+      schema: no_projection
+#      schema: projection_4gmm
+      seed: a,b, c,d,e,f

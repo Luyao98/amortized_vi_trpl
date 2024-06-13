@@ -1,27 +1,26 @@
 defaults:
   - _self_
   - target: funnel_target
-  - schema: no_projection
+  - schema: projection_10d_funnel
   - seed: a
-#  - override hydra/sweeper: list
+  - override hydra/sweeper: list
 
 #exp_name: 10D_Funnel
-exp_name: 10D_Funnel_algorithm_1
+#exp_name: 10d_funnel_algo_basic
+exp_name: 10d_funnel_algo_kl
+#exp_name: 10d_funnel_algo_w2
+#exp_name: 10d_funnel_algo_direct
+#exp_name: 10d_funnel_algo_stl
 
 hydra:
   sweeper:
-    params:
-      target: funnel_target
+    grid_params:
+#      schema: no_projection
       schema: projection_10d_funnel
-#      projection_10d_funnel
-      seed: a, b, c, d, e, f
-
-#hydra:
-#  sweeper:
-#    grid_params:
-##      schema.eps_mean: 1, 0.5, 0.1, 0.01
-##      schema.eps_cov: 0.5, 0.1, 0.01
-#      schema.alpha: 10, 50, 75
+      seed: a, b, e, g, i, j
+#      schema.alpha: [2]
 #    list_params:
-#      schema.eps_mean: 1, 2
-#      schema.eps_cov: 0.5, 0.5
+#      schema.eps_mean: [0.1]
+#      schema.eps_cov: [0.]
+
+# note: for lr=1e-4, seed c,d,f,h crashes, but a,b,e,g,i,j work

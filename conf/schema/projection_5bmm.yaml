@@ -1,5 +1,5 @@
 project: True
-eps_mean: 0.2
-eps_cov: 0.1
+eps_mean: 1.0
+eps_cov: 0.5
 alpha: 5
 

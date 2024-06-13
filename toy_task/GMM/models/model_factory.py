@@ -5,19 +5,19 @@ from toy_task.GMM.models.GMM_model_3 import ConditionalGMM3
 from toy_task.GMM.utils.network_utils import initialize_weights
 
 
-def get_model(model_name,target_name, dim, device, n_components, initialization_type):
+def get_model(model_name,target_name, dim, device, n_components, gate_layer, com_layer, initialization_type):
     if model_name == "toy_task_model_1":
         if target_name == "gmm":
             scale = 5.0
             num_layers_gate = 2
             gate_size = 128
-            num_layers_gaussian = 3
+            num_layers_gaussian = 4
             gaussian_size = 256
         else:
             scale = 3.0
-            num_layers_gate = 5
+            num_layers_gate = gate_layer
             gate_size = 128
-            num_layers_gaussian = 8
+            num_layers_gaussian = com_layer
             gaussian_size = 256
         init_bias_mean_list = generate_init_biases(n_components, dim, scale)
         init_bias_gate = [0.0] * n_components
@@ -36,13 +36,13 @@ def get_model(model_name,target_name, dim, device, n_components, initialization_
             scale = 5.0
             num_layers_gate = 2
             gate_size = 128
-            num_layers_gaussian = 3
+            num_layers_gaussian = 4
             gaussian_size = 256
         else:
             scale = 3.0
-            num_layers_gate = 5
+            num_layers_gate = gate_layer
             gate_size = 128
-            num_layers_gaussian = 8
+            num_layers_gaussian = com_layer
             gaussian_size = 256
         init_bias_mean_list = generate_init_biases(n_components, dim, scale)
         init_bias_mean_array = np.array(init_bias_mean_list).flatten()
@@ -61,13 +61,13 @@ def get_model(model_name,target_name, dim, device, n_components, initialization_
             scale = 5.0
             num_layers_gate = 2
             gate_size = 128
-            num_layers_gaussian = 3
+            num_layers_gaussian = 4
             gaussian_size = 256
         else:
             scale = 3.0
-            num_layers_gate = 5
+            num_layers_gate = gate_layer
             gate_size = 128
-            num_layers_gaussian = 8
+            num_layers_gaussian = com_layer
             gaussian_size = 256
         init_bias_mean_list = generate_init_biases(n_components, dim, scale)
         init_bias_mean_array = np.array(init_bias_mean_list).flatten()

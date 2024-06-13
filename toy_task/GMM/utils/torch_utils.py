@@ -77,3 +77,15 @@ def inverse_softplus(x):
 
 def get_numpy(x):
     return x.cpu().detach().numpy()
+
+
+def torch_batched_trace(x) -> ch.Tensor:
+    """
+    Compute trace in n,m of batched matrix
+    Args:
+        x: matrix with shape [a,...l, n, m]
+
+    Returns: trace with shape [a,...l]
+
+    """
+    return ch.diagonal(x, dim1=-2, dim2=-1).sum(-1)
