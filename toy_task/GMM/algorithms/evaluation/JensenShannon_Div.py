@@ -20,6 +20,15 @@ def js_divergence_gate(stack_loss_component, model, eval_contexts, device):
     js_div = 0.5 * (ideal_log_mid + pred_log_mid)
     return js_div.mean()
 
+def kl_divergence_gate(stack_loss_component, model, eval_contexts, device):
+    """
+    KL(model_gate || ground_truth_gate)
+    """
+    ideal_gates = ideal_calculated_gates(stack_loss_component).to(device)
+    eval_gate, _, _ = model(eval_contexts)
+    kl_div = ch.exp(eval_gate) * (eval_gate - ideal_gates)
+    return kl_div.mean()
+
 
 def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                   target: AbstractTarget,
@@ -56,12 +65,12 @@ def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     midpoint_t = ch.logsumexp(ch.stack([t_log_t, m_log_t]), dim=0) - ch.log(ch.tensor(2.0))
     midpoint_m = ch.logsumexp(ch.stack([t_log_m, m_log_m]), dim=0) - ch.log(ch.tensor(2.0))
 
-    kl_target_midpoint = (t_log_t - midpoint_t).mean()
-    kl_model_midpoint = (m_log_m - midpoint_m).mean()
+    kl_target_midpoint = t_log_t - midpoint_t
+    kl_model_midpoint = m_log_m - midpoint_m
 
     js_div = 0.5 * (kl_target_midpoint + kl_model_midpoint)
 
-    return js_div
+    return js_div.mean()
 
 
 def ideal_js_divergence(model: ConditionalGMM or ConditionalGMM2,
