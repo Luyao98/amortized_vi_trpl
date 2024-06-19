@@ -21,12 +21,18 @@ def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
         chol_proj[~mask] = chol[~mask]
         if mask.any():
             cov_proj = CovKLProjection.apply(old_chol, chol, cov, eps_cov)
+            # ensure symmetry
+            cov_proj = (cov_proj + cov_proj.transpose(-1, -2)) / 2
+            # ensure positive definiteness
+            cov_proj += ch.eye(cov_proj.shape[-1], device=cov_proj.device) * 1e-6
+
             # needs projection and projection failed
             # mean propagates the nan values to the batch dimensions, in case any of entries is nan
             is_nan = cov_proj.mean([-2, -1]).isnan() * mask
             if is_nan.any():
                 chol_proj[is_nan] = old_chol[is_nan]
                 mask *= ~is_nan
+
             chol_proj[mask], failed_mask = ch.linalg.cholesky_ex(cov_proj[mask])
             # check if any of the cholesky decompositions failed and keep old_std in that case
             failed_mask = failed_mask.type(ch.bool)
@@ -39,6 +45,7 @@ def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
         chol_proj = old_chol
         raise e
     return mean_proj, chol_proj
+
 
 
 def mean_projection(mean, old_mean, maha, eps_mu):
