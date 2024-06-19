@@ -17,16 +17,14 @@ def my_app(cfg: DictConfig) -> None:
         **OmegaConf.to_container(cfg.schema, resolve=True)
     }
 
-    group_name = f"{cfg['exp_name']}_{cfg.target.model_name}"
-    # run name for algorithm 1
-    # run_name = f"num_gaussian_lr{cfg.target.gaussian_lr}_gate_lr{cfg.target.gate_lr}"
-    run_name = f"seed_{cfg.seed.seed}"
-
+    group_name = f"{cfg['exp_name']}_{cfg.target.model_name}_gaussian_lr{cfg.target.gaussian_lr}_gate_lr{cfg.target.gate_lr}"
+    run_name = f"seed_{cfg.seed.seed}_gate_layers_{cfg.target.num_gate_layer}_component_layers_{cfg.target.num_component_layer}"
+    # run_name = f"seed_{cfg.seed.seed}_mean_{cfg.schema.eps_mean}_cov_{cfg.schema.eps_cov}_alpha_{cfg.schema.alpha}"
     wandb.init(project="toy_task", group=group_name, config=config_dict, name=run_name)
 
-    toy_task(config_dict)
+    # toy_task(config_dict)
     # toy_task_2(config_dict)
-    # toy_task_3(config_dict)
+    toy_task_3(config_dict)
 
     wandb.finish()
 
