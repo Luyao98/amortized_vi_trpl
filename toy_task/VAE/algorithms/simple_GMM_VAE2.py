@@ -98,7 +98,7 @@ class VAE(nn.Module):
 
 
 def loss_function(recon_x, x, mu, logvar, gates, z):
-    BCE = nn.functional.binary_cross_entropy(recon_x, x, reduction='sum')
+    bce = nn.functional.binary_cross_entropy(recon_x, x, reduction='sum')
 
     cov = torch.diag_embed(torch.exp(logvar))
     n_components = gates.shape[1]
@@ -110,15 +110,8 @@ def loss_function(recon_x, x, mu, logvar, gates, z):
       diff_i = log_encoder_i-log_prior_i
       diff.append(diff_i)
     diff = torch.stack(diff, dim=1)
-    # log_q_z_ox = torch.stack(log_q_z_ox, dim=1)
-    # log_encoder = torch.logsumexp(torch.log(gates) + log_q_z_ox, dim=1)
-    # log_prior = torch.sum(-0.5 * torch.log(torch.tensor(2 * np.pi)) - 0.5 * z ** 2, dim=-1)
-    # print(gates.shape)
-    # print(log_encoder.shape)
-    # print(log_prior.shape)
-    # KLD = gates * (log_encoder - log_prior)
-    KLD = torch.mean(gates * diff)
-    return BCE + KLD
+    kld = torch.mean(gates * diff)
+    return bce + kld
 
 
 def train(epoch, model, optimizer, train_loader, device, train_loss_list):
