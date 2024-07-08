@@ -1,0 +1,17 @@
+batch_size: 100
+latent_dim: 2
+gmm_components: 5
+hidden_dim: 400
+encoder_layer_1: 3
+encoder_layer_2: 4
+decoder_layer: 3
+n_samples: 10
+beta: 1
+epochs: 10
+learning_rate: 1e-3
+output_dir: "output_with_proj_5_components_hidden_20"
+
+projection: True
+eps_means: 0.01
+eps_chols: 0.001
+alpha: 10

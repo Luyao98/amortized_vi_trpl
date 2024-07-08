@@ -133,6 +133,7 @@ def get_gmm_target(n_components):
 # contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
 # log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
-# target.visualize(contexts, n_samples=1000)
+# print(ch.exp(get_weights(contexts)))
+# target.visualize(contexts, n_samples=20)
 # contexts = ch.tensor([[-2.619831], [-2.6058419], [-2.871721]])
 # target.visualize(contexts)

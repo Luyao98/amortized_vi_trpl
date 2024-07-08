@@ -54,9 +54,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         if epoch == 0:
             model.eval()
             with ch.no_grad():
+                # funnel target has no gates
+                # init_gate, _, _ = model(contexts)
                 plot(model, target, contexts=plot_contexts)
                 model.to(device)
             model.train()
+            # wandb.log({"reverse KL between gates": kl_gate.item(),
+            #            "Jensen Shannon Divergence between gates": js_divergence_gates.item()})
 
         # shuffle sampled contexts, since the same sample set is used.
         indices = ch.randperm(train_size)
@@ -166,7 +170,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        n_plot = n_epochs // 10
+        n_plot = n_epochs // 20
         if (epoch + 1) % n_plot == 0:
             model.eval()
             with ch.no_grad():
@@ -256,31 +260,31 @@ def toy_task(config):
                 project, eps_mean, eps_cov, alpha)
 
 
-# if __name__ == "__main__":
-#     # test
-#     config = {
-#         "n_epochs": 400,
-#         "batch_size": 128,
-#         "n_context": 1280,
-#         "n_components": 10,
-#         "num_gate_layer": 5,
-#         "num_component_layer": 7,
-#         "n_samples": 10,
-#         "gate_lr": 0.00001,
-#         "gaussian_lr": 0.00001,
-#         "model_name": "toy_task_model_2",
-#         "target_name": "funnel",
-#         "target_components": 10,
-#         "dim": 10,
-#         "initialization_type": "xavier",
-#         "project": False,
-#         "eps_mean": 1e-6,
-#         "eps_cov": 1e-6,
-#         "alpha": 50
-#     }
-#     group_name = "test"
-#     wandb.init(project="ELBO", group=group_name, config=config)
-#     toy_task(config)
+if __name__ == "__main__":
+    # test
+    config = {
+        "n_epochs": 40,
+        "batch_size": 128,
+        "n_context": 1280,
+        "n_components": 4,
+        "num_gate_layer": 5,
+        "num_component_layer": 7,
+        "n_samples": 10,
+        "gate_lr": 0.0001,
+        "gaussian_lr": 0.0001,
+        "model_name": "toy_task_model_2",
+        "target_name": "gmm",
+        "target_components": 4,
+        "dim": 2,
+        "initialization_type": "xavier",
+        "project": False,
+        "eps_mean": 1e-6,
+        "eps_cov": 1e-6,
+        "alpha": 50
+    }
+    group_name = "test"
+    wandb.init(project="ELBO", group=group_name, config=config)
+    toy_task(config)
 # import torch as ch
 # import torch.nn as nn
 # import torch.optim as optim

@@ -11,7 +11,7 @@ class GateNN(nn.Module):
         self.num_layers = num_layers
         self.fc_layers = nn.ModuleList()
 
-        self.fc_layers.append(nn.Linear(1, gate_size))
+        self.fc_layers.append(nn.Linear(784, gate_size))
         for _ in range(1, num_layers):
             self.fc_layers.append(nn.Linear(gate_size, gate_size))
         self.fc_gate = nn.Linear(gate_size, n_components)
@@ -25,6 +25,7 @@ class GateNN(nn.Module):
         for fc in self.fc_layers:
             x = ch.relu(fc(x))
         x = ch.log_softmax(self.fc_gate(x), dim=-1)
+        # x = nn.functional.gumbel_softmax(self.fc_gate(x), tau=1.0, hard=False, dim=-1)
         return x
 
 
@@ -45,7 +46,7 @@ class GaussianNN2(nn.Module):
         self.chol_dim = n_components * dim * (dim + 1) // 2
 
         self.fc_layers = nn.ModuleList()
-        self.fc_layers.append(nn.Linear(1, gaussian_size))
+        self.fc_layers.append(nn.Linear(784, gaussian_size))
         for _ in range(1, num_layers):
             self.fc_layers.append(nn.Linear(gaussian_size, gaussian_size))
         self.fc_mean = nn.Linear(gaussian_size, self.mean_dim)
@@ -55,7 +56,8 @@ class GaussianNN2(nn.Module):
         if init_bias_mean is not None:
             with ch.no_grad():
                 self.fc_mean.bias.copy_(ch.tensor(init_bias_mean, dtype=self.fc_mean.bias.dtype))
-        self.init_std = ch.tensor(3.5)
+        # print("Initialized fc_mean.bias:", self.fc_mean.bias)
+        self.init_std = ch.tensor(2.0)
 
     def forward(self, x):
         for fc in self.fc_layers:
@@ -87,3 +89,25 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
         log_gates = self.gate(x)
         means, chols = self.gaussian_list(x)
         return log_gates, means, chols
+
+    # reparameterization trick for gate
+    # def forward(self, x, temperature=1.0, hard=False):
+    #     log_gates = self.gate(x)
+    #     gates = self.gumbel_softmax(ch.exp(log_gates), temperature, hard)
+    #     log_gates = ch.log(gates)
+    #
+    #     means, chols = self.gaussian_list(x)
+    #     return log_gates, means, chols
+
+    def gumbel_softmax_sample(self, logits, temperature=1.0):
+        gumbel_noise = -ch.log(-ch.log(ch.rand_like(logits) + 1e-20) + 1e-20)
+        y = logits + gumbel_noise
+        return ch.softmax(y / temperature, dim=-1)
+
+    def gumbel_softmax(self, logits, temperature=1.0, hard=False):
+        y = self.gumbel_softmax_sample(logits, temperature)
+        if hard:
+            y_hard = ch.zeros_like(y)
+            y_hard.scatter_(1, y.argmax(dim=1, keepdim=True), 1.0)
+            y = (y_hard - y).detach() + y
+        return y

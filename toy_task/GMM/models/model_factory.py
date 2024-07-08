@@ -2,7 +2,7 @@ import numpy as np
 from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
 from toy_task.GMM.models.GMM_model_3 import ConditionalGMM3
-from toy_task.GMM.utils.network_utils import initialize_weights
+from toy_task.GMM.utils.network_utils import initialize_weights, generate_init_biases
 
 
 def get_model(model_name,target_name, dim, device, n_components, gate_layer, com_layer, initialization_type):
@@ -75,21 +75,6 @@ def get_model(model_name,target_name, dim, device, n_components, gate_layer, com
     return model.to(device)
 
 
-def generate_init_biases(n_components, dim, scale):
-    if dim == 2:
-        angles = np.linspace(0, 2 * np.pi, n_components, endpoint=False)
-        init_bias_mean_list = [[scale * np.cos(angle), scale * np.sin(angle)] for angle in angles]
-    elif dim == 10:
-        # dummy version for testing
-        angles = np.linspace(0, 2 * np.pi, n_components, endpoint=False)
-        init_bias_mean_list = [[scale * np.cos(angle), scale * np.sin(angle),
-                                scale * np.cos(angle), scale * np.sin(angle),
-                                scale * np.cos(angle), scale * np.sin(angle),
-                                scale * np.cos(angle), scale * np.sin(angle),
-                                scale * np.cos(angle), scale * np.sin(angle)] for angle in angles]
-    else:
-        raise ValueError(f"Invalid dim {dim}. Now only support 2 or 10.")
-    return init_bias_mean_list
 
 
 # test

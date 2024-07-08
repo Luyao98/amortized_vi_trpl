@@ -93,7 +93,7 @@ def train_model_p(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
             mean_proj = ch.stack(mean_proj, dim=1)
             chol_proj = ch.stack(chol_proj, dim=1)
 
-            # gate proj
+            # gate proj， first define opt problem by cvxpy
             p = cp.Variable(n_components, nonneg=True)
             q = cp.Parameter(n_components)
             r = cp.Parameter(n_components)
@@ -210,7 +210,7 @@ def plot(model: ConditionalGMM,
     # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-10, max_x=10, min_y=-10, max_y=10)
 
 
-def toy_task(config):
+def toy_task_p(config):
     n_epochs = config['n_epochs']
     batch_size = config['batch_size']
     n_context = config['n_context']
@@ -256,30 +256,30 @@ def toy_task(config):
                 eps_gate, eps_mean, eps_cov, alpha)
 
 
-if __name__ == "__main__":
-    # test
-    set_seed(1001)
-    config = {
-        "n_epochs": 400,
-        "batch_size": 128,
-        "n_context": 1280,
-        "n_components": 10,
-        "num_gate_layer": 5,
-        "num_component_layer": 7,
-        "n_samples": 10,
-        "gate_lr": 0.00001,
-        "gaussian_lr": 0.00001,
-        "model_name": "toy_task_model_2",
-        "target_name": "funnel",
-        "target_components": 10,
-        "dim": 10,
-        "initialization_type": "xavier",
-        "eps_gate": 1e-6,
-        "eps_mean": 1.0,
-        "eps_cov": 0.5,
-        "alpha": 50
-    }
-    group_name = "test"
-    wandb.init(project="ELBO", group=group_name, config=config)
-    toy_task(config)
+# if __name__ == "__main__":
+#     # test
+#     set_seed(1001)
+#     config = {
+#         "n_epochs": 400,
+#         "batch_size": 128,
+#         "n_context": 1280,
+#         "n_components": 10,
+#         "num_gate_layer": 5,
+#         "num_component_layer": 7,
+#         "n_samples": 10,
+#         "gate_lr": 0.00005,
+#         "gaussian_lr": 0.00005,
+#         "model_name": "toy_task_model_2",
+#         "target_name": "funnel",
+#         "target_components": 10,
+#         "dim": 10,
+#         "initialization_type": "xavier",
+#         "eps_gate": 1e-6,
+#         "eps_mean": 1.0,
+#         "eps_cov": 0.5,
+#         "alpha": 50
+#     }
+#     group_name = "test"
+#     wandb.init(project="ELBO", group=group_name, config=config)
+#     toy_task_p(config)
 

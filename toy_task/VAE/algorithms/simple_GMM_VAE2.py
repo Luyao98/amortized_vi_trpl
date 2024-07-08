@@ -91,7 +91,8 @@ class VAE(nn.Module):
     def forward(self, x, temperature=1.0, hard=False):
         mu, logvar, gate_logits = self.encoder(x)
         gate = self.gumbel_softmax(gate_logits, temperature, hard)
-        z = self.reparameterize(mu, logvar)
+        # z = self.reparameterize(mu, logvar)
+        z = torch.distributions.Normal(mu, torch.exp(logvar)).rsample()
         z_reshape =  z.view(-1, self.n_components * self.latent_dim)
         recon_x = self.decoder(z_reshape)
         return recon_x, mu, logvar, gate, z
@@ -170,10 +171,10 @@ def test(model, test_loader, device, num_samples=8):
 
 # model parameters
 batch_size = 128
-latent_dim = 20
+latent_dim = 2
 gmm_components = 10
-hidden_dim = 400
-epochs = 70
+hidden_dim = 200
+epochs = 30
 learning_rate = 1e-3
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

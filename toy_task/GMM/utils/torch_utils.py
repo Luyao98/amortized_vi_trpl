@@ -89,3 +89,18 @@ def torch_batched_trace(x) -> ch.Tensor:
 
     """
     return ch.diagonal(x, dim1=-2, dim2=-1).sum(-1)
+
+
+def gumbel_softmax_sample(logits, temperature=1.0):
+    gumbel_noise = -ch.log(-ch.log(ch.rand_like(logits) + 1e-20) + 1e-20)
+    y = logits + gumbel_noise
+    return ch.softmax(y / temperature, dim=-1)
+
+
+def gumbel_softmax(logits, temperature=1.0, hard=False):
+    y = gumbel_softmax_sample(logits, temperature)
+    if hard:
+        y_hard = ch.zeros_like(y)
+        y_hard.scatter_(1, y.argmax(dim=1, keepdim=True), 1.0)
+        y = (y_hard - y).detach() + y
+    return y

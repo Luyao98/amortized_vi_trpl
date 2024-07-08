@@ -15,7 +15,8 @@ hydra:
   sweeper:
     grid_params:
       target: bmm_target
-      schema: no_projection
-#      schema: no_projection
-      seed:  a, b, c, e, f, h
+      schema: projection_5bmm
+      seed: a, b, c
+
+#      seed:  a, b, c, e, f, h
 

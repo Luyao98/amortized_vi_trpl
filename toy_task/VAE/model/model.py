@@ -1,154 +1,179 @@
+import numpy as np
 import torch as ch
 import torch.nn as nn
-from torch.distributions import Normal
+from torch.distributions import Normal, MultivariateNormal, kl_divergence
 
-# from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
+from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
 from toy_task.GMM.models.abstract_gmm_model import AbstractGMM
+from toy_task.GMM.projections.split_kl_projection import split_kl_projection
+from toy_task.GMM.utils.network_utils import generate_init_biases
 
-class GateNN(nn.Module):
-    def __init__(self, n_components, num_layers, gate_size, init_bias_gate=None):
-        super(GateNN, self).__init__()
-        self.num_layers = num_layers
-        self.fc_layers = nn.ModuleList()
-
-        self.fc_layers.append(nn.Linear(784, gate_size))
-        for _ in range(1, num_layers):
-            self.fc_layers.append(nn.Linear(gate_size, gate_size))
-        self.fc_gate = nn.Linear(gate_size, n_components)
-
-        # set init uniform bias for gates
-        if init_bias_gate is not None:
-            with ch.no_grad():
-                self.fc_gate.bias.copy_(ch.tensor(init_bias_gate, dtype=self.fc_gate.bias.dtype))
-
-    def forward(self, x):
-        for fc in self.fc_layers:
-            x = ch.relu(fc(x))
-        x = ch.log_softmax(self.fc_gate(x), dim=-1)
-        return x
-
-
-class GaussianNN2(nn.Module):
-    def __init__(self,
-                 num_layers,
-                 gaussian_size,
-                 n_components,
-                 dim):
-        super(GaussianNN2, self).__init__()
-        self.num_layers = num_layers
-        self.layer_size = gaussian_size
-        self.n_components = n_components
-        self.dim = dim
-        self.mean_dim = n_components * dim
-        # self.chol_dim = n_components * dim * (dim + 1) // 2
-
-        self.fc_layers = nn.ModuleList()
-        self.fc_layers.append(nn.Linear(784, gaussian_size))
-        for _ in range(1, num_layers):
-            self.fc_layers.append(nn.Linear(gaussian_size, gaussian_size))
-        self.fc_mean = nn.Linear(gaussian_size, self.mean_dim)
-        self.fc_chol = nn.Linear(gaussian_size, self.mean_dim)
-
-    def forward(self, x):
-        for fc in self.fc_layers:
-            x = ch.relu(fc(x))
-        means = self.fc_mean(x).view(-1, self.n_components, self.dim)
-        flat_chols = ch.exp(self.fc_chol(x)).view(-1, self.n_components, self.dim)
-        chols = ch.diag_embed(flat_chols)
-
-        return means, chols
-
-
-class ConditionalGMM2(AbstractGMM, nn.Module):
-    def __init__(self,
-                 num_layers_gate,
-                 gate_size,
-                 num_layers_gaussian,
-                 gaussian_size,
-                 n_components,
-                 dim,
-                 init_bias_gate=None):
-        super(ConditionalGMM2, self).__init__()
-        self.gate = GateNN(n_components, num_layers_gate, gate_size, init_bias_gate)
-        self.gaussian_list = GaussianNN2(num_layers_gaussian, gaussian_size, n_components, dim)
-
-    def forward(self, x):
-        log_gates = self.gate(x)
-        means, chols = self.gaussian_list(x)
-        return log_gates, means, chols
+# class GateNN(nn.Module):
+#     def __init__(self, n_components, num_layers, gate_size, init_bias_gate=None):
+#         super(GateNN, self).__init__()
+#         self.num_layers = num_layers
+#         self.fc_layers = nn.ModuleList()
+#
+#         self.fc_layers.append(nn.Linear(784, gate_size))
+#         for _ in range(1, num_layers):
+#             self.fc_layers.append(nn.Linear(gate_size, gate_size))
+#         self.fc_gate = nn.Linear(gate_size, n_components)
+#
+#         # set init uniform bias for gates
+#         if init_bias_gate is not None:
+#             with ch.no_grad():
+#                 self.fc_gate.bias.copy_(ch.tensor(init_bias_gate, dtype=self.fc_gate.bias.dtype))
+#
+#     def forward(self, x):
+#         for fc in self.fc_layers:
+#             x = ch.relu(fc(x))
+#         x = ch.log_softmax(self.fc_gate(x), dim=-1)
+#         return x
+#
+#
+# class GaussianNN2(nn.Module):
+#     def __init__(self,
+#                  num_layers,
+#                  gaussian_size,
+#                  n_components,
+#                  dim):
+#         super(GaussianNN2, self).__init__()
+#         self.num_layers = num_layers
+#         self.layer_size = gaussian_size
+#         self.n_components = n_components
+#         self.dim = dim
+#         self.mean_dim = n_components * dim
+#         # self.chol_dim = n_components * dim * (dim + 1) // 2
+#
+#         self.fc_layers = nn.ModuleList()
+#         self.fc_layers.append(nn.Linear(784, gaussian_size))
+#         for _ in range(1, num_layers):
+#             self.fc_layers.append(nn.Linear(gaussian_size, gaussian_size))
+#         self.fc_mean = nn.Linear(gaussian_size, self.mean_dim)
+#         self.fc_chol = nn.Linear(gaussian_size, self.mean_dim)
+#         self.fc0 = nn.Linear(gaussian_size, dim)
+#
+#     def forward(self, x):
+#         for fc in self.fc_layers:
+#             x = ch.relu(fc(x))
+#         means = self.fc_mean(x).view(-1, self.n_components, self.dim)
+#         flat_chols = ch.exp(self.fc_chol(x)).view(-1, self.n_components, self.dim)
+#         chols = ch.diag_embed(flat_chols)
+#
+#         return means, chols
+#
+#
+# class ConditionalGMM2(AbstractGMM, nn.Module):
+#     def __init__(self,
+#                  num_layers_gate,
+#                  gate_size,
+#                  num_layers_gaussian,
+#                  gaussian_size,
+#                  n_components,
+#                  dim,
+#                  init_bias_gate=None):
+#         super(ConditionalGMM2, self).__init__()
+#         self.gate = GateNN(n_components, num_layers_gate, gate_size, init_bias_gate)
+#         self.gaussian_list = GaussianNN2(num_layers_gaussian, gaussian_size, n_components, dim)
+#
+#     def forward(self, x):
+#         log_gates = self.gate(x)
+#         means, chols = self.gaussian_list(x)
+#         return log_gates, means, chols
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim, hidden_dim, output_dim):
+    def __init__(self, latent_dim, hidden_dim, output_dim, num_layers):
         super(Decoder, self).__init__()
-        self.fc1 = nn.Linear(latent_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc_layers = nn.ModuleList()
+        self.fc_layers.append(nn.Linear(latent_dim, hidden_dim))
+        for _ in range(1, num_layers):
+            self.fc_layers.append(nn.Linear(hidden_dim, hidden_dim))
 
         self.fc_mu = nn.Linear(hidden_dim, output_dim)
-        # self.fc_logvar = nn.Linear(hidden_dim, output_dim)
-
+        # self.fc_var = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, z):
-        h = ch.relu(self.fc1(z))
-        # h = ch.relu(self.fc2(h))
-        # h = ch.relu(self.fc3(h))
-        recon_mean = ch.sigmoid(self.fc_mu(h))
-        # recon_logvar = self.fc_logvar(h)
+        for fc in self.fc_layers:
+            z = ch.nn.functional.leaky_relu(fc(z))
+            # z= ch.relu(fc(z))
+        recon_mean = ch.sigmoid(self.fc_mu(z))
+        # recon_var = ch.exp(self.fc_var(z))
         return recon_mean
 
 
 class VAE(nn.Module):
-    def __init__(self, input_dim, hidden_dim, latent_dim, n_components, n_samples=1, projection=False):
+    def __init__(self, input_dim, hidden_dim, latent_dim, n_components, encoder_layer_1, encoder_layer_2, decoder_layer,
+                 n_samples, projection=False, eps_means=None, eps_chols=None, alpha=None):
         super(VAE, self).__init__()
-        self.encoder = ConditionalGMM2(num_layers_gate=1,
+        self.encoder = ConditionalGMM2(num_layers_gate=encoder_layer_1,
                                        gate_size=hidden_dim,
-                                       num_layers_gaussian=2,
+                                       num_layers_gaussian=encoder_layer_2,
                                        gaussian_size=hidden_dim,
                                        n_components=n_components,
                                        dim=latent_dim,
-                                       init_bias_gate=[0.0] * n_components)
-        self.decoder = Decoder(latent_dim, hidden_dim, input_dim)
+                                       init_bias_gate=[0.0] * n_components,
+                                       init_bias_mean=np.array(generate_init_biases(n_components, latent_dim, 2.0)).flatten())
+        self.decoder = Decoder(latent_dim, hidden_dim, input_dim, decoder_layer)
+        self.input_dim = input_dim
         self.latent_dim = latent_dim
         self.n_components = n_components
         self.n_samples = n_samples
+
         self.projection = projection
+        self.eps_means = eps_means
+        self.eps_chols = eps_chols
+        self.alpha = alpha
+        self.old_means = None
+        self.old_chols = None
 
     def forward(self, x):
         # encoder
         log_gates, means, chols = self.encoder(x)
+        # log_gates = self.gumbel_softmax(log_gates)
         if self.projection:
-            pass
-        z = self.encoder.get_rsamples(means, chols, self.n_samples).permute(0, 2, 1, 3) # (b,o,s=1,l)
-        # log_z = self.encoder.log_prob(means, chols, z) # (b,o,s=1)
-        log_responsibility = self.encoder.log_responsibility(log_gates.clone().detach(), means.clone().detach(),
-                                                        chols.clone().detach(), z) # (b,o,s=1)
-        kld = self.kl_divergence(means, chols) # (b,o)
-        # # test
-        # covs = ch.diagonal(chols @ chols.transpose(-1, -2), dim1=-2, dim2=-1) # (b,o,l)
-        # kl_loss = lambda means, covs: -0.5 * ch.sum(1 + means - means.pow(2) - covs.exp())
-        # recon_loss = lambda recon_x, x: nn.functional.binary_cross_entropy(recon_x, x, reduction='sum')
+            if self.old_means is None:
+                means_proj = means
+                chols_proj = chols
+            else:
+                means_proj, chols_proj = self.projection_layer(means, chols, self.eps_means, self.eps_chols)
+            pred_dist = MultivariateNormal(means, scale_tril=chols)
+            proj_dist = MultivariateNormal(means_proj.clone().detach(), scale_tril=chols_proj.clone().detach())
+            regression = kl_divergence(proj_dist, pred_dist)
 
+            z = self.encoder.get_rsamples(means_proj, chols_proj, self.n_samples).permute(0, 2, 1, 3)  # (b,o,s=1,l)
+            log_responsibility = self.encoder.log_responsibility(log_gates.clone().detach(),
+                                                                 means_proj.clone().detach(),
+                                                                 chols_proj.clone().detach(), z)  # (b,o,s)
+            log_responsibility = log_responsibility - self.alpha * regression.unsqueeze(-1)  # (b,o,s)
+            kld = self.kld(means_proj, chols_proj)  # (b,o)
+        else:
+            z = self.encoder.get_rsamples(means, chols, self.n_samples).permute(0, 2, 1, 3) # (b,o,s,l)
+            # log_z = self.encoder.log_prob(means, chols, z) # (b,o,s)
+            # log_prior = Normal(0, 1).log_prob(z).sum(-1) # (b,o,s)
+            log_responsibility = self.encoder.log_responsibility(log_gates.clone().detach(),
+                                                                 means.clone().detach(),
+                                                                 chols.clone().detach(), z) # (b,o,s)
+            kld = self.kld(means, chols) # (b,o)
+            # kld = log_z - log_prior
 
         # decoder
         # cov != I
-        # result = [self.decoder(z[:,i].squeeze(-2)) for i in range(self.n_components)]
-        # recon_mean, recon_logvar = zip(*result)
-        # likelihood = [Normal(recon_mean[i], ch.exp(recon_logvar[i])).log_prob(x).sum(-1) for i in range(self.n_components)] # (b,o)
-        # likelihood = ch.stack(likelihood, dim=1)
+        # recon_mean, recon_var  = self.decoder(z.reshape(-1, self.latent_dim))
+        # recon_mean = recon_mean.reshape(-1, self.n_components, self.n_samples, self.input_dim) # (b,o,s,f)
+        # recon_var = recon_var.reshape(-1, self.n_components, self.n_samples, self.input_dim) # (b,o,s,f)
+        # likelihood = MultivariateNormal(recon_mean, ch.diag_embed(recon_var)).log_prob(x.unsqueeze(1).unsqueeze(1)) # (b,o,s)
 
         # cov = I
-        recon_mean = [self.decoder(z[:,i].squeeze(-2)) for i in range(self.n_components)]
-        recon_mean = ch.stack(recon_mean, dim=1) # (b,o,l)
-        likelihood = [-0.5 * ((x - recon_mean[:,i]) ** 2).sum(-1) for i in range(self.n_components)]
-        # likelihood = [Normal(recon_mean[:,i], ch.ones_like(recon_mean[:,i])).log_prob(x).sum(-1) for i in range(self.n_components)]
-        likelihood = ch.stack(likelihood, dim=1) # (b,o)
+        recon_mean = self.decoder(z.reshape(-1, self.latent_dim)).reshape(-1, self.n_components, self.n_samples, self.input_dim) # (b,o,s,f)
+        likelihood = -0.5 * ((x.unsqueeze(1).unsqueeze(1) - recon_mean) ** 2).sum(-1) # (b,o,s)
+        # likelihood = Normal(recon_mean, ch.ones_like(recon_mean)).log_prob(x.unsqueeze(1).unsqueeze(1)).sum(-1)
 
-        # kld =kl_loss(means.squeeze(1), covs.squeeze(1))
-        # likelihood = recon_loss(recon_mean.squeeze(1), x)
-        # test_loss = -likelihood.sum() + kld.sum()
-        return  log_gates, z.squeeze(-2), log_responsibility.squeeze(-1), kld, likelihood, recon_mean
+        # if self.projection:
+        #     return  log_gates, means_proj, chols_proj, log_responsibility, kld, likelihood, recon_mean
+        # else:
+        return log_gates, means, chols, log_responsibility, kld, likelihood, recon_mean
 
-    def kl_divergence(self, mean, chol):
+    def kld(self, mean, chol):
         """
         Compute KL divergence between component and normal Gaussian
         :param mean: (b,o,l)
@@ -166,5 +191,15 @@ class VAE(nn.Module):
 
         return kl_div
 
-    def generate(self, z):
-        return self.decoder(z)
+    def kld_test(self,mean, chol):
+        var = ch.diagonal(chol @ chol.transpose(-1, -2), dim1=-2, dim2=-1)
+        kld = -0.5 * ch.sum(1 + ch.log(var) - mean.pow(2) - var, dim=-1)
+        return kld
+
+    def projection_layer(self, means, chols, eps_means, eps_chols):
+        proj_dist = [split_kl_projection(means[:, j], chols[:, j],
+                                         self.old_means[:, j].clone().detach(),
+                                         self.old_chols[:, j].clone().detach(),
+                                         eps_means, eps_chols) for j in range(self.n_components)]
+        mean_proj, chol_proj = zip(*proj_dist)
+        return ch.stack(mean_proj, dim=1), ch.stack(chol_proj, dim=1)

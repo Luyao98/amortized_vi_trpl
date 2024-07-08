@@ -88,7 +88,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
 
 
 def get_sig_fn(contexts):
-    sig = ch.exp(contexts)
+    sig = ch.sin(3 * contexts+1) + 1.1
     return sig
 
 

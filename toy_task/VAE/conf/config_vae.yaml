@@ -1,0 +1,18 @@
+defaults:
+  - _self_
+  - model: vae_model
+#  - schema: no_projection
+  - override hydra/sweeper: list
+
+exp_name: init_try
+
+hydra:
+  sweeper:
+    grid_params:
+#      model.eps_means: [0.01, 0.1,0.5,1]
+#      model.eps_chols: [0.0001, 0.001, 0.01]
+      model.beta: [5, 1, 0.1, 0.01]
+#    list_params:
+#      model.encoder_layer_1: [1, 1, 1,1,1,1,1,1]
+#      model.encoder_layer_2: [1, 2, 2,3,3,4,4,4]
+#      model.decoder_layer: [1,1,2,2,3,3,4,5]

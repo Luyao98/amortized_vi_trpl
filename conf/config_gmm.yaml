@@ -7,12 +7,18 @@ defaults:
 
 #exp_name: gmm_algo_basic
 #exp_name: gmm_algo_kl
-#exp_name: gmm_algo_direct
-exp_name: gmm_algo_stl
+exp_name: gmm_algo_direct
+#exp_name: gmm_algo_stl
 
 hydra:
   sweeper:
     grid_params:
-      schema: no_projection
+#      target.model_name: ["toy_task_model_1", "toy_task_model_3"]
 #      schema: projection_4gmm
-      seed: a,b, c,d,e,f
+#      seed: h,i,j,k
+      seed.seed: [1008]
+#       schema.alpha: [2, 5, 10, 50]
+#    list_params:
+#      schema.eps_mean: [1.0, 1.0, 0.2]
+#      schema.eps_cov: [0.5, 0.8, 0.1]
+

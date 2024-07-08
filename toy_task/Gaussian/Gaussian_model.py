@@ -11,7 +11,7 @@ from toy_task.GMM.utils.torch_utils import diag_bijector, fill_triangular, inver
 from toy_task.Gaussian.Gaussian_targets import ConditionalGaussianTarget, get_cov_fn, get_mean_fn
 from toy_task.Gaussian.Gaussian_plot import gaussian_plot
 from toy_task.GMM.projections.kl_projection import KLProjection
-from toy_task.GMM.projections.split_kl_projection import split_projection
+from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 
 
 # np.random.seed(37)
@@ -106,7 +106,7 @@ def train_model(model: GaussianNN,
             # projection step
             if split_proj:
                 # project mean and cov separately, with TRPL
-                mean_proj, chol_proj = split_projection(mean_pred, chol_pred, b_mean_old, b_chol_old, eps_mean, eps_cov)
+                mean_proj, chol_proj = split_kl_projection(mean_pred, chol_pred, b_mean_old, b_chol_old, eps_mean, eps_cov)
             else:
                 # project together with MORE
                 cov_pred = model.covariance(chol_pred)

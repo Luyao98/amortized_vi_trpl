@@ -34,7 +34,6 @@ def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                   target: AbstractTarget,
                   eval_contexts,
                   device,
-                  proj_type=None,
                   num_samples=1000):
     """
     MC estimation of Jenson's Shannon Divergence between two random, unknown distributions,
@@ -45,22 +44,22 @@ def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     eval_gate, eval_mean, eval_chol = model(eval_contexts)
     target_samples = target.sample(eval_contexts, num_samples).to(device)
 
-    if proj_type == "w2":
-        eval_sqrt = eval_chol @ eval_chol.transpose(-1, -2)
-        eval_cov = eval_sqrt @ eval_sqrt
-        model_samples = model.get_samples_gmm_w2(eval_gate, eval_mean, eval_cov, num_samples).to(device)
+    # if proj_type == "w2":
+    #     eval_sqrt = eval_chol @ eval_chol.transpose(-1, -2)
+    #     eval_cov = eval_sqrt @ eval_sqrt
+    #     model_samples = model.get_samples_gmm_w2(eval_gate, eval_mean, eval_cov, num_samples).to(device)
+    #
+    #     t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
+    #     t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
+    #     m_log_t = model.log_prob_gmm_w2(eval_mean, eval_cov, eval_gate, target_samples)
+    #     m_log_m = model.log_prob_gmm_w2(eval_mean, eval_cov, eval_gate, model_samples)
+    # else:
+    model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
 
-        t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
-        t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
-        m_log_t = model.log_prob_gmm_w2(eval_mean, eval_cov, eval_gate, target_samples)
-        m_log_m = model.log_prob_gmm_w2(eval_mean, eval_cov, eval_gate, model_samples)
-    else:
-        model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
-
-        t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
-        t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
-        m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
-        m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
+    t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
+    t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
+    m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
+    m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
 
     midpoint_t = ch.logsumexp(ch.stack([t_log_t, m_log_t]), dim=0) - ch.log(ch.tensor(2.0))
     midpoint_m = ch.logsumexp(ch.stack([t_log_m, m_log_m]), dim=0) - ch.log(ch.tensor(2.0))
