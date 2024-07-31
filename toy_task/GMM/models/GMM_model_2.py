@@ -86,7 +86,8 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
                  dim,
                  init_bias_gate=None,
                  init_bias_mean=None,
-                 dropout_prob=0.0
+                 dropout_prob=0.0,
+                 mode=None
                  ):
         super(ConditionalGMM2, self).__init__()
         self.dim = dim
@@ -95,6 +96,7 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
         self.gaussian_list = GaussianNN2(num_layers_gaussian, gaussian_size, n_components, dim, dropout_prob, init_bias_mean)
 
         self.hooks = []
+        self.mode = mode
 
     def forward(self, x):
         gates = self.gate(x)
@@ -103,25 +105,26 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
         return log_gates, means[:,:self.active_components], chols[:,:self.active_components]
 
     def register_hooks(self):
-        def hook_fn(grad):
+        def hook_fn_mean(grad):
             grad_copy = grad.clone()
-            # print("grad_copy.shape:", grad_copy.shape)
-            grad_copy[:, :self.active_components] = 0
+            # print("grad_copy.shape (mean):", grad_copy.shape)
+            fixed_position = (self.active_components - 1) * self.dim
+            grad_copy[:fixed_position] = 0
             return grad_copy
 
-        # for param in self.gate.fc_gate.parameters():
-        #     hook = param.register_hook(hook_fn)
-        #     self.hooks.append(hook)
+        def hook_fn_chol(grad):
+            grad_copy = grad.clone()
+            # print("grad_copy.shape (chol):", grad_copy.shape)
+            fixed_position = (self.active_components - 1) * (self.dim * (self.dim + 1) // 2)
+            grad_copy[:fixed_position] = 0
+            return grad_copy
 
-        for param in self.gaussian_list.fc_mean.parameters():
-            if param.ndim > 1 and param.shape[0] > self.active_components:
-                hook = param.register_hook(hook_fn)
-                self.hooks.append(hook)
+        mean_weight_hook = self.gaussian_list.fc_mean.weight.register_hook(hook_fn_mean)
+        mean_bias_hook = self.gaussian_list.fc_mean.bias.register_hook(hook_fn_mean)
+        chol_weight_hook = self.gaussian_list.fc_chol.weight.register_hook(hook_fn_chol)
+        chol_bias_hook = self.gaussian_list.fc_chol.bias.register_hook(hook_fn_chol)
 
-        for param in self.gaussian_list.fc_chol.parameters():
-            if param.ndim > 1 and param.shape[0] > self.active_components:
-                hook = param.register_hook(hook_fn)
-                self.hooks.append(hook)
+        self.hooks.extend([mean_weight_hook, mean_bias_hook, chol_weight_hook, chol_bias_hook])
 
     def clear_hooks(self):
         for hook in self.hooks:

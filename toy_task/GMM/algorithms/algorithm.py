@@ -28,10 +28,10 @@ def add_components(model, target, contexts):
 
         device = contexts.device
         current_gate, current_mean, current_chol = model(contexts)
-        # new_component_gate = ch.log(ch.tensor(0.001)).to(device)
-        init_gates = ch.tensor([50, 25, 10, 5])
-        random_index = ch.randint(0, len(init_gates), (1,)).item()
-        new_component_gate = -init_gates[random_index].to(device)
+        new_component_gate = ch.log(ch.tensor(0.001)).to(device)
+        # init_gates = ch.tensor([100, 50, 25, 10])
+        # random_index = ch.randint(0, len(init_gates), (1,)).item()
+        # new_component_gate = -init_gates[random_index].to(device)
 
         samples = model.get_samples_gmm(current_gate[:,:idx], current_mean[:,:idx], current_chol[:,:idx], 20)  # (b,s,f)
         log_model = model.log_prob_gmm(current_mean[:,:idx], current_chol[:,:idx], current_gate[:,:idx], samples)  # (b,s)
@@ -48,7 +48,7 @@ def add_components(model, target, contexts):
         # chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
         # chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
 
-        # DBSCAN
+        # DBSCAN and K-means
         _, data_idx = ch.max(rewards, dim=1)
         max_idx = data_idx.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, current_mean.shape[-1])
 
@@ -66,7 +66,7 @@ def add_components(model, target, contexts):
         # max_class_data = data[labels == max_label]
         # # max_class_indices = ch.nonzero(ch.tensor(labels) == max_label).squeeze()
 
-        kmeans = KMeans(n_clusters=4, random_state=0, n_init=10).fit(data_np)
+        kmeans = KMeans(n_clusters=5, random_state=0, n_init=10).fit(data_np)
         labels = kmeans.labels_
         unique_labels, counts = np.unique(labels, return_counts=True)
         max_label = unique_labels[np.argmin(counts)]
@@ -78,43 +78,36 @@ def add_components(model, target, contexts):
         model.gate.fc_gate.bias.data[idx] = new_component_gate
         model.gaussian_list.fc_mean.bias.data[idx * model.dim: (idx + 1) * model.dim] = chosen_mean
         print("New component mean:", model.gaussian_list.fc_mean.bias.data[idx * model.dim: (idx + 1) * model.dim])
-        # with ch.no_grad():
-        #     model.gaussian_list.fc_chol.bias.data[idx * model.dim * (model.dim + 1) // 2: (idx + 1) * model.dim * (model.dim + 1) // 2] = ch.tensor([1, 0, 1])
-        #     print("New component chol:", model.gaussian_list.fc_chol.bias.data[idx * model.dim * (model.dim + 1) // 2: (idx + 1) * model.dim * (model.dim + 1) // 2])
-        #     model.gaussian_list.fc_mean.weight.data[idx * model.dim: (idx + 1) * model.dim].zero_()
-        #     model.gaussian_list.fc_chol.weight.data[idx * model.dim * (model.dim + 1) // 2: (idx + 1) * model.dim * (model.dim + 1) // 2].zero_()
-        #     model.gaussian_list.fc_chol.bias.data[idx * model.dim * (model.dim + 1) // 2: (idx + 1) * model.dim * (model.dim + 1) // 2].zero_()
-        #     print("New component mean weights:", model.gaussian_list.fc_mean.weight.data[idx * model.dim: (idx + 1) * model.dim])
-        #     print("New component chol weights:", model.gaussian_list.fc_chol.weight.data[idx * model.dim * (model.dim + 1) // 2: (idx + 1) * model.dim * (model.dim + 1) // 2])
 
-    # model.register_hooks()
+    model.register_hooks()
     return idx
-def train_new_component(model, target, contexts, new_component_index, n_epochs=50):
+def train_new_component(model, target, contexts, new_component_index, n_epochs=10):
     model.train()
     optimizer = optim.Adam([
-        {'params': model.gate.fc_gate.parameters(), 'lr': 0.01},
+        # {'params': model.gate.fc_gate.parameters(), 'lr': 0.01},
         {'params': model.gaussian_list.fc_mean.parameters(), 'lr': 0.01},
-        {'params': model.gaussian_list.fc_chol.parameters(), 'lr': 0.01}], weight_decay=1e-5)
+        # {'params': model.gaussian_list.fc_chol.parameters(), 'lr': 0.01}
+    ], weight_decay=1e-5)
     # optimizer = optim.Adam(model.parameters(), lr=0.01)
 
     for epoch in range(n_epochs):
-        optimizer.zero_grad()
         gate_pred, mean_pred, chol_pred = model(contexts)
-
 
         # # idea 1: update only the new component, doesn't work
         mean_pred_new = mean_pred[:, new_component_index]
         chol_pred_new = chol_pred[:, new_component_index]
-        # model_samples = model.get_rsamples(mean_pred_new, chol_pred_new, 1)
-        model_samples = mean_pred_new.unsqueeze(1)
+        model_samples = model.get_rsamples(mean_pred_new, chol_pred_new, 2)
+        # model_samples = mean_pred_new.unsqueeze(1)
         log_model = model.log_prob(mean_pred_new, chol_pred_new, model_samples)
         log_target = target.log_prob_tgt(contexts, model_samples)
+        # loss = ch.sum(log_model - log_target)
 
         aux_loss = model.auxiliary_reward(new_component_index, gate_pred.clone().detach(), mean_pred.clone().detach(),
                                       chol_pred.clone().detach(), model_samples)
         loss = ch.sum(log_model - log_target - aux_loss)
 
-        # idea 2: update same loss but detach the current component, doesn't work
+
+        # # idea 2: update same loss but detach the current component, doesn't work
         # loss_component = []
         # for j in range(model.active_components):
         #     mean_pred_j = mean_pred[:, j]  # (batched_c, 2)
@@ -135,9 +128,11 @@ def train_new_component(model, target, contexts, new_component_index, n_epochs=5
         #     loss_component.append(loss_j)
         # loss = ch.stack(loss_component).sum()
 
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-    # model.clear_hooks()
+        # print("fc_mean.bias.grad:\n", model.gaussian_list.fc_mean.bias.grad)
+    model.clear_hooks()
 
 def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 target: AbstractTarget,
@@ -162,13 +157,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     # bmm and gmm
-    # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.7],
-    #                            [-1.8]])
-    # funnel
     plot_contexts = ch.tensor([[-0.3],
-                               [0.1],
-                               [-0.8]])
+                               [0.7],
+                               [-1.8]])
+    # funnel
+    # plot_contexts = ch.tensor([[-0.3],
+    #                            [0.1],
+    #                            [-0.8]])
     train_size = int(n_context)
     prev_loss = float('inf')
 
@@ -192,11 +187,11 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         # adding new components
         # model.eval()
         # with ch.no_grad():
-        n_adds = n_epochs // 10
+        n_adds = 0.8 * n_epochs // 5
         if (epoch + 1) % n_adds == 0 and model.active_components < n_components:
             new_component_index = add_components(model, target, shuffled_contexts[0:batch_size])
-            # train_new_component(model, target, shuffled_contexts[0:batch_size], new_component_index)
-            model.eval()
+            train_new_component(model, target, shuffled_contexts[0:batch_size], new_component_index)
+            # model.eval()
             with ch.no_grad():
                 plot(model, target, contexts=plot_contexts)
                 model.to(device)
@@ -346,8 +341,8 @@ def plot(model: ConditionalGMM,
     else:
         contexts = contexts.clone().to('cpu')
 
-    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
-    # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-10, max_x=10, min_y=-10, max_y=10)
+    # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
+    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-10, max_x=10, min_y=-10, max_y=10)
 
 
 def toy_task(config):
@@ -419,7 +414,7 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
     config = {
-        "n_epochs": 800,
+        "n_epochs": 400,
         "batch_size": 64,
         "n_context": 640,
         "n_components": 4,
