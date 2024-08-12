@@ -6,42 +6,40 @@ import matplotlib.pyplot as plt
 
 
 class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
-    def __init__(self, mean_fn, chol_fn, context_dim=1, context_bound_low=-3, context_bound_high=3):
+    def __init__(self, gate_fn, mean_fn, chol_fn, context_dim=1, context_bound_low=-3, context_bound_high=3):
         super().__init__()
         self.context_bound_low = context_bound_low
         self.context_bound_high = context_bound_high
         self.context_dim = context_dim
         self.context_dist = uniform.Uniform(context_bound_low, context_bound_high)
-
+        self.gate_fn = gate_fn
         self.mean_fn = mean_fn
         self.chol_fn = chol_fn
 
     def get_contexts(self, n_contexts):
-        contexts = self.context_dist.sample((n_contexts, self.context_dim))  # return shape(n_contexts, 1)
+        size = ch.Size([n_contexts, self.context_dim])
+        contexts = self.context_dist.sample(size)  # return shape(n_contexts, 1)
         return contexts
 
     def sample(self, contexts, n_samples):
-        means = self.mean_fn(contexts).to(contexts.device)
-        chols = self.chol_fn(contexts).to(contexts.device)
+        device = contexts.device
+        gate = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
+        means = self.mean_fn(contexts).to(device) # [n_contexts, n_components, n_features]
+        chols = self.chol_fn(contexts).to(device) # [n_contexts, n_components, n_features, n_features]
 
-        gate = get_weights(contexts)
-        samples = []
-        for i in range(contexts.shape[0]):
-            cat = Categorical(ch.exp(gate[i]))
-            indices = cat.sample((n_samples,))
-            chosen_means = means[i, indices]
-            chosen_chols = chols[i, indices]
-            normal = MultivariateNormal(chosen_means, scale_tril=chosen_chols)
-            sample = normal.sample()
-            samples.append(sample)
-        return ch.stack(samples)  # [n_contexts, n_samples, n_features]
+        indices = Categorical(ch.exp(gate)).sample(ch.Size([n_samples])).transpose(0, 1) # [n_contexts, n_samples]
+        chosen_means = ch.gather(means, 1, indices.unsqueeze(-1).expand(-1, -1, means.shape[-1]))
+        chosen_chols = ch.gather(chols, 1, indices.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, means.shape[-1], means.shape[-1]))
+        samples = MultivariateNormal(chosen_means, scale_tril=chosen_chols).sample() # [n_contexts, n_samples, n_features]
+        return samples
+
 
     def log_prob_tgt(self, contexts, samples):
-        means = self.mean_fn(contexts).to(contexts.device)
-        chols = self.chol_fn(contexts).to(contexts.device)
+        device = contexts.device
+        gate = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
+        means = self.mean_fn(contexts).to(device) # [n_contexts, n_components, n_features]
+        chols = self.chol_fn(contexts).to(device) # [n_contexts, n_components, n_features, n_features]
         batch_size, n_components, n_features = means.shape
-
-        gate = get_weights(contexts)
 
         if samples.dim() == 3:
             n_samples = samples.shape[1]
@@ -50,16 +48,13 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
             n_samples = samples.shape[0]
             samples = samples.unsqueeze(0).expand(batch_size, -1, -1)
 
+        gate_expanded = gate.unsqueeze(1).expand(-1, n_samples, -1)
         means_expanded = means.unsqueeze(1).expand(-1, n_samples, -1, -1)
         chols_expanded = chols.unsqueeze(1).expand(-1, n_samples, -1, -1, -1)
         samples_expanded = samples.unsqueeze(2).expand(-1, -1, n_components, -1)
 
         mvn = MultivariateNormal(means_expanded, scale_tril=chols_expanded)
-        log_probs = mvn.log_prob(samples_expanded)  # [batch_size, n_samples, n_components]
-
-        gate_expanded = gate.unsqueeze(1).expand(-1, n_samples, -1)
-        log_probs += gate_expanded
-
+        log_probs = mvn.log_prob(samples_expanded) + gate_expanded # [batch_size, n_samples, n_components]
         log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
         return log_probs
 
@@ -82,14 +77,19 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         plt.show()
 
 
-def get_weights(c):
-    """
-    only for 4 components
-    """
-    weights = [ch.sin(c[:, 0]), ch.cos(c[:, 0]), ch.sin(10 * c[:, 0]), ch.cos(10 * c[:, 0])]
-    weights = ch.stack(weights, dim=1)
-    log_weights = ch.log_softmax(weights, dim=1)
-    return log_weights
+def get_weights_fn(n_components):
+    def get_weights(c):
+        weights = []
+        for i in range(n_components):
+            if i % 2 == 0:
+                weights.append(ch.sin((i + 1) * c[:, 0]))
+            else:
+                weights.append(ch.cos((i + 1) * c[:, 0]))
+
+        weights = ch.stack(weights, dim=1)
+        log_weights = ch.log_softmax(weights, dim=1)
+        return log_weights
+    return get_weights
 
 
 def get_chol_fn(n_components):
@@ -104,32 +104,31 @@ def get_chol_fn(n_components):
     return cat_chol
 
 
+def spiral(t, a=2, b=0.1):
+    # t = t + a
+    x = a * ch.exp(b * t) * ch.cos(t)
+    y = a * ch.exp(b * t) * ch.sin(t)
+    return ch.stack([x, y], dim=-1)
+
+
 def get_mean_fn(n_components):
-    def cat_mean(c):
-        # mean = []
-        # for i in range(n_components):
-        #     sub_mean = ch.stack([10 * ch.sin((i + 1) * c[:, 0]), 10 * ch.cos((i + 1) * c[:, 0])], dim=1)
-        #     mean.append(sub_mean)
-
-        mean1 = ch.stack([2 + ch.sin(c[:, 0]), 2 + ch.cos(c[:, 0])], dim=1)
-        mean2 = ch.stack([-5 + 3 * ch.sin(c[:, 0]), -5 + 3 * ch.cos(c[:, 0])], dim=1)
-        mean3 = ch.stack([6 + ch.sin(c[:, 0]), -7 + 3 * ch.cos(c[:, 0])], dim=1)
-        mean4 = ch.stack([-4 + 2 * ch.sin(c[:, 0]), 4 + 2 * ch.cos(c[:, 0])], dim=1)
-
-        mean = [mean1, mean2, mean3, mean4]
-        return ch.stack(mean, dim=1)
-    return cat_mean
+    def generate_spiral_means(contexts):
+        t_values = np.linspace(0, 10 * np.pi, n_components, endpoint=False)
+        means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device) + ch.sin(contexts))
+        return means
+    return generate_spiral_means
 
 
 def get_gmm_target(n_components):
+    gate_target = get_weights_fn(n_components)
     mean_target = get_mean_fn(n_components)
     chol_target = get_chol_fn(n_components)
-    target = ConditionalGMMTarget(mean_target, chol_target)
-    return target
+    gmm_target = ConditionalGMMTarget(gate_target, mean_target, chol_target)
+    return gmm_target
 
 
 # test
-# target = get_gmm_target(4)
+# target = get_gmm_target(6)
 # contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
 # log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
