@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget, get_weights
+from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget
 from toy_task.GMM.targets.funnel_target import FunnelTarget
 
 import wandb
@@ -53,7 +53,7 @@ def plot2d_matplotlib(
     weights = data["weights"]
     # plot
     if type(target_dist) == ConditionalGMMTarget:
-        target_weights = np.exp(get_weights(contexts).detach().cpu().numpy())
+        target_weights = np.exp(target_dist.gate_fn(contexts).detach().cpu().numpy())
         if ideal_gates is not None:
             fig, axes = plt.subplots(6, n_tasks, figsize=(15, 30))
         else:
@@ -77,6 +77,8 @@ def plot2d_matplotlib(
         ax.set_title("Target density")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
+        ax.set_xlim(min_x, max_x)
+        ax.set_ylim(min_y, max_y)
 
         # plot model distribution with background target distribution
         if n_tasks == 1:
@@ -100,8 +102,8 @@ def plot2d_matplotlib(
         ax.set_title("Model density with target as background")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
-        # ax.set_xlim(min_x, max_x)
-        # ax.set_ylim(min_y, max_y)
+        ax.set_xlim(min_x, max_x)
+        ax.set_ylim(min_y, max_y)
 
         # plot model distribution with background model distribution
         if n_tasks == 1:
@@ -114,6 +116,8 @@ def plot2d_matplotlib(
         ax.set_title("Model density with model as background")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
+        ax.set_xlim(min_x, max_x)
+        ax.set_ylim(min_y, max_y)
 
         # plot weights
         if n_tasks == 1:
@@ -186,25 +190,25 @@ def compute_data_for_plot(
     # determine n_task. i.e. n_contexts
     n_tasks, n_components, _ = means.shape
     weights = np.exp(weights.detach().to("cpu").numpy())
-    mask = (weights > 0.01).flatten()
-    relevant_means = torch.reshape(means, (-1, dim))[mask, :]
-    relevant_scale_trils = torch.reshape(scale_trils, (-1, dim, dim))[mask, :, :]
+    mean_resahpe = torch.reshape(means, (-1, dim))
+    scale_trils_reshape = torch.reshape(scale_trils, (-1, dim, dim))
     if min_x is not None:
         assert max_x is not None
         assert min_y is not None
         assert max_y is not None
     else:
+        assert dim == 2, "feature dimension must be 2 for visualization"
         min_x, max_x, min_y, max_y = (
-            relevant_means[:, 0].min(),
-            relevant_means[:, 0].max(),
-            relevant_means[:, 1].min(),
-            relevant_means[:, 1].max(),
+            mean_resahpe[:, 0].min(),
+            mean_resahpe[:, 0].max(),
+            mean_resahpe[:, 1].min(),
+            mean_resahpe[:, 1].max(),
         )
         min_x = min_x.detach().cpu().numpy()
         max_x = max_x.detach().cpu().numpy()
         min_y = min_y.detach().cpu().numpy()
         max_y = max_y.detach().cpu().numpy()
-        for scale_tril, mean in zip(relevant_scale_trils, relevant_means):
+        for scale_tril, mean in zip(scale_trils_reshape, mean_resahpe):
             ellipse = compute_gaussian_ellipse(
                 mean.detach().cpu().numpy(), scale_tril.detach().cpu().numpy()
             )
