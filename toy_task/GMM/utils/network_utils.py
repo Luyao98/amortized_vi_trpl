@@ -1,6 +1,5 @@
 import torch as ch
 import torch.nn as nn
-import torch.backends.cudnn
 import numpy as np
 import random
 
@@ -11,20 +10,13 @@ def initialize_weights(model: nn.Module, initialization_type: str, scale: float 
         preserve_bias_layers = []
 
     for name, p in model.named_parameters():
-        # Set weights to zero for the specified layers
-        if 'fc_mean.weight' in name:
-            ch.nn.init.zeros_(p)
-            # print("fc mean weight initialized to zero")
-        # if 'fc_chol.weight' in name:
-        #     ch.nn.init.zeros_(p)
-        if 'fc_gate.weight' in name:
-            ch.nn.init.zeros_(p)
-            # print("fc gate weight initialized to zero")
-        # Skip the bias of layers in the preserve_bias_layers list
-        elif 'bias' in name and any(layer in name for layer in preserve_bias_layers):
-            # print(f"Preserving bias for layer {name}")
-            continue  # Preserve the bias for these layers
-        # Initialize other parameters
+        # initialize the specified layers
+        if any(layer in name for layer in preserve_bias_layers):
+            if len(p.data.shape) >= 2:
+                ch.nn.init.zeros_(p)
+            continue
+
+        # initialize other parameters
         elif initialization_type == "normal":
             if len(p.data.shape) >= 2:
                 p.data.normal_(init_w)  # 0.01
