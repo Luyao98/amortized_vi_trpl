@@ -17,6 +17,7 @@ def plot2d_matplotlib(
         target_dist,
         model,
         contexts,
+        plot_type,
         ideal_gates=None,
         # fig,
         # axes,
@@ -164,7 +165,7 @@ def plot2d_matplotlib(
 
     # Create an image from BytesIO object
     image = Image.open(img_buf)
-    wandb.log({"Plot": [wandb.Image(image, caption="Plot of target and target distributions")]})
+    wandb.log({plot_type: [wandb.Image(image, caption="Plot of target and target distributions")]})
     fig.tight_layout()
     # plt.show()
     plt.close(fig)
