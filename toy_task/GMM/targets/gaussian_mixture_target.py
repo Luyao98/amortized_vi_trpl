@@ -61,7 +61,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
     def visualize(self, contexts, n_samples=None):
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
-            x, y = np.meshgrid(np.linspace(-25, 25, 300), np.linspace(-25, 25, 300))
+            x, y = np.meshgrid(np.linspace(-20, 20, 300), np.linspace(-20, 20, 300))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
             pdf_values = ch.exp(self.log_prob_tgt(c.unsqueeze(1), grid))
             pdf_values = pdf_values.view(300, 300).numpy()
@@ -104,17 +104,17 @@ def get_chol_fn(n_components):
     return cat_chol
 
 
-def spiral(t, a=2, b=0.1):
-    # t = t + a
-    x = a * ch.exp(b * t) * ch.cos(t)
-    y = a * ch.exp(b * t) * ch.sin(t)
+def spiral(t, c, a=0.3):
+    b = t + 0.1 * c
+    x = a * t * ch.cos(b)
+    y = a * t * ch.sin(b)
     return ch.stack([x, y], dim=-1)
 
 
 def get_mean_fn(n_components):
     def generate_spiral_means(contexts):
         t_values = np.linspace(0, 10 * np.pi, n_components, endpoint=False)
-        means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device) + ch.sin(contexts))
+        means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device), contexts)
         return means
     return generate_spiral_means
 
@@ -128,13 +128,13 @@ def get_gmm_target(n_components):
 
 
 # test
-# target = get_gmm_target(4)
+# target = get_gmm_target(30)
 # contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
 # log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
-# print(ch.exp(get_weights(contexts)))
 # target.visualize(contexts, n_samples=20)
 # contexts = ch.tensor([[-0.3],
 #                       [0.7],
 #                       [-1.8]])
+# print(ch.exp(target.gate_fn(contexts)))
 # target.visualize(contexts)
