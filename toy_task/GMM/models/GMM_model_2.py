@@ -102,7 +102,10 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
         gates = self.gate(x)
         log_gates = ch.log_softmax(gates[:,:self.active_components], dim=-1)
         means, chols = self.gaussian_list(x)
-        return log_gates, means[:,:self.active_components], chols[:,:self.active_components]
+        if self.mode:
+            return means[:,self.active_components-1], chols[:,self.active_components-1]
+        else:
+            return log_gates, means[:,:self.active_components], chols[:,:self.active_components]
 
     def register_hooks(self):
         def hook_fn_mean(grad):
