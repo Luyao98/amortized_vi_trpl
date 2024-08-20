@@ -65,13 +65,11 @@ def get_model(model_name,target_name, dim, device, n_components, gate_layer, com
                                 dim=dim,
                                 init_bias_gate=init_bias_gate,
                                 init_bias_mean=init_bias_mean_list)
-        initialize_weights(model, initialization_type, preserve_bias_layers=['fc_mean', 'fc_gate'])
+        initialize_weights(model, initialization_type, preserve_bias_layers=['fc_mean', 'embedded'])
     else:
         raise ValueError(f"Invalid model name {model_name}. Choose one from 'toy_task_model_1', 'toy_task_model_2', toy_task_model_3, toy_task_model_4.")
 
     return model.to(device)
-
-
 
 
 # test
