@@ -15,9 +15,23 @@ from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, 
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 
-import numpy as np
-from sklearn.cluster import DBSCAN
-from sklearn.cluster import KMeans
+
+def delete_components(model, contexts):
+    model.eval()
+    with ch.no_grad():
+        current_log_gate, _, _ = model(contexts)
+        avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
+
+        # filter out the failed components
+        # strategy 1, only consider the last added component
+        if avg_gate[-1] < 0.001:
+            model.active_components -= 1
+            print(f"Component {model.active_components} is removed.")
+
+        # strategy 2, consider all components
+        # mask = avg_gate > 0.001
+        # model.active_components = ch.sum(mask).item()
+        # model.active_idx = ch.nonzero(mask).squeeze().tolist()
 
 
 def add_components(model, target, contexts):
@@ -28,84 +42,89 @@ def add_components(model, target, contexts):
 
         device = contexts.device
         current_gate, current_mean, current_chol = model(contexts)
-        new_component_gate = ch.log(ch.tensor(0.001)).to(device)
+        new_component_gate = ch.log(ch.tensor(0.0001)).to(device)
+        # new_component_gate_bias =  -ch.log(1/new_component_gate - 1)  # for sigmoid activation
         # init_gates = ch.tensor([100, 50, 25, 10])
         # random_index = ch.randint(0, len(init_gates), (1,)).item()
         # new_component_gate = -init_gates[random_index].to(device)
 
-        samples = model.get_samples_gmm(current_gate[:,:idx], current_mean[:,:idx], current_chol[:,:idx], 20)  # (b,s,f)
+        # draw samples from a basic Gaussian distribution for better exploration
+        basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
+        basic_cov = 100 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+        basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([10]))
+
+        model_samples = model.get_samples_gmm(current_gate[:,:idx], current_mean[:,:idx], current_chol[:,:idx], 10)  # (b,s,f)
+        samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1) # (b, s=s1+s2, f)
         log_model = model.log_prob_gmm(current_mean[:,:idx], current_chol[:,:idx], current_gate[:,:idx], samples)  # (b,s)
         log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
 
         # log density of new components = \log q(o_n|c) + \log q_{x_s}(x_s|o_n,c)
-        # log_new_o = MultivariateNormal(loc=samples, covariance_matrix=ch.eye(samples.shape[-1]).to(device)).log_prob(samples)
         log_new_o = MultivariateNormal(loc=samples, scale_tril=current_chol[:,idx].unsqueeze(1)).log_prob(samples)
 
         rewards = log_target - ch.max(log_model, new_component_gate + log_new_o)  # (b,s)
-        # rewards = log_target - log_model
-        # chosen_mean_idx = ch.argmax(rewards)
-        # chosen_mean_batch_idx = chosen_mean_idx // samples.shape[1]
-        # chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
-        # chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
 
-        # DBSCAN and K-means
-        _, data_idx = ch.max(rewards, dim=1)
-        max_idx = data_idx.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, current_mean.shape[-1])
+        chosen_mean_idx = ch.argmax(rewards)
+        chosen_mean_batch_idx = chosen_mean_idx // samples.shape[1]
+        chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
+        chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
+        print("New component mean:", chosen_mean)
 
-        data = samples.gather(1, max_idx).squeeze(1)
-        data_np = data.cpu().numpy()
-
-
-        # eps = ch.mean(current_mean[:,:idx]).cpu().item()
-        # dbscan = DBSCAN(eps=eps, min_samples=2).fit(data_np)
-        #
-        # labels = dbscan.labels_
-        # unique_labels, counts = np.unique(labels[labels != -1], return_counts=True)
-        # max_label = unique_labels[np.argmax(counts)]
-        #
-        # max_class_data = data[labels == max_label]
-        # # max_class_indices = ch.nonzero(ch.tensor(labels) == max_label).squeeze()
-
-        kmeans = KMeans(n_clusters=5, random_state=0, n_init=10).fit(data_np)
-        labels = kmeans.labels_
-        unique_labels, counts = np.unique(labels, return_counts=True)
-        max_label = unique_labels[np.argmin(counts)]
-
-        max_class_data = data[labels == max_label]
-        chosen_mean = max_class_data.mean(dim=0)
-
-
+        new_embedded_mean_bias = chosen_mean - current_mean[:,idx]
+        model.embedded_mean_bias[idx] = chosen_mean - current_mean[chosen_mean_batch_idx, idx]
         model.gate.fc_gate.bias.data[idx] = new_component_gate
-        model.gaussian_list.fc_mean.bias.data[idx * model.dim: (idx + 1) * model.dim] = chosen_mean
-        print("New component mean:", model.gaussian_list.fc_mean.bias.data[idx * model.dim: (idx + 1) * model.dim])
+        model.gate.fc_gate.weight.data[idx] = ch.tensor(0, dtype=ch.float32).to(device)
 
-    model.register_hooks()
-    return idx
-def train_new_component(model, target, contexts, new_component_index, n_epochs=10):
+        new_component_chol = ch.eye(model.dim).to(device)
+        model.embedded_chol_bias[idx] = new_component_chol - current_chol[:, idx].mean(dim=0)
+
+    return idx, chosen_mean
+
+def train_new_component(model, target, contexts, new_component_index, new_embedded_mean_bias, n_epochs=20):
+
     model.train()
-    optimizer = optim.Adam([
+    optimizer_add = optim.Adam([
         # {'params': model.gate.fc_gate.parameters(), 'lr': 0.01},
         {'params': model.gaussian_list.fc_mean.parameters(), 'lr': 0.01},
-        # {'params': model.gaussian_list.fc_chol.parameters(), 'lr': 0.01}
-    ], weight_decay=1e-5)
-    # optimizer = optim.Adam(model.parameters(), lr=0.01)
+        {'params': model.gaussian_list.fc_chol.parameters(), 'lr': 0.01}
+    ])
+    # optimizer_add = optim.Adam(model.parameters(), lr=0.01)
 
+    _, mean_init, _ = model(contexts)
+    mean_init = mean_init.detach()
+    init_bias = new_embedded_mean_bias.clone().detach()
     for epoch in range(n_epochs):
-        gate_pred, mean_pred, chol_pred = model(contexts)
+        # gradually decrease the embedded mean bias to 0
+        n_steps = n_epochs // 10
+        if (epoch + 1) % n_steps == 0:
+            new_embedded_mean_bias = (1 - (epoch + 1) / n_epochs) * init_bias
 
-        # # idea 1: update only the new component, doesn't work
+
+        # _, mean, chol = model(contexts)
+        # model_samples = model.get_rsamples(mean, chol, 10)
+        # log_model = model.log_prob(mean, chol, model_samples)
+        # log_target = target.log_prob_tgt(contexts, model_samples)
+        # loss = ch.sum(log_model - log_target)
+        #
+        # loss = ch.mean(10*(mean[:,:new_component_index]-mean_init[:,:new_component_index]) **2)+ch.mean((mean[:,new_component_index]-mean_init[:,new_component_index]) **2)
+
+        gate_pred, mean_pred, chol_pred = model(contexts)
+        mean_pred[:, new_component_index] += new_embedded_mean_bias
+
+        # idea 1: update only the new component, doesn't work
         mean_pred_new = mean_pred[:, new_component_index]
         chol_pred_new = chol_pred[:, new_component_index]
         model_samples = model.get_rsamples(mean_pred_new, chol_pred_new, 2)
-        # model_samples = mean_pred_new.unsqueeze(1)
+
         log_model = model.log_prob(mean_pred_new, chol_pred_new, model_samples)
         log_target = target.log_prob_tgt(contexts, model_samples)
-        # loss = ch.sum(log_model - log_target)
+        # loss = ch.sum(log_model - log_target) + ch.sum(5 * (mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
 
         aux_loss = model.auxiliary_reward(new_component_index, gate_pred.clone().detach(), mean_pred.clone().detach(),
                                       chol_pred.clone().detach(), model_samples)
-        loss = ch.sum(log_model - log_target - aux_loss)
-
+        # loss = ch.sum(log_model - log_target - aux_loss) + ch.sum(5 * (mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
+        gate_new = gate_pred[:, new_component_index].unsqueeze(1).expand(-1, model_samples.shape[1])
+        # loss = ch.sum(ch.exp(gate_new) * (log_model - log_target - aux_loss + gate_new))
+        loss = ch.sum(log_model - log_target - aux_loss + gate_new)
 
         # # idea 2: update same loss but detach the current component, doesn't work
         # loss_component = []
@@ -126,13 +145,14 @@ def train_new_component(model, target, contexts, new_component_index, n_epochs=1
         #     loss_j = ch.exp(gate_pred_j) * approx_reward_j
         #
         #     loss_component.append(loss_j)
-        # loss = ch.stack(loss_component).sum()
+        # loss = ch.stack(loss_component).sum() + ch.sum(5*(mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
+        # # loss = ch.stack(loss_component).sum()
 
-        optimizer.zero_grad()
+        optimizer_add.zero_grad()
         loss.backward()
-        optimizer.step()
-        # print("fc_mean.bias.grad:\n", model.gaussian_list.fc_mean.bias.grad)
-    model.clear_hooks()
+
+        optimizer_add.step()
+
 
 def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 target: AbstractTarget,
@@ -153,7 +173,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     optimizer = optim.Adam([
         {'params': model.gate.parameters(), 'lr': gate_lr},
         {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
-    ], weight_decay=1e-5)
+    ])
     contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     # bmm and gmm
@@ -185,15 +205,15 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         shuffled_contexts = contexts[indices]
 
         # adding new components
-        # model.eval()
-        # with ch.no_grad():
-        n_adds = 0.8 * n_epochs // 5
-        if (epoch + 1) % n_adds == 0 and model.active_components < n_components:
-            new_component_index = add_components(model, target, shuffled_contexts[0:batch_size])
-            train_new_component(model, target, shuffled_contexts[0:batch_size], new_component_index)
-            # model.eval()
+        n_adds = 0.8 * n_epochs // 2
+        if epoch < 0.8 * n_epochs and (epoch + 1) % n_adds == 0 and model.active_components < n_components:
+            delete_components(model, shuffled_contexts[0:batch_size])
+            new_component_index, chosen_mean = add_components(model, target, shuffled_contexts[0:batch_size])
+
+            model.eval()
             with ch.no_grad():
-                plot(model, target, contexts=plot_contexts)
+                plot(model, target, contexts=plot_contexts, plot_type="Adding",
+                     best_candidate=chosen_mean.clone().detach().to('cpu'))
                 model.to(device)
             model.train()
 
@@ -301,13 +321,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        n_plot = n_epochs // 10
+        n_plot = n_epochs // 5
         if (epoch + 1) % n_plot == 0:
             model.eval()
             with ch.no_grad():
-                approx_reward = ch.cat(batched_approx_reward, dim=1)  # [n_components, n_contexts, n_samples]
-                js_divergence_gates = js_divergence_gate(approx_reward, model, shuffled_contexts, device)
-                kl_gate = kl_divergence_gate(approx_reward, model, shuffled_contexts, device)
+                # approx_reward = ch.cat(batched_approx_reward, dim=1)  # [n_components, n_contexts, n_samples]
+                # js_divergence_gates = js_divergence_gate(approx_reward, model, shuffled_contexts, device)
+                # kl_gate = kl_divergence_gate(approx_reward, model, shuffled_contexts, device)
                 js_div = js_divergence(model, target, eval_contexts, device)
                 j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
@@ -325,8 +345,9 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                         eps_cov *= 1.1
                     prev_loss = current_loss
             model.train()
-            wandb.log({"reverse KL between gates": kl_gate.item(),
-                       "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
+            wandb.log({
+                # "reverse KL between gates": kl_gate.item(),
+                       # "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
                        "Jensen Shannon Divergence": js_div.item(),
                        "Jeffreys Divergence": j_div.item()})
 
@@ -335,14 +356,16 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
 def plot(model: ConditionalGMM,
          target: AbstractTarget,
-         contexts=None):
+         contexts=None,
+         plot_type="Evaluation",
+         best_candidate=None):
     if contexts is None:
         contexts = target.get_contexts(3).to('cpu')
     else:
-        contexts = contexts.clone().to('cpu')
-
+        contexts = contexts.clone().detach().to('cpu')
     # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
-    plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-10, max_x=10, min_y=-10, max_y=10)
+    plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type, best_candidate=best_candidate,
+                      min_x=-15, max_x=15, min_y=-15, max_y=15)
 
 
 def toy_task(config):
@@ -414,18 +437,18 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
     config = {
-        "n_epochs": 400,
+        "n_epochs": 500,
         "batch_size": 64,
         "n_context": 640,
-        "n_components": 4,
-        "num_gate_layer": 2,
-        "num_component_layer": 4,
+        "n_components": 2,
+        "num_gate_layer": 3,
+        "num_component_layer": 5,
         "n_samples": 5,
-        "gate_lr": 0.01,
+        "gate_lr": 0.001,
         "gaussian_lr": 0.01,
-        "model_name": "toy_task_model_2",
+        "model_name": "toy_task_model_3",
         "target_name": "gmm",
-        "target_components": 4,
+        "target_components": 3,
         "dim": 2,
         "initialization_type": "xavier",
         "project": False,
