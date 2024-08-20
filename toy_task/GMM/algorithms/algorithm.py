@@ -16,68 +16,73 @@ from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 
 
-def delete_components(model, contexts):
-    model.eval()
-    with ch.no_grad():
-        current_log_gate, _, _ = model(contexts)
-        avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
+def delete_components(model, contexts, threshold=0.001):
+    current_log_gate, _, _ = model(contexts)
+    avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
-        # filter out the failed components
-        # strategy 1, only consider the last added component
-        if avg_gate[-1] < 0.001:
-            model.active_components -= 1
-            print(f"Component {model.active_components} is removed.")
+    model.active_component_indices = [
+        idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold
+    ]
 
-        # strategy 2, consider all components
-        # mask = avg_gate > 0.001
-        # model.active_components = ch.sum(mask).item()
-        # model.active_idx = ch.nonzero(mask).squeeze().tolist()
+    print(f"Deleting Step: remaining active components: {model.active_component_indices}")
 
 
 def add_components(model, target, contexts):
-    model.eval()
-    with ch.no_grad():
-        idx = model.active_components
-        model.active_components += 1
+    all_indices = set(range(model.max_components))
+    active_indices = set(model.active_component_indices)
+    available_indices = sorted(all_indices - active_indices)
 
-        device = contexts.device
-        current_gate, current_mean, current_chol = model(contexts)
-        new_component_gate = ch.log(ch.tensor(0.0001)).to(device)
-        # new_component_gate_bias =  -ch.log(1/new_component_gate - 1)  # for sigmoid activation
-        # init_gates = ch.tensor([100, 50, 25, 10])
-        # random_index = ch.randint(0, len(init_gates), (1,)).item()
-        # new_component_gate = -init_gates[random_index].to(device)
+    if not available_indices:
+        raise ValueError("Adding failed. All components are active.")
 
-        # draw samples from a basic Gaussian distribution for better exploration
-        basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
-        basic_cov = 100 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
-        basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([10]))
+    idx = available_indices[0]
+    model.add_component(idx)
 
-        model_samples = model.get_samples_gmm(current_gate[:,:idx], current_mean[:,:idx], current_chol[:,:idx], 10)  # (b,s,f)
-        samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1) # (b, s=s1+s2, f)
-        log_model = model.log_prob_gmm(current_mean[:,:idx], current_chol[:,:idx], current_gate[:,:idx], samples)  # (b,s)
-        log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
+    device = contexts.device
+    current_gate, current_mean, current_chol = model(contexts)
+    new_component_gate = ch.log(ch.tensor(0.0001)).to(device)
 
-        # log density of new components = \log q(o_n|c) + \log q_{x_s}(x_s|o_n,c)
-        log_new_o = MultivariateNormal(loc=samples, scale_tril=current_chol[:,idx].unsqueeze(1)).log_prob(samples)
+    # strategy in VIPS++ paper
+    # init_gates = ch.tensor([100, 50, 25, 10])
+    # random_index = ch.randint(0, len(init_gates), (1,)).item()
+    # new_component_gate = -init_gates[random_index].to(device)
 
-        rewards = log_target - ch.max(log_model, new_component_gate + log_new_o)  # (b,s)
+    # draw samples from a basic Gaussian distribution for better exploration
+    basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
+    basic_cov = 100 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+    basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([10]))
 
-        chosen_mean_idx = ch.argmax(rewards)
-        chosen_mean_batch_idx = chosen_mean_idx // samples.shape[1]
-        chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
-        chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
-        print("New component mean:", chosen_mean)
+    model_samples = model.get_samples_gmm(current_gate[:, :len(active_indices)], current_mean[:, :len(active_indices)],
+                                          current_chol[:, :len(active_indices)], 10)  # (b,s,f)
+    samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1)  # (b, s=s1+s2, f)
+    log_model = model.log_prob_gmm(current_mean[:, :len(active_indices)], current_chol[:, :len(active_indices)],
+                                   current_gate[:, :len(active_indices)], samples)  # (b,s)
+    log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
 
-        new_embedded_mean_bias = chosen_mean - current_mean[:,idx]
-        model.embedded_mean_bias[idx] = chosen_mean - current_mean[chosen_mean_batch_idx, idx]
-        model.gate.fc_gate.bias.data[idx] = new_component_gate
-        model.gate.fc_gate.weight.data[idx] = ch.tensor(0, dtype=ch.float32).to(device)
+    # log density of new components = \log q(o_n|c) + \log q_{x_s}(x_s|o_n,c)
+    log_new_o = MultivariateNormal(loc=samples, scale_tril=current_chol[:, idx].unsqueeze(1)).log_prob(samples)
 
-        new_component_chol = ch.eye(model.dim).to(device)
-        model.embedded_chol_bias[idx] = new_component_chol - current_chol[:, idx].mean(dim=0)
+    rewards = log_target - ch.max(log_model, new_component_gate + log_new_o)  # (b,s)
 
-    return idx, chosen_mean
+    chosen_mean_idx = ch.argmax(rewards)
+    chosen_mean_batch_idx = chosen_mean_idx // samples.shape[1]
+    chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
+    chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
+    print("New component mean:", chosen_mean)
+
+    # update the mean bias of the new component
+    model.embedded_mean_bias[idx] = chosen_mean - current_mean[chosen_mean_batch_idx, idx]
+
+    # update the cholesky bias of the new component
+    new_component_chol = ch.eye(model.dim).to(device)
+    model.embedded_chol_bias[idx] = new_component_chol - current_chol[:, idx].mean(dim=0)
+
+    # update the gate of the new component
+    model.gate.fc_gate.bias.data[idx] = new_component_gate
+    model.gate.fc_gate.weight.data[idx] = ch.tensor(0, dtype=ch.float32).to(device)
+
+    return chosen_mean
+
 
 def train_new_component(model, target, contexts, new_component_index, new_embedded_mean_bias, n_epochs=20):
 
@@ -159,7 +164,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 n_epochs: int,
                 batch_size: int,
                 n_context: int,
-                n_components: int,
+                max_components: int,
                 n_samples: int,
                 gate_lr: float,
                 gaussian_lr: float,
@@ -169,7 +174,6 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 eps_cov: float or None,
                 alpha: int or None):
 
-    # optimizer = optim.Adam(model.parameters(), lr=init_lr, weight_decay=1e-5)
     optimizer = optim.Adam([
         {'params': model.gate.parameters(), 'lr': gate_lr},
         {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
@@ -206,12 +210,12 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
         # adding new components
         n_adds = 0.8 * n_epochs // 2
-        if epoch < 0.8 * n_epochs and (epoch + 1) % n_adds == 0 and model.active_components < n_components:
-            delete_components(model, shuffled_contexts[0:batch_size])
-            new_component_index, chosen_mean = add_components(model, target, shuffled_contexts[0:batch_size])
-
+        if epoch < 0.8 * n_epochs and (epoch + 1) % n_adds == 0 and len(model.active_component_indices) < max_components:
             model.eval()
             with ch.no_grad():
+                delete_components(model, shuffled_contexts[0:batch_size])
+                chosen_mean = add_components(model, target, shuffled_contexts[0:batch_size])
+
                 plot(model, target, contexts=plot_contexts, plot_type="Adding",
                      best_candidate=chosen_mean.clone().detach().to('cpu'))
                 model.to(device)
@@ -245,7 +249,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 # component-wise calculation
                 loss_component = []
                 approx_reward_component = []
-                for j in range(model.active_components):
+                active_components = len(model.active_component_indices)
+                for j in range(active_components):
                     mean_pred_j = mean_pred[:, j]  # (batched_c, 2)
                     chol_pred_j = chol_pred[:, j]
                     mean_proj_j = mean_proj[:, j]
@@ -294,7 +299,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 # component-wise calculation
                 loss_component = []
                 approx_reward_component = []
-                for j in range(model.active_components):
+                active_components = len(model.active_component_indices)
+                for j in range(active_components):
                     mean_pred_j = mean_pred[:, j]
                     chol_pred_j = chol_pred[:, j]
 
@@ -325,9 +331,9 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         if (epoch + 1) % n_plot == 0:
             model.eval()
             with ch.no_grad():
-                # approx_reward = ch.cat(batched_approx_reward, dim=1)  # [n_components, n_contexts, n_samples]
-                # js_divergence_gates = js_divergence_gate(approx_reward, model, shuffled_contexts, device)
-                # kl_gate = kl_divergence_gate(approx_reward, model, shuffled_contexts, device)
+                approx_reward = ch.cat(batched_approx_reward, dim=1)  # [max_components, n_contexts, n_samples]
+                js_divergence_gates = js_divergence_gate(approx_reward, model, shuffled_contexts, device)
+                kl_gate = kl_divergence_gate(approx_reward, model, shuffled_contexts, device)
                 js_div = js_divergence(model, target, eval_contexts, device)
                 j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
@@ -345,9 +351,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                         eps_cov *= 1.1
                     prev_loss = current_loss
             model.train()
-            wandb.log({
-                # "reverse KL between gates": kl_gate.item(),
-                       # "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
+            wandb.log({"reverse KL between gates": kl_gate.item(),
+                       "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
                        "Jensen Shannon Divergence": js_div.item(),
                        "Jeffreys Divergence": j_div.item()})
 
@@ -372,7 +377,7 @@ def toy_task(config):
     n_epochs = config['n_epochs']
     batch_size = config['batch_size']
     n_context = config['n_context']
-    n_components = config['n_components']
+    max_components = config['max_components']
     num_gate_layer = config['num_gate_layer']
     num_component_layer = config['num_component_layer']
     n_samples = config['n_samples']
@@ -403,14 +408,14 @@ def toy_task(config):
                       target_name,
                       dim,
                       device,
-                      n_components,
+                      max_components,
                       num_gate_layer,
                       num_component_layer,
                       initialization_type)
 
     # Training
     train_model(model, target,
-                n_epochs, batch_size, n_context, n_components, n_samples, gate_lr, gaussian_lr, device,
+                n_epochs, batch_size, n_context, max_components, n_samples, gate_lr, gaussian_lr, device,
                 project, eps_mean, eps_cov, alpha)
 
 
@@ -420,7 +425,7 @@ if __name__ == "__main__":
     #     "n_epochs": 500,
     #     "batch_size": 128,
     #     "n_context": 1280,
-    #     "n_components": 8,
+    #     "max_components": 8,
     #     "num_gate_layer": 5,
     #     "num_component_layer": 7,
     #     "n_samples": 10,
@@ -440,7 +445,7 @@ if __name__ == "__main__":
         "n_epochs": 500,
         "batch_size": 64,
         "n_context": 640,
-        "n_components": 2,
+        "max_components": 2,
         "num_gate_layer": 3,
         "num_component_layer": 5,
         "n_samples": 5,
