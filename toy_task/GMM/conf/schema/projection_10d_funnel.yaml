@@ -1,6 +1,6 @@
 project: True
-eps_mean: 1.0
-eps_cov: 0.5
+eps_mean: 0.5
+eps_cov: 0.01
 alpha: 50
 
 eps_gate: 1e-5
