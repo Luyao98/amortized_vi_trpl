@@ -20,11 +20,11 @@ def delete_components(model, contexts, threshold=0.001):
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
-    model.active_component_indices = [
-        idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold
-    ]
+    model.active_component_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold]
+    deleted_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] < threshold]
 
     print(f"Deleting Step: remaining active components: {model.active_component_indices}")
+    print(f"Deleted components: {deleted_indices}")
 
 
 def add_components(model, target, contexts):
@@ -84,13 +84,13 @@ def add_components(model, target, contexts):
     return chosen_mean
 
 
-def adaptive_components(model, target, adaption_contexts, plot_contexts):
+def adaptive_components(model, target, adaption_contexts, plot_contexts, device):
     model.eval()
     with ch.no_grad():
         delete_components(model, adaption_contexts)
         chosen_mean = add_components(model, target, adaption_contexts)
 
-        plot(model, target, contexts=plot_contexts, plot_type="Adding",
+        plot(model, target, device=device, contexts=plot_contexts, plot_type="Adding",
              best_candidate=chosen_mean.clone().detach().to('cpu'))
         model.to(adaption_contexts.device)
     model.train()
@@ -186,30 +186,44 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
     if len(loss_history) == history_size:
         if (max(loss_history) - min(loss_history)) < stability_threshold:
             adaption = True
+            loss_history = []  # reset loss history, to avoid immediate adaption
             if len(model.active_component_indices) < model.max_components:
                 print(f"Stability reached at epoch {epoch}. Start adaption.")
 
-            if (epoch + 1) % (n_epochs // 5)== 0:
-                model.eval()
-                with ch.no_grad():
-                    # approx_reward = ch.cat(batched_approx_reward, dim=1)
-                    # js_divergence_gates = js_divergence_gate(approx_reward, model, eval_contexts, device)
-                    # kl_gate = kl_divergence_gate(approx_reward, model, eval_contexts, device)
-                    js_div = js_divergence(model, target, eval_contexts, device)
-                    j_div = jeffreys_divergence(model, target, eval_contexts, device)
+    if (epoch + 1) % (n_epochs // 5)== 0:
+        model.eval()
+        with ch.no_grad():
+            # approx_reward = ch.cat(batched_approx_reward, dim=1)
+            # js_divergence_gates = js_divergence_gate(approx_reward, model, eval_contexts, device)
+            # kl_gate = kl_divergence_gate(approx_reward, model, eval_contexts, device)
+            js_div = js_divergence(model, target, eval_contexts, device)
+            j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
-                    plot(model, target, contexts=plot_contexts)
-                    model.to(device)
+            plot(model, target, device=device, contexts=plot_contexts)
 
-                    wandb.log({
-                        # "reverse KL between gates": kl_gate.item(),
-                        # "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
-                        "Jensen Shannon Divergence": js_div.item(),
-                        "Jeffreys Divergence": j_div.item()
-                    })
+            wandb.log({
+                # "reverse KL between gates": kl_gate.item(),
+                # "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
+                "Jensen Shannon Divergence": js_div.item(),
+                "Jeffreys Divergence": j_div.item()
+            })
 
-                model.train()
+        model.train()
     return loss_history, adaption
+
+def get_all_contexts(target, n_context, device):
+    train_contexts = target.get_contexts(n_context).to(device)
+    eval_contexts = target.get_contexts(200).to(device)
+    # bmm and gmm
+    plot_contexts = ch.tensor([[-0.3],
+                               [0.7],
+                               [-1.8]])
+    # funnel
+    # plot_contexts = ch.tensor([[-0.3],
+    #                            [0.1],
+    #                            [-0.8]])
+    return train_contexts, eval_contexts, plot_contexts
+
 
 
 def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
@@ -227,16 +241,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 alpha: int or None):
 
     optimizer = get_optimizer(model, gate_lr, gaussian_lr)
-    contexts = target.get_contexts(n_context).to(device)
-    eval_contexts = target.get_contexts(200).to(device)
-    # bmm and gmm
-    plot_contexts = ch.tensor([[-0.3],
-                               [0.7],
-                               [-1.8]])
-    # funnel
-    # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.1],
-    #                            [-0.8]])
+    contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
     train_size = int(n_context)
     loss_history = []
     history_size = 15
@@ -246,15 +251,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     for epoch in range(n_epochs):
         # plot initial model
         if epoch == 0:
-            model.eval()
-            with ch.no_grad():
-                # funnel target has no gates
-                # init_gate, _, _ = model(contexts)
-                plot(model, target, contexts=plot_contexts)
-                model.to(device)
-            model.train()
-            # wandb.log({"reverse KL between gates": kl_gate.item(),
-            #            "Jensen Shannon Divergence between gates": js_divergence_gates.item()})
+            plot(model, target, device=device, contexts=plot_contexts)
 
         # shuffle sampled contexts, since the same sample set is used.
         indices = ch.randperm(train_size)
@@ -262,7 +259,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
         # add and delete components
         if adaption and len(model.active_component_indices) < model.max_components:
-            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts)
+            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device)
             adaption = False
 
         # training loop
@@ -376,8 +373,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        a = sum(batch_loss) / len(batch_loss)
-        loss_history.append(a)
+        loss_history.append(sum(batch_loss) / len(batch_loss))
         loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                                                 adaption, loss_history, history_size, stability_threshold, device)
 
@@ -397,17 +393,21 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
 def plot(model: ConditionalGMM,
          target: AbstractTarget,
+         device,
          contexts=None,
          plot_type="Evaluation",
          best_candidate=None):
-    if contexts is None:
-        contexts = target.get_contexts(3).to('cpu')
-    else:
-        contexts = contexts.clone().detach().to('cpu')
-    # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
-    plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type, best_candidate=best_candidate,
-                      min_x=-15, max_x=15, min_y=-15, max_y=15)
-
+    model.eval()
+    with ch.no_grad():
+        if contexts is None:
+            contexts = target.get_contexts(3).to('cpu')
+        else:
+            contexts = contexts.clone().detach().to('cpu')
+        # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
+        plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type, best_candidate=best_candidate,
+                          min_x=-15, max_x=15, min_y=-15, max_y=15)
+        model.to(device)
+    model.train()
 
 def toy_task(config):
     n_epochs = config['n_epochs']
@@ -478,10 +478,10 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
     gmm_config = {
-        "n_epochs": 500,
+        "n_epochs": 800,
         "batch_size": 64,
         "n_context": 640,
-        "max_components": 2,
+        "max_components": 3,
         "num_gate_layer": 3,
         "num_component_layer": 5,
         "n_samples": 5,
