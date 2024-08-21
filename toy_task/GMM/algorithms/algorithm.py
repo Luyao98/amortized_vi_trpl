@@ -23,8 +23,11 @@ def delete_components(model, contexts, threshold=0.001):
     model.active_component_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold]
     deleted_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] < threshold]
 
-    print(f"Deleting Step: remaining active components: {model.active_component_indices}")
-    print(f"Deleted components: {deleted_indices}")
+    if deleted_indices:
+        print(f"Deleting Step: remaining active components: {model.active_component_indices}.")
+        print(f"Deleted components: {deleted_indices}")
+    else:
+        print("Deleting Step: No components deleted.")
 
 
 def add_components(model, target, contexts):
@@ -171,6 +174,20 @@ def train_new_component(model, target, contexts, new_component_index, new_embedd
         optimizer_add.step()
 
 
+def get_all_contexts(target, n_context, device):
+    train_contexts = target.get_contexts(n_context).to(device)
+    eval_contexts = target.get_contexts(200).to(device)
+    # bmm and gmm
+    plot_contexts = ch.tensor([[-0.3],
+                               [0.7],
+                               [-1.8]])
+    # funnel
+    # plot_contexts = ch.tensor([[-0.3],
+    #                            [0.1],
+    #                            [-0.8]])
+    return train_contexts, eval_contexts, plot_contexts
+
+
 def get_optimizer(model, gate_lr, gaussian_lr):
     return optim.Adam([
         {'params': model.gate.parameters(), 'lr': gate_lr},
@@ -211,18 +228,25 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
         model.train()
     return loss_history, adaption
 
-def get_all_contexts(target, n_context, device):
-    train_contexts = target.get_contexts(n_context).to(device)
-    eval_contexts = target.get_contexts(200).to(device)
-    # bmm and gmm
-    plot_contexts = ch.tensor([[-0.3],
-                               [0.7],
-                               [-1.8]])
-    # funnel
-    # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.1],
-    #                            [-0.8]])
-    return train_contexts, eval_contexts, plot_contexts
+
+def plot(model: ConditionalGMM,
+         target: AbstractTarget,
+         device,
+         contexts=None,
+         plot_type="Evaluation",
+         best_candidate=None):
+    model.eval()
+    with ch.no_grad():
+        if contexts is None:
+            contexts = target.get_contexts(3).to('cpu')
+        else:
+            contexts = contexts.clone().detach().to('cpu')
+        # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
+        plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type, best_candidate=best_candidate,
+                          min_x=-15, max_x=15, min_y=-15, max_y=15)
+        model.to(device)
+    model.train()
+
 
 
 
@@ -390,24 +414,6 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
     print("Training done!")
 
-
-def plot(model: ConditionalGMM,
-         target: AbstractTarget,
-         device,
-         contexts=None,
-         plot_type="Evaluation",
-         best_candidate=None):
-    model.eval()
-    with ch.no_grad():
-        if contexts is None:
-            contexts = target.get_contexts(3).to('cpu')
-        else:
-            contexts = contexts.clone().detach().to('cpu')
-        # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
-        plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type, best_candidate=best_candidate,
-                          min_x=-15, max_x=15, min_y=-15, max_y=15)
-        model.to(device)
-    model.train()
 
 def toy_task(config):
     n_epochs = config['n_epochs']
