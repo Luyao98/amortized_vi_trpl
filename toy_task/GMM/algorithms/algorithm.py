@@ -84,6 +84,18 @@ def add_components(model, target, contexts):
     return chosen_mean
 
 
+def adaptive_components(model, target, adaption_contexts, plot_contexts):
+    model.eval()
+    with ch.no_grad():
+        delete_components(model, adaption_contexts)
+        chosen_mean = add_components(model, target, adaption_contexts)
+
+        plot(model, target, contexts=plot_contexts, plot_type="Adding",
+             best_candidate=chosen_mean.clone().detach().to('cpu'))
+        model.to(adaption_contexts.device)
+    model.train()
+
+
 def train_new_component(model, target, contexts, new_component_index, new_embedded_mean_bias, n_epochs=20):
 
     model.train()
@@ -159,12 +171,52 @@ def train_new_component(model, target, contexts, new_component_index, new_embedd
         optimizer_add.step()
 
 
+def get_optimizer(model, gate_lr, gaussian_lr):
+    return optim.Adam([
+        {'params': model.gate.parameters(), 'lr': gate_lr},
+        {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
+    ])
+
+
+def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
+                   adaption, loss_history, history_size, stability_threshold, device):
+    if len(loss_history) > history_size:
+        loss_history.pop(0)
+
+    if len(loss_history) == history_size:
+        if (max(loss_history) - min(loss_history)) < stability_threshold:
+            adaption = True
+            if len(model.active_component_indices) < model.max_components:
+                print(f"Stability reached at epoch {epoch}. Start adaption.")
+
+            if (epoch + 1) % (n_epochs // 5)== 0:
+                model.eval()
+                with ch.no_grad():
+                    # approx_reward = ch.cat(batched_approx_reward, dim=1)
+                    # js_divergence_gates = js_divergence_gate(approx_reward, model, eval_contexts, device)
+                    # kl_gate = kl_divergence_gate(approx_reward, model, eval_contexts, device)
+                    js_div = js_divergence(model, target, eval_contexts, device)
+                    j_div = jeffreys_divergence(model, target, eval_contexts, device)
+
+                    plot(model, target, contexts=plot_contexts)
+                    model.to(device)
+
+                    wandb.log({
+                        # "reverse KL between gates": kl_gate.item(),
+                        # "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
+                        "Jensen Shannon Divergence": js_div.item(),
+                        "Jeffreys Divergence": j_div.item()
+                    })
+
+                model.train()
+    return loss_history, adaption
+
+
 def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 target: AbstractTarget,
                 n_epochs: int,
                 batch_size: int,
                 n_context: int,
-                max_components: int,
                 n_samples: int,
                 gate_lr: float,
                 gaussian_lr: float,
@@ -174,10 +226,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 eps_cov: float or None,
                 alpha: int or None):
 
-    optimizer = optim.Adam([
-        {'params': model.gate.parameters(), 'lr': gate_lr},
-        {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
-    ])
+    optimizer = get_optimizer(model, gate_lr, gaussian_lr)
     contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     # bmm and gmm
@@ -189,7 +238,10 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     #                            [0.1],
     #                            [-0.8]])
     train_size = int(n_context)
-    prev_loss = float('inf')
+    loss_history = []
+    history_size = 15
+    stability_threshold = 30
+    adaption = False
 
     for epoch in range(n_epochs):
         # plot initial model
@@ -208,19 +260,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         indices = ch.randperm(train_size)
         shuffled_contexts = contexts[indices]
 
-        # adding new components
-        n_adds = 0.8 * n_epochs // 2
-        if epoch < 0.8 * n_epochs and (epoch + 1) % n_adds == 0 and len(model.active_component_indices) < max_components:
-            model.eval()
-            with ch.no_grad():
-                delete_components(model, shuffled_contexts[0:batch_size])
-                chosen_mean = add_components(model, target, shuffled_contexts[0:batch_size])
+        # add and delete components
+        if adaption and len(model.active_component_indices) < model.max_components:
+            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts)
+            adaption = False
 
-                plot(model, target, contexts=plot_contexts, plot_type="Adding",
-                     best_candidate=chosen_mean.clone().detach().to('cpu'))
-                model.to(device)
-            model.train()
-
+        # training loop
+        batch_loss = []
         if project:
             batched_approx_reward = []
             init_contexts = shuffled_contexts[0:batch_size]
@@ -281,6 +327,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
                 batched_approx_reward.append(ch.stack(approx_reward_component))
                 loss = ch.sum(ch.stack(loss_component))
+                batch_loss.append(loss.clone().detach().item())
+
                 optimizer.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
@@ -319,6 +367,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
                 batched_approx_reward.append(ch.stack(approx_reward_component))
                 loss = ch.sum(ch.stack(loss_component))
+                batch_loss.append(loss.clone().detach().item())
                 optimizer.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
@@ -327,34 +376,21 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        n_plot = n_epochs // 5
-        if (epoch + 1) % n_plot == 0:
-            model.eval()
-            with ch.no_grad():
-                approx_reward = ch.cat(batched_approx_reward, dim=1)  # [max_components, n_contexts, n_samples]
-                js_divergence_gates = js_divergence_gate(approx_reward, model, shuffled_contexts, device)
-                kl_gate = kl_divergence_gate(approx_reward, model, shuffled_contexts, device)
-                js_div = js_divergence(model, target, eval_contexts, device)
-                j_div = jeffreys_divergence(model, target, eval_contexts, device)
+        a = sum(batch_loss) / len(batch_loss)
+        loss_history.append(a)
+        loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
+                                                adaption, loss_history, history_size, stability_threshold, device)
 
-                plot(model, target, contexts=plot_contexts)
-                model.to(device)
-
-                # trick from VIPS++ paper
-                if project:
-                    current_loss = loss.item()
-                    if current_loss < prev_loss:
-                        eps_mean *= 0.8
-                        eps_cov *= 0.8
-                    else:
-                        eps_mean *= 1.1
-                        eps_cov *= 1.1
-                    prev_loss = current_loss
-            model.train()
-            wandb.log({"reverse KL between gates": kl_gate.item(),
-                       "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
-                       "Jensen Shannon Divergence": js_div.item(),
-                       "Jeffreys Divergence": j_div.item()})
+        # # trick from VIPS++ paper
+        # if project:
+        #     current_loss = loss.item()
+        #     if current_loss < prev_loss:
+        #         eps_mean *= 0.8
+        #         eps_cov *= 0.8
+        #     else:
+        #         eps_mean *= 1.1
+        #         eps_cov *= 1.1
+        #     prev_loss = current_loss
 
     print("Training done!")
 
@@ -415,13 +451,13 @@ def toy_task(config):
 
     # Training
     train_model(model, target,
-                n_epochs, batch_size, n_context, max_components, n_samples, gate_lr, gaussian_lr, device,
+                n_epochs, batch_size, n_context, n_samples, gate_lr, gaussian_lr, device,
                 project, eps_mean, eps_cov, alpha)
 
 
 if __name__ == "__main__":
     # test
-    # config = {
+    # funnel_config = {
     #     "n_epochs": 500,
     #     "batch_size": 128,
     #     "n_context": 1280,
@@ -441,7 +477,7 @@ if __name__ == "__main__":
     #     "eps_cov": 1e-6,
     #     "alpha": 50
     # }
-    config = {
+    gmm_config = {
         "n_epochs": 500,
         "batch_size": 64,
         "n_context": 640,
@@ -462,5 +498,5 @@ if __name__ == "__main__":
         "alpha": 50
     }
     group_name = "test"
-    wandb.init(project="ELBO", group=group_name, config=config)
-    toy_task(config)
+    wandb.init(project="ELBO", group=group_name, config=gmm_config)
+    toy_task(gmm_config)
