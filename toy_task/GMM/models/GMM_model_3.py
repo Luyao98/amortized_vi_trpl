@@ -18,16 +18,12 @@ class GateNN3(nn.Module):
         super(GateNN3, self).__init__()
         self.dropout = nn.Dropout(dropout_prob)
         self.fc_layers = nn.ModuleList()
-
-        # First layer
         self.fc_layers.append(nn.Linear(1, gate_size))
-        # Hidden layers
         for _ in range(1, num_layers):
             self.fc_layers.append(nn.Linear(gate_size, gate_size))
-        # Output layer
         self.fc_gate = nn.Linear(gate_size, n_components)
 
-        # Set initial uniform bias for gates if provided
+        # set initial uniform bias for gates if provided
         if init_bias_gate is not None:
             with ch.no_grad():
                 self.fc_gate.bias.copy_(ch.tensor(init_bias_gate, dtype=self.fc_gate.bias.dtype))
@@ -35,8 +31,9 @@ class GateNN3(nn.Module):
     def forward(self, x):
         for fc in self.fc_layers:
             x = ch.relu(fc(x))
-            x = self.dropout(x)
-        return ch.log_softmax(self.fc_gate(x), dim=-1)
+            # x = self.dropout(x)
+
+        return self.fc_gate(x)
 
 
 class GaussianNN3(nn.Module):
@@ -62,12 +59,12 @@ class GaussianNN3(nn.Module):
             with ch.no_grad():
                 self.fc_mean.bias.copy_(ch.tensor(init_bias_mean, dtype=self.fc_mean.bias.dtype))
 
-        self.init_std = ch.tensor(1.0)
+        self.init_std = ch.tensor(10)
 
     def forward(self, x):
         for fc in self.fc_layers:
             x = ch.relu(fc(x))
-            x = self.dropout(x)
+            # x = self.dropout(x)
         flat_means = self.fc_mean(x)
         flat_chols = self.fc_chol(x)
         means = flat_means.view(-1, self.n_components, self.mean_dim)
@@ -77,17 +74,37 @@ class GaussianNN3(nn.Module):
 
 
 class ConditionalGMM3(AbstractGMM, nn.Module):
-    def __init__(self, num_layers_gate, gate_size, num_layers_gaussian, gaussian_size, n_components, dim,
-                 init_bias_gate=None, init_bias_mean=None, dropout_prob=0.1):
+    def __init__(self, num_layers_gate, gate_size, num_layers_gaussian, gaussian_size, max_components, init_components,
+                 dim, init_bias_gate=None, init_bias_mean=None, dropout_prob=0.0):
         super(ConditionalGMM3, self).__init__()
-        self.n_components = n_components
-        self.gate = GateNN3(n_components, num_layers_gate, gate_size, dropout_prob, init_bias_gate)
-        self.gaussian_list = GaussianNN3(num_layers_gaussian, gaussian_size, n_components, dim, dropout_prob,
+        self.dim = dim
+        self.max_components = max_components
+        self.active_component_indices = list(range(init_components))
+
+        self.embedded_mean_bias = nn.Parameter(ch.zeros((max_components, dim)), requires_grad=False)
+        self.embedded_chol_bias = nn.Parameter(ch.zeros((max_components, dim, dim)), requires_grad=False)
+
+        self.gate = GateNN3(max_components, num_layers_gate, gate_size, dropout_prob, init_bias_gate)
+        self.gaussian_list = GaussianNN3(num_layers_gaussian, gaussian_size, max_components, dim, dropout_prob,
                                          init_bias_mean)
 
     def forward(self, x):
-        log_gates = self.gate(x)  # (b, n_com)
-        x = embedding(x, self.n_components)  # (b*n_com, f+n_com)
-        means, chols = self.gaussian_list(x)
-        return log_gates, means, chols
+        gates = self.gate(x)  # (b, n_com)
 
+        active_gates = gates[:, self.active_component_indices]
+        log_gates = ch.log_softmax(active_gates, dim=-1)
+
+        x = embedding(x, self.max_components)  # (b*n_com, f+n_com)
+        means, chols = self.gaussian_list(x)
+
+        active_means = means[:, self.active_component_indices] + self.embedded_mean_bias[self.active_component_indices]
+        active_chols = chols[:, self.active_component_indices] + self.embedded_chol_bias[self.active_component_indices]
+
+        return log_gates, active_means, active_chols
+
+    def add_component(self, component_index):
+        if component_index not in self.active_component_indices:
+            self.active_component_indices.append(component_index)
+            self.active_component_indices.sort()
+        else:
+            raise ValueError(f"Component index {component_index} is already active.")
