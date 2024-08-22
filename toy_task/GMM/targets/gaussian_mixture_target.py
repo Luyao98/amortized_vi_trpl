@@ -61,7 +61,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
     def visualize(self, contexts, n_samples=None):
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
-            x, y = np.meshgrid(np.linspace(-20, 20, 300), np.linspace(-20, 20, 300))
+            x, y = np.meshgrid(np.linspace(-100, 100, 300), np.linspace(-100, 100, 300))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
             pdf_values = ch.exp(self.log_prob_tgt(c.unsqueeze(1), grid))
             pdf_values = pdf_values.view(300, 300).numpy()
@@ -106,6 +106,7 @@ def get_chol_fn(n_components):
 
 def spiral(t, c, a=0.3):
     b = t + 0.1 * c
+    # b = t + 5 * ch.exp(c)
     x = a * t * ch.cos(b)
     y = a * t * ch.sin(b)
     return ch.stack([x, y], dim=-1)
@@ -113,7 +114,7 @@ def spiral(t, c, a=0.3):
 
 def get_mean_fn(n_components):
     def generate_spiral_means(contexts):
-        t_values = np.linspace(0, 10 * np.pi, n_components, endpoint=False)
+        t_values = np.linspace(0, 35 * np.pi, n_components, endpoint=False)
         means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device), contexts)
         return means
     return generate_spiral_means
