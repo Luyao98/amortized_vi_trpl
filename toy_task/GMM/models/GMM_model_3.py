@@ -59,8 +59,6 @@ class GaussianNN3(nn.Module):
             with ch.no_grad():
                 self.fc_mean.bias.copy_(ch.tensor(init_bias_mean, dtype=self.fc_mean.bias.dtype))
 
-        self.init_std = ch.tensor(10)
-
     def forward(self, x):
         for fc in self.fc_layers:
             x = ch.relu(fc(x))
@@ -69,7 +67,6 @@ class GaussianNN3(nn.Module):
         flat_chols = self.fc_chol(x)
         means = flat_means.view(-1, self.n_components, self.mean_dim)
         chols_reshape = flat_chols.view(-1, self.n_components, self.chol_dim)
-        # chols = fill_triangular_gmm(chols_reshape, self.n_components, self.init_std)
         return means, chols_reshape
 
 
@@ -78,6 +75,7 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
                  dim, init_bias_gate=None, init_bias_mean=None, dropout_prob=0.0):
         super(ConditionalGMM3, self).__init__()
         self.dim = dim
+        self.init_std = ch.tensor(10)
         self.max_components = max_components
         self.active_component_indices = list(range(init_components))
 
@@ -94,10 +92,10 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
 
         x = embedding(x, self.max_components)  # (b*n_com, f+n_com)
         means, chols = self.gaussian_list(x)
-
+        chols = fill_triangular_gmm(chols[:, self.active_component_indices], len(self.active_component_indices),
+                                    init_std=self.init_std)
         active_means = means[:, self.active_component_indices] + self.embedded_mean_bias[self.active_component_indices]
-        active_chols = fill_triangular_gmm(chols[:, self.active_component_indices], len(self.active_component_indices),
-                                    self.init_std, self.embedded_chol_bias[self.active_component_indices])
+        active_chols = chols + self.embedded_chol_bias[self.active_component_indices]
 
         return log_active_gates, active_means, active_chols
 
