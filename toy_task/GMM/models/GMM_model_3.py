@@ -93,7 +93,7 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
         x = embedding(x, self.max_components)  # (b*n_com, f+n_com)
         means, chols = self.gaussian_list(x)
         chols = fill_triangular_gmm(chols[:, self.active_component_indices], len(self.active_component_indices),
-                                    init_std=self.init_std)
+                                    self.init_std)
         active_means = means[:, self.active_component_indices] + self.embedded_mean_bias[self.active_component_indices]
         active_chols = chols + self.embedded_chol_bias[self.active_component_indices]
 

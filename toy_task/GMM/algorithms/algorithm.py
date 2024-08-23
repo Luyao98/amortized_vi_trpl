@@ -2,7 +2,6 @@ import torch as ch
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import MultivariateNormal, kl_divergence
-import wandb
 
 from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
@@ -15,6 +14,7 @@ from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, 
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 
+import wandb
 from toy_task.GMM.utils.network_utils import set_seed
 
 
@@ -29,7 +29,7 @@ def delete_components(model, contexts, threshold=0.0001):
         print(f"Deleting Step: remaining active components: {model.active_component_indices}.")
         print(f"Deleted components: {deleted_indices}")
     else:
-        print(f"Deleting Step: No components deleted, currently {len(model.active_component_indices)} active components.")
+        print(f"Deleting Step: no components deleted, currently {len(model.active_component_indices)} active components.")
 
 
 def add_components(model, target, contexts, new_chol=1):
@@ -76,10 +76,10 @@ def add_components(model, target, contexts, new_chol=1):
     chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
     chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
     chosen_context = contexts[chosen_mean_batch_idx]
-    print("New component mean:", chosen_mean)
+    print("Adding Step: new component mean:", chosen_mean)
 
     # update the mean bias of the new component
-    model.embedded_mean_bias[idx] = chosen_mean - current_mean[chosen_mean_batch_idx, idx]
+    model.embedded_mean_bias[idx] += chosen_mean - current_mean[chosen_mean_batch_idx, idx]
 
     # update the cholesky bias of the new component
     new_component_chol = new_chol * ch.eye(model.dim, dtype=ch.float32).to(device)
@@ -88,7 +88,7 @@ def add_components(model, target, contexts, new_chol=1):
     for i in range(chol_bias.size(0)):
         if chol_bias[i, i] < 0:
             chol_bias[i, i] = 0
-            print("init chol too small, need a bigger value.")
+            print("Adding Step: desired chol too small, using origin chol.")
     model.embedded_chol_bias[idx] = chol_bias
 
     # update the gate of the new component
@@ -102,8 +102,11 @@ def adaptive_components(model, target, adaption_contexts, plot_contexts, device)
     model.eval()
     with ch.no_grad():
         delete_components(model, adaption_contexts)
-        chosen_context = add_components(model, target, adaption_contexts)
-        new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(1).to('cpu')])
+        if len(model.active_component_indices) < model.max_components:
+            chosen_context = add_components(model, target, adaption_contexts)
+            new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(1).to('cpu')])
+        else:
+            new_plot_contexts = plot_contexts
         plot(model, target, device=device, contexts=new_plot_contexts, plot_type="Adding")
         model.to(adaption_contexts.device)
     model.train()
@@ -219,7 +222,10 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
             adaption = True
             loss_history = []  # reset loss history, to avoid immediate adaption
             if len(model.active_component_indices) < model.max_components:
-                print(f"Stability reached at epoch {epoch}. Start adaption.")
+                print(f"\nStability reached at epoch {epoch}. Start adaption.")
+        if len(model.active_component_indices) == model.max_components:
+            adaption = True
+            loss_history = []  # reset loss history, to avoid immediate adaption
 
     if (epoch + 1) % (n_epochs // 50)== 0:
         model.eval()
@@ -261,8 +267,6 @@ def plot(model: ConditionalGMM,
     model.train()
 
 
-
-
 def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 target: AbstractTarget,
                 n_epochs: int,
@@ -295,7 +299,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         shuffled_contexts = contexts[indices]
 
         # add and delete components
-        if adaption and len(model.active_component_indices) < model.max_components:
+        if adaption:
             adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device)
             adaption = False
 
@@ -500,15 +504,15 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
     gmm_config = {
-        "n_epochs": 2000,
-        "batch_size": 128,
-        "n_context": 1280,
+        "n_epochs": 800,
+        "batch_size": 64,
+        "n_context": 640,
         "max_components": 6,
         "num_gate_layer": 3,
         "num_component_layer": 5,
         "n_samples": 5,
-        "gate_lr": 0.0001,
-        "gaussian_lr": 0.001,
+        "gate_lr": 0.001,
+        "gaussian_lr": 0.01,
         "model_name": "toy_task_model_3",
         "target_name": "gmm",
         "target_components": 6,
