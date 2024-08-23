@@ -24,7 +24,8 @@ def fill_triangular(x, upper=False):
     return x
 
 
-def fill_triangular_gmm(chols, n_components, init_std, minimal_std = 1e-3, bias=None):
+def fill_triangular_gmm(chols, n_components, init_std, bias=None):
+    minimal_std = 1e-3
     diag_activation = nn.Softplus()
 
     tril_matrices = []
