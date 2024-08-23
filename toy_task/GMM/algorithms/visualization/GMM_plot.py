@@ -18,7 +18,6 @@ def plot2d_matplotlib(
         model,
         contexts,
         plot_type,
-        best_candidate=None,
         ideal_gates=None,
         # fig,
         # axes,
@@ -100,8 +99,6 @@ def plot2d_matplotlib(
             ellipses = compute_gaussian_ellipse(cur_loc[:2], cur_scale_tril[:2, :2])  # modification for funnel
             # ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
-        if best_candidate is not None:
-            ax.scatter(best_candidate[0], best_candidate[1], color='red', marker='x', s=100)
         ax.axis("scaled")
         ax.set_title("Model density with target as background")
         ax.set_xlabel("$x_1$")
@@ -116,8 +113,6 @@ def plot2d_matplotlib(
             ax = axes[2, l]
         ax.clear()
         ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
-        if best_candidate is not None:
-            ax.scatter(best_candidate[0], best_candidate[1], color='red', marker='x', s=100)
         ax.axis("scaled")
         ax.set_title("Model density with model as background")
         ax.set_xlabel("$x_1$")
