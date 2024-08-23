@@ -24,7 +24,7 @@ def fill_triangular(x, upper=False):
     return x
 
 
-def fill_triangular_gmm(chols, n_components, init_std, bias=None):
+def fill_triangular_gmm(chols, n_components, init_std):
     minimal_std = 1e-3
     diag_activation = nn.Softplus()
 
@@ -32,8 +32,6 @@ def fill_triangular_gmm(chols, n_components, init_std, bias=None):
     for i in range(n_components):
         chol_vec = chols[:, i, :]
         tril_matrix = fill_triangular(chol_vec)
-        if bias is not None:
-            tril_matrix = tril_matrix + bias[i]
         tril_matrix = diag_bijector(lambda z: diag_activation(z + inverse_softplus(init_std - minimal_std)) + minimal_std, tril_matrix)
         tril_matrices.append(tril_matrix)
 
