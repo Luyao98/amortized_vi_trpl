@@ -18,7 +18,7 @@ import wandb
 from toy_task.GMM.utils.network_utils import set_seed
 
 
-def delete_components(model, contexts, threshold=0.0001):
+def delete_components(model, contexts, threshold=1e-4):
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
@@ -30,7 +30,7 @@ def delete_components(model, contexts, threshold=0.0001):
         print(f"Deleted components: {deleted_indices}")
     else:
         print(f"Deleting Step: no components deleted, currently {len(model.active_component_indices)} active components.")
-
+        print(f"Current gate values: {avg_gate}")
 
 def add_components(model, target, contexts, new_chol=1):
     all_indices = set(range(model.max_components))
@@ -47,7 +47,14 @@ def add_components(model, target, contexts, new_chol=1):
 
     device = contexts.device
     current_gate, current_mean, current_chol = model(contexts)
-    new_component_gate = ch.log(ch.tensor(0.0001)).to(device)
+    if len(model.active_component_indices) > 2:
+        # since softmax is not invertible, we need apply the change before the softmax
+        real_current_gate = model.gate(contexts)
+        avg_gate = ch.mean(ch.exp(real_current_gate[:, model.active_component_indices]), dim=0)
+        new_component_gate = ch.log(0.001 * ch.max(avg_gate))
+    else:
+        new_component_gate = ch.log(ch.tensor(1e-4)).to(device)
+    print("Adding Step: new component gate:", ch.exp(new_component_gate))
 
     # strategy in VIPS++ paper
     # init_gates = ch.tensor([100, 50, 25, 10])
@@ -83,7 +90,7 @@ def add_components(model, target, contexts, new_chol=1):
 
     # update the cholesky bias of the new component
     new_component_chol = new_chol * ch.eye(model.dim, dtype=ch.float32).to(device)
-    chol_bias = new_component_chol - current_chol[chosen_mean_batch_idx, idx]
+    chol_bias = new_component_chol - current_chol[chosen_mean_batch_idx, idx] + model.embedded_chol_bias[idx]
     # remove negative bias to avoid negative chol
     for i in range(chol_bias.size(0)):
         if chol_bias[i, i] < 0:
