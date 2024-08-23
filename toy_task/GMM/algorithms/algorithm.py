@@ -15,22 +15,24 @@ from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, 
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 
+from toy_task.GMM.utils.network_utils import set_seed
 
-def delete_components(model, contexts, threshold=0.001):
+
+def delete_components(model, contexts, threshold=0.0001):
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
-    model.active_component_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold]
     deleted_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] < threshold]
+    model.active_component_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold]
 
     if deleted_indices:
         print(f"Deleting Step: remaining active components: {model.active_component_indices}.")
         print(f"Deleted components: {deleted_indices}")
     else:
-        print("Deleting Step: No components deleted.")
+        print(f"Deleting Step: No components deleted, currently {len(model.active_component_indices)} active components.")
 
 
-def add_components(model, target, contexts):
+def add_components(model, target, contexts, new_chol=1):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
@@ -40,6 +42,8 @@ def add_components(model, target, contexts):
 
     idx = available_indices[0]
     model.add_component(idx)
+    mask = ch.ones(len(model.active_component_indices), dtype=ch.bool)
+    mask[idx] = False
 
     device = contexts.device
     current_gate, current_mean, current_chol = model(contexts)
@@ -52,14 +56,14 @@ def add_components(model, target, contexts):
 
     # draw samples from a basic Gaussian distribution for better exploration
     basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
-    basic_cov = 100 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+    basic_cov = 2500 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
     basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([10]))
 
-    model_samples = model.get_samples_gmm(current_gate[:, :len(active_indices)], current_mean[:, :len(active_indices)],
-                                          current_chol[:, :len(active_indices)], 10)  # (b,s,f)
+    model_samples = model.get_samples_gmm(current_gate[:, mask], current_mean[:, mask],
+                                          current_chol[:, mask], 10)  # (b,s,f)
     samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1)  # (b, s=s1+s2, f)
-    log_model = model.log_prob_gmm(current_mean[:, :len(active_indices)], current_chol[:, :len(active_indices)],
-                                   current_gate[:, :len(active_indices)], samples)  # (b,s)
+    log_model = model.log_prob_gmm(current_mean[:, mask], current_chol[:, mask],
+                                   current_gate[:, mask], samples)  # (b,s)
     log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
 
     # log density of new components = \log q(o_n|c) + \log q_{x_s}(x_s|o_n,c)
@@ -71,30 +75,36 @@ def add_components(model, target, contexts):
     chosen_mean_batch_idx = chosen_mean_idx // samples.shape[1]
     chosen_mean_sample_idx = chosen_mean_idx % samples.shape[1]
     chosen_mean = samples[chosen_mean_batch_idx, chosen_mean_sample_idx]
+    chosen_context = contexts[chosen_mean_batch_idx]
     print("New component mean:", chosen_mean)
 
     # update the mean bias of the new component
     model.embedded_mean_bias[idx] = chosen_mean - current_mean[chosen_mean_batch_idx, idx]
 
     # update the cholesky bias of the new component
-    new_component_chol = ch.eye(model.dim).to(device)
-    model.embedded_chol_bias[idx] = new_component_chol - current_chol[:, idx].mean(dim=0)
+    new_component_chol = new_chol * ch.eye(model.dim, dtype=ch.float32).to(device)
+    chol_bias = new_component_chol - current_chol[chosen_mean_batch_idx, idx]
+    # remove negative bias to avoid negative chol
+    for i in range(chol_bias.size(0)):
+        if chol_bias[i, i] < 0:
+            chol_bias[i, i] = 0
+            print("init chol too small, need a bigger value.")
+    model.embedded_chol_bias[idx] = chol_bias
 
     # update the gate of the new component
     model.gate.fc_gate.bias.data[idx] = new_component_gate
     model.gate.fc_gate.weight.data[idx] = ch.tensor(0, dtype=ch.float32).to(device)
 
-    return chosen_mean
+    return chosen_context
 
 
 def adaptive_components(model, target, adaption_contexts, plot_contexts, device):
     model.eval()
     with ch.no_grad():
         delete_components(model, adaption_contexts)
-        chosen_mean = add_components(model, target, adaption_contexts)
-
-        plot(model, target, device=device, contexts=plot_contexts, plot_type="Adding",
-             best_candidate=chosen_mean.clone().detach().to('cpu'))
+        chosen_context = add_components(model, target, adaption_contexts)
+        new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(1).to('cpu')])
+        plot(model, target, device=device, contexts=new_plot_contexts, plot_type="Adding")
         model.to(adaption_contexts.device)
     model.train()
 
@@ -201,13 +211,17 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
         loss_history.pop(0)
 
     if len(loss_history) == history_size:
+        # test
+        diff = max(loss_history) - min(loss_history)
+        wandb.log({"loss difference": diff})
+        # test end
         if (max(loss_history) - min(loss_history)) < stability_threshold:
             adaption = True
             loss_history = []  # reset loss history, to avoid immediate adaption
             if len(model.active_component_indices) < model.max_components:
                 print(f"Stability reached at epoch {epoch}. Start adaption.")
 
-    if (epoch + 1) % (n_epochs // 5)== 0:
+    if (epoch + 1) % (n_epochs // 50)== 0:
         model.eval()
         with ch.no_grad():
             # approx_reward = ch.cat(batched_approx_reward, dim=1)
@@ -233,8 +247,7 @@ def plot(model: ConditionalGMM,
          target: AbstractTarget,
          device,
          contexts=None,
-         plot_type="Evaluation",
-         best_candidate=None):
+         plot_type="Evaluation"):
     model.eval()
     with ch.no_grad():
         if contexts is None:
@@ -242,8 +255,8 @@ def plot(model: ConditionalGMM,
         else:
             contexts = contexts.clone().detach().to('cpu')
         # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
-        plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type, best_candidate=best_candidate,
-                          min_x=-15, max_x=15, min_y=-15, max_y=15)
+        plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
+                          min_x=-35, max_x=35, min_y=-35, max_y=35)
         model.to(device)
     model.train()
 
@@ -268,8 +281,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
     train_size = int(n_context)
     loss_history = []
-    history_size = 15
-    stability_threshold = 30
+    history_size = 50
+    stability_threshold = 50
     adaption = False
 
     for epoch in range(n_epochs):
@@ -400,6 +413,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         loss_history.append(sum(batch_loss) / len(batch_loss))
         loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                                                 adaption, loss_history, history_size, stability_threshold, device)
+        stability_threshold = 50 - len(model.active_component_indices)
 
         # # trick from VIPS++ paper
         # if project:
@@ -462,6 +476,8 @@ def toy_task(config):
 
 
 if __name__ == "__main__":
+    set_seed(1001)
+
     # test
     # funnel_config = {
     #     "n_epochs": 500,
@@ -484,18 +500,18 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
     gmm_config = {
-        "n_epochs": 800,
-        "batch_size": 64,
-        "n_context": 640,
-        "max_components": 3,
+        "n_epochs": 2000,
+        "batch_size": 128,
+        "n_context": 1280,
+        "max_components": 6,
         "num_gate_layer": 3,
         "num_component_layer": 5,
         "n_samples": 5,
-        "gate_lr": 0.001,
-        "gaussian_lr": 0.01,
+        "gate_lr": 0.0001,
+        "gaussian_lr": 0.001,
         "model_name": "toy_task_model_3",
         "target_name": "gmm",
-        "target_components": 3,
+        "target_components": 6,
         "dim": 2,
         "initialization_type": "xavier",
         "project": False,
@@ -504,5 +520,6 @@ if __name__ == "__main__":
         "alpha": 50
     }
     group_name = "test"
-    wandb.init(project="ELBO", group=group_name, config=gmm_config)
+    run_name = "1"
+    wandb.init(project="spiral_gmm_target", group=group_name, config=gmm_config)
     toy_task(gmm_config)
