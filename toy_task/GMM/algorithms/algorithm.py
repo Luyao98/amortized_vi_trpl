@@ -13,6 +13,7 @@ from toy_task.GMM.algorithms.visualization.GMM_plot import plot2d_matplotlib
 from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, js_divergence_gate, kl_divergence_gate
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
+from toy_task.GMM.utils.torch_utils import tensorize
 
 import wandb
 from toy_task.GMM.utils.network_utils import set_seed
@@ -30,7 +31,7 @@ def delete_components(model, contexts, threshold=1e-4):
         print(f"Deleted components: {deleted_indices}")
     else:
         print(f"Deleting Step: no components deleted, currently {len(model.active_component_indices)} active components.")
-        print(f"Current gate values: {avg_gate}")
+        print(f"Gate values after deleting: {avg_gate}")
 
 def add_components(model, target, contexts, new_chol=1):
     all_indices = set(range(model.max_components))
@@ -50,8 +51,16 @@ def add_components(model, target, contexts, new_chol=1):
     if len(model.active_component_indices) > 2:
         # since softmax is not invertible, we need apply the change before the softmax
         real_current_gate = model.gate(contexts)
-        avg_gate = ch.mean(ch.exp(real_current_gate[:, model.active_component_indices]), dim=0)
-        new_component_gate = ch.log(0.001 * ch.max(avg_gate))
+        avg_gate = ch.mean(ch.exp(real_current_gate[:, list(active_indices)]), dim=0)
+        # idea 1: from Hongyi
+        # new_component_gate = ch.log(0.001 * ch.max(avg_gate))
+        # idea 2: see the result from GateNN as ln(gate), and we set new gate is 1e-4
+        new_component_gate = ch.log(1e-4 * ch.sum(avg_gate) / (1 - 1e-4))
+        print("Adding Step: max component gate:", ch.max(avg_gate))
+
+        # idea 3: based on idea 2, but dynamically set the gate value, the 1e-4 of the average gate
+        # avg_gate = 1 / (len(model.active_component_indices) -1)
+        # new_component_gate = ch.log(1e-4 * tensorize(avg_gate,cpu=False))
     else:
         new_component_gate = ch.log(ch.tensor(1e-4)).to(device)
     print("Adding Step: new component gate:", ch.exp(new_component_gate))
@@ -486,8 +495,8 @@ def toy_task(config):
                 project, eps_mean, eps_cov, alpha)
 
 
-if __name__ == "__main__":
-    set_seed(1001)
+# if __name__ == "__main__":
+#     set_seed(1001)
 
     # test
     # funnel_config = {
@@ -510,27 +519,28 @@ if __name__ == "__main__":
     #     "eps_cov": 1e-6,
     #     "alpha": 50
     # }
-    gmm_config = {
-        "n_epochs": 800,
-        "batch_size": 64,
-        "n_context": 640,
-        "max_components": 6,
-        "num_gate_layer": 3,
-        "num_component_layer": 5,
-        "n_samples": 5,
-        "gate_lr": 0.001,
-        "gaussian_lr": 0.01,
-        "model_name": "toy_task_model_3",
-        "target_name": "gmm",
-        "target_components": 6,
-        "dim": 2,
-        "initialization_type": "xavier",
-        "project": False,
-        "eps_mean": 0.5,
-        "eps_cov": 0.01,
-        "alpha": 50
-    }
-    group_name = "test"
-    run_name = "1"
-    wandb.init(project="spiral_gmm_target", group=group_name, config=gmm_config)
-    toy_task(gmm_config)
+
+    # gmm_config = {
+    #     "n_epochs": 2500,
+    #     "batch_size": 64,
+    #     "n_context": 1280,
+    #     "max_components": 30,
+    #     "num_gate_layer": 3,
+    #     "num_component_layer": 5,
+    #     "n_samples": 5,
+    #     "gate_lr": 0.0005,
+    #     "gaussian_lr": 0.001,
+    #     "model_name": "toy_task_model_3",
+    #     "target_name": "gmm",
+    #     "target_components": 30,
+    #     "dim": 2,
+    #     "initialization_type": "xavier",
+    #     "project": False,
+    #     "eps_mean": 0.5,
+    #     "eps_cov": 0.01,
+    #     "alpha": 50
+    # }
+    # group_name = "test"
+    # run_name = "1"
+    # wandb.init(project="spiral_gmm_target", group=group_name, config=gmm_config)
+    # toy_task(gmm_config)
