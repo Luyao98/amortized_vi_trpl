@@ -3,6 +3,48 @@ import torch.nn as nn
 import numpy as np
 
 
+def tensorize(x, cpu=True, dtype=ch.float32):
+    """
+    Utility function for turning arrays into tensors
+    Args:
+        x: data
+        cpu: Whether to generate a CPU or GPU tensor
+        dtype: dtype of tensor
+
+    Returns:
+        gpu/cpu tensor of x with specified dtype
+    """
+    return cpu_tensorize(x, dtype) if cpu else gpu_tensorize(x, dtype)
+
+
+def gpu_tensorize(x, dtype=None):
+    """
+    Utility function for turning arrays into cuda tensors
+    Args:
+        x: data
+        dtype: dtype to generate
+
+    Returns:
+        gpu tensor of x
+    """
+    dtype = dtype if dtype else x.dtype
+    return ch.tensor(x).type(dtype).cuda()
+
+
+def cpu_tensorize(x, dtype=None):
+    """
+    Utility function for turning arrays into cpu tensors
+    Args:
+        x: data
+        dtype: dtype to generate
+
+    Returns:
+        cpu tensor of x
+    """
+    dtype = dtype if dtype else x.dtype
+    return ch.tensor(x).type(dtype)
+
+
 def fill_triangular(x, upper=False):
     m = np.int32(x.shape[-1])
     # Formula derived by solving for n: m = n(n+1)/2.
