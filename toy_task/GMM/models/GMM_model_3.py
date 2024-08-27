@@ -72,15 +72,19 @@ class GaussianNN3(nn.Module):
 
 class ConditionalGMM3(AbstractGMM, nn.Module):
     def __init__(self, num_layers_gate, gate_size, num_layers_gaussian, gaussian_size, max_components, init_components,
-                 dim, init_bias_gate=None, init_bias_mean=None, dropout_prob=0.0):
+                 dim, init_bias_gate=None, init_bias_mean=None, dropout_prob=0.0, random_init=True):
         super(ConditionalGMM3, self).__init__()
         self.dim = dim
-        self.init_std = ch.tensor(10)
+        self.init_std = ch.tensor(3)
         self.max_components = max_components
         self.active_component_indices = list(range(init_components))
-
-        self.embedded_mean_bias = nn.Parameter(ch.zeros((max_components, dim)), requires_grad=False)
-        self.embedded_chol_bias = nn.Parameter(ch.zeros((max_components, dim, dim)), requires_grad=False)
+        if random_init:
+            self.embedded_mean_bias = nn.Parameter(60 * ch.rand(max_components, dim) - 30, requires_grad=False)
+            # self.embedded_chol_bias = nn.Parameter(-5 * ch.diag_embed(ch.rand(max_components, dim)), requires_grad=False)
+            self.embedded_chol_bias = nn.Parameter(ch.zeros((max_components, dim, dim)), requires_grad=False)
+        else:
+            self.embedded_mean_bias = nn.Parameter(ch.zeros((max_components, dim)), requires_grad=False)
+            self.embedded_chol_bias = nn.Parameter(ch.zeros((max_components, dim, dim)), requires_grad=False)
 
         self.gate = GateNN3(max_components, num_layers_gate, gate_size, dropout_prob, init_bias_gate)
         self.gaussian_list = GaussianNN3(num_layers_gaussian, gaussian_size, max_components, dim, dropout_prob,

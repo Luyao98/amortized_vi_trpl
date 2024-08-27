@@ -11,6 +11,8 @@ def initialize_weights(model: nn.Module, initialization_type: str, scale: float 
 
     for name, p in model.named_parameters():
         # initialize the specified layers
+        if "embedded" in name:
+            continue
         if any(layer in name for layer in preserve_bias_layers):
             if len(p.data.shape) >= 2:
                 ch.nn.init.zeros_(p)
