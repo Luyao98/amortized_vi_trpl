@@ -1,4 +1,4 @@
-from toy_task.GMM.algorithms.algorithm import toy_task
+from toy_task.GMM.algorithms.algorithm_model2 import toy_task
 from toy_task.GMM.algorithms.algorithm_direct import toy_task_2
 from toy_task.GMM.algorithms.algorithm_stl import toy_task_3
 

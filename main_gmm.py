@@ -18,7 +18,8 @@ def my_app(cfg: DictConfig) -> None:
         **OmegaConf.to_container(cfg.schema, resolve=True)
     }
 
-    group_name = f"{cfg['exp_name']}_{cfg.target.model_name}_adaption_from_1"
+    # group_name = f"{cfg['exp_name']}_{cfg.target.model_name}_adaption_from_1_gate_idea_3"
+    group_name = f"{cfg['exp_name']}_{cfg.target.model_name}"
     run_name = f"seed_{cfg.seed.seed}_batch_size_{cfg.target.batch_size}_gate_layers_{cfg.target.num_gate_layer}_gaussian_layers_{cfg.target.num_component_layer}_gate_lr_{cfg.target.gate_lr}_gaussian_lr_{cfg.target.gaussian_lr}"
     # run_name = f"seed_{cfg.seed.seed}_mean_{cfg.schema.eps_mean}_cov_{cfg.schema.eps_cov}_alpha_{cfg.schema.alpha}"
     wandb.init(project="spiral_gmm_target", group=group_name, config=config_dict, name=run_name)

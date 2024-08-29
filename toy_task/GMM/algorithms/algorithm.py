@@ -19,6 +19,36 @@ import wandb
 from toy_task.GMM.utils.network_utils import set_seed
 
 
+def init_some_components(model, target, contexts, plot_contexts, device):
+    model.eval()
+    with ch.no_grad():
+        current_gate, current_mean, current_chol = model(contexts)
+
+        # draw samples from a basic Gaussian distribution for better exploration
+        basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
+        basic_cov = 2500 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+        basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([15]))
+
+        model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 15)  # (b,s,f)
+        samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1)  # (b, s=s1+s2, f)
+        log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
+
+        max_value, max_idx = ch.max(log_target, dim=1)
+        chosen_mean_batch_idx = ch.argmax(max_value)
+
+        sorted_values, sorted_indices = ch.sort(log_target[chosen_mean_batch_idx], descending=True)
+        required_components = len(model.active_component_indices)
+        required_indices = sorted_indices[:required_components]
+        chosen_mean = samples[chosen_mean_batch_idx, required_indices]
+
+        # update the mean bias of the new component
+        model.embedded_mean_bias[:required_components] += chosen_mean - current_mean[chosen_mean_batch_idx]
+
+        plot(model, target, device=device, contexts=plot_contexts)
+        model.to(device)
+    model.train()
+
+
 def delete_components(model, contexts, threshold=1e-4):
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
@@ -32,6 +62,7 @@ def delete_components(model, contexts, threshold=1e-4):
     else:
         print(f"Deleting Step: no components deleted, currently {len(model.active_component_indices)} active components.")
         print(f"Gate values after deleting: {avg_gate}")
+
 
 def add_components(model, target, contexts, new_chol=1):
     all_indices = set(range(model.max_components))
@@ -50,17 +81,17 @@ def add_components(model, target, contexts, new_chol=1):
     current_gate, current_mean, current_chol = model(contexts)
     if len(model.active_component_indices) > 2:
         # since softmax is not invertible, we need apply the change before the softmax
-        real_current_gate = model.gate(contexts)
-        avg_gate = ch.mean(ch.exp(real_current_gate[:, list(active_indices)]), dim=0)
+        # real_current_gate = model.gate(contexts)
+        # avg_gate = ch.mean(ch.exp(real_current_gate[:, list(active_indices)]), dim=0)
         # idea 1: from Hongyi
         # new_component_gate = ch.log(0.001 * ch.max(avg_gate))
         # idea 2: see the result from GateNN as ln(gate), and we set new gate is 1e-4
-        new_component_gate = ch.log(1e-4 * ch.sum(avg_gate) / (1 - 1e-4))
-        print("Adding Step: max component gate:", ch.max(avg_gate))
+        # new_component_gate = ch.log(1e-4 * ch.sum(avg_gate) / (1 - 1e-4))
+        # print("Adding Step: max component gate:", ch.max(avg_gate))
 
         # idea 3: based on idea 2, but dynamically set the gate value, the 1e-4 of the average gate
-        # avg_gate = 1 / (len(model.active_component_indices) -1)
-        # new_component_gate = ch.log(1e-4 * tensorize(avg_gate,cpu=False))
+        avg_gate = 1 / (len(model.active_component_indices) -1)
+        new_component_gate = ch.log(1e-4 * tensorize(avg_gate,cpu=False))
     else:
         new_component_gate = ch.log(ch.tensor(1e-4)).to(device)
     print("Adding Step: new component gate:", ch.exp(new_component_gate))
@@ -309,6 +340,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         # plot initial model
         if epoch == 0:
             plot(model, target, device=device, contexts=plot_contexts)
+            # init_some_components(model, target, contexts, plot_contexts, device)
 
         # shuffle sampled contexts, since the same sample set is used.
         indices = ch.randperm(train_size)
@@ -528,7 +560,7 @@ def toy_task(config):
     #     "num_gate_layer": 3,
     #     "num_component_layer": 5,
     #     "n_samples": 5,
-    #     "gate_lr": 0.0005,
+    #     "gate_lr": 0.0001,
     #     "gaussian_lr": 0.001,
     #     "model_name": "toy_task_model_3",
     #     "target_name": "gmm",
