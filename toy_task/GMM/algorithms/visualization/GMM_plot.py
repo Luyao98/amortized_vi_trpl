@@ -143,14 +143,20 @@ def plot2d_matplotlib(
 
             if type(target_dist) == ConditionalGMMTarget:
                 # plot weights
-                ax = axes[5, l]
+                if n_tasks == 1:
+                    ax = axes[5]
+                else:
+                    ax = axes[5, l]
                 ax.clear()
                 ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
                 ax.axis("scaled")
                 ax.set_title("target weights")
         elif type(target_dist) == ConditionalGMMTarget and ideal_gates is None:
             # plot weights
-            ax = axes[4, l]
+            if n_tasks == 1:
+                ax = axes[4]
+            else:
+                ax = axes[4, l]
             ax.clear()
             ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
             ax.axis("scaled")
