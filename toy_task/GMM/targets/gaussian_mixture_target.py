@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
-    def __init__(self, gate_fn, mean_fn, chol_fn, context_dim=1, context_bound_low=-3, context_bound_high=3):
+    def __init__(self, gate_fn, mean_fn, chol_fn, context_dim=2, context_bound_low=-3, context_bound_high=3):
         super().__init__()
         self.context_bound_low = context_bound_low
         self.context_bound_high = context_bound_high
@@ -63,15 +63,15 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         for i, c in enumerate(contexts):
             x, y = np.meshgrid(np.linspace(-100, 100, 300), np.linspace(-100, 100, 300))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
-            pdf_values = ch.exp(self.log_prob_tgt(c.unsqueeze(1), grid))
-            pdf_values = pdf_values.view(300, 300).numpy()
+            pdf_values = self.log_prob_tgt(c.unsqueeze(0), grid)
+            pdf_values = pdf_values.exp().view(300, 300).numpy()
 
             ax = axes[i]
             ax.contourf(x, y, pdf_values, levels=50, cmap='viridis')
             if n_samples is not None:
                 samples = self.sample(c.unsqueeze(1), n_samples)
                 ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
-            ax.set_title(f'Target {i + 1} with context {c.item()}')
+            ax.set_title(f'Target {i + 1} with context {c}')
 
         plt.tight_layout()
         plt.show()
@@ -80,12 +80,20 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
 def get_weights_fn(n_components):
     def get_weights(c):
         weights = []
-        for i in range(n_components):
-            if i % 2 == 0:
-                weights.append(ch.sin((i + 1) * c[:, 0]))
-            else:
-                weights.append(ch.cos((i + 1) * c[:, 0]))
-
+        if c.shape[-1] == 1:
+            for i in range(n_components):
+                if i % 2 == 0:
+                    weights.append(ch.sin((i + 1) * c[:, 0]))
+                else:
+                    weights.append(ch.cos((i + 1) * c[:, 0]))
+        elif c.shape[-1] == 2:
+            for i in range(n_components):
+                if i % 2 == 0:
+                    weights.append(ch.sin((i + 1) * c[:, 0] * c[:, 1]))
+                else:
+                    weights.append(ch.cos((i + 1) * c[:, 0] * c[:, 1]))
+        else:
+            raise ValueError('Context dimension must be 1 or 2')
         weights = ch.stack(weights, dim=1)
         log_weights = ch.log_softmax(weights, dim=1)
         return log_weights
@@ -95,17 +103,29 @@ def get_weights_fn(n_components):
 def get_chol_fn(n_components):
     def cat_chol(c):
         chols = []
-        for i in range(n_components):
-            chol = ch.stack([
-                ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 0.8, ch.zeros_like(c[:, 0])], dim=1),
-                ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 0]) + 0.8], dim=1)], dim=1)
-            chols.append(chol)
+        if c.shape[-1] == 1:
+            for i in range(n_components):
+                chol = ch.stack([
+                    ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 0.8, ch.zeros_like(c[:, 0])], dim=1),
+                    ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 0]) + 0.8], dim=1)], dim=1)
+                chols.append(chol)
+        elif c.shape[-1] == 2:
+            for i in range(n_components):
+                chol = ch.stack([
+                    ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 0.8, ch.zeros_like(c[:, 0])], dim=1),
+                    ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 1]) + 0.8], dim=1)], dim=1)
+                chols.append(chol)
         return ch.stack(chols, dim=1)
     return cat_chol
 
 
 def spiral(t, c, a=0.3):
-    b = t + 0.1 * c
+    if c.shape[-1] == 1:
+        b = t + 0.1 * c
+    elif c.shape[-1] == 2:
+        b = t + c[:, 0].unsqueeze(1) * c[:, 1].unsqueeze(1)
+    else:
+        raise ValueError('Context dimension must be 1 or 2')
     # b = t + 5 * ch.exp(c)
     x = a * t * ch.cos(b)
     y = a * t * ch.sin(b)
@@ -129,8 +149,8 @@ def get_gmm_target(n_components):
 
 
 # test
-# target = get_gmm_target(30)
-# contexts = target.get_contexts(3)  # (3, 1)
+target = get_gmm_target(30)
+contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
 # log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
 # target.visualize(contexts, n_samples=20)
@@ -138,4 +158,4 @@ def get_gmm_target(n_components):
 #                       [0.7],
 #                       [-1.8]])
 # print(ch.exp(target.gate_fn(contexts)))
-# target.visualize(contexts)
+target.visualize(contexts)
