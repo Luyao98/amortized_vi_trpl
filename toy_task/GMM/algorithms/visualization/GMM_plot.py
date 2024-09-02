@@ -75,7 +75,7 @@ def plot2d_matplotlib(
         ax.clear()
         contour_plot = ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        ax.set_title(f"Target under context  {contexts[l].item():.3f}")
+        ax.set_title(f"Target under context  {contexts[l]}")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         ax.set_xlim(min_x, max_x)

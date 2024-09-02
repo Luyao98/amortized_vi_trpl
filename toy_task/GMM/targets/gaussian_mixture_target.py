@@ -149,8 +149,8 @@ def get_gmm_target(n_components):
 
 
 # test
-target = get_gmm_target(30)
-contexts = target.get_contexts(3)  # (3, 1)
+# target = get_gmm_target(30)
+# contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
 # log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
 # target.visualize(contexts, n_samples=20)
@@ -158,4 +158,4 @@ contexts = target.get_contexts(3)  # (3, 1)
 #                       [0.7],
 #                       [-1.8]])
 # print(ch.exp(target.gate_fn(contexts)))
-target.visualize(contexts)
+# target.visualize(contexts)
