@@ -46,7 +46,6 @@ def plot2d_matplotlib(
     n_plt = data["n_plt"]
     xx = data["xx"]
     yy = data["yy"]
-    # xy = data["xy"]
     p_tgt = data["p_tgt"]
     p_model = data["p_model"]
     locs = data["locs"]
@@ -66,6 +65,7 @@ def plot2d_matplotlib(
             fig, axes = plt.subplots(4, n_tasks, figsize=(15, 20))
     else:
         raise ValueError("plotting failed!")
+
     for l in range(n_tasks):
         # plot target distribution
         if n_tasks == 1:
@@ -75,7 +75,7 @@ def plot2d_matplotlib(
         ax.clear()
         contour_plot = ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        ax.set_title(f"Target under context  {contexts[l]}")
+        ax.set_title(f"Context: {contexts[l].numpy()} \n\n Target Density")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         ax.set_xlim(min_x, max_x)
@@ -100,7 +100,7 @@ def plot2d_matplotlib(
             # ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
-        ax.set_title("Model density with target as background")
+        ax.set_title("Comparison")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         ax.set_xlim(min_x, max_x)
@@ -114,7 +114,7 @@ def plot2d_matplotlib(
         ax.clear()
         ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        ax.set_title("Model density with model as background")
+        ax.set_title("Model Density")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         ax.set_xlim(min_x, max_x)
@@ -128,7 +128,7 @@ def plot2d_matplotlib(
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
-        ax.set_title("model predicted weights")
+        ax.set_title("model weights")
 
         if ideal_gates is not None:
             # plot ideal weights
