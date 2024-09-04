@@ -104,8 +104,6 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
         return log_active_gates, active_means, active_chols
 
     def add_component(self, component_index):
-        if component_index not in self.active_component_indices:
-            self.active_component_indices.append(component_index)
-            self.active_component_indices.sort()
-        else:
-            raise ValueError(f"Component index {component_index} is already active.")
+        assert component_index not in self.active_component_indices, f"Component {component_index} is already active."
+        self.active_component_indices.append(component_index)
+        self.active_component_indices.sort()

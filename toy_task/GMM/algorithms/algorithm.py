@@ -64,13 +64,12 @@ def delete_components(model, contexts, threshold=1e-4):
         print(f"Gate values after deleting: {avg_gate}")
 
 
-def add_components(model, target, contexts, new_chol=1):
+def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
 
-    if not available_indices:
-        raise ValueError("Adding failed. All components are active.")
+    assert available_indices, "Adding failed. All components are active."
 
     idx = available_indices[0]
     model.add_component(idx)
@@ -79,27 +78,29 @@ def add_components(model, target, contexts, new_chol=1):
 
     device = contexts.device
     current_gate, current_mean, current_chol = model(contexts)
-    if len(model.active_component_indices) > 2:
-        # since softmax is not invertible, we need apply the change before the softmax
-        # real_current_gate = model.gate(contexts)
-        # avg_gate = ch.mean(ch.exp(real_current_gate[:, list(active_indices)]), dim=0)
-        # idea 1: from Hongyi
-        # new_component_gate = ch.log(0.001 * ch.max(avg_gate))
-        # idea 2: see the result from GateNN as ln(gate), and we set new gate is 1e-4
-        # new_component_gate = ch.log(1e-4 * ch.sum(avg_gate) / (1 - 1e-4))
-        # print("Adding Step: max component gate:", ch.max(avg_gate))
 
-        # idea 3: based on idea 2, but dynamically set the gate value, the 1e-4 of the average gate
-        avg_gate = 1 / (len(model.active_component_indices) -1)
-        new_component_gate = ch.log(1e-4 * tensorize(avg_gate,cpu=False))
+    # init new gate
+    unnormalized_current_gate = model.gate(contexts)
+    avg_gate = ch.mean(ch.exp(unnormalized_current_gate[:, list(active_indices)]), dim=0)
+    if gate_strategy == 1:
+        # idea 1: from Hongyi, set the new gate w.r.t. the max of the current gate
+        set_gate = 0.001 * ch.max(avg_gate)
+    elif gate_strategy == 2:
+        # idea 2: treat the result from GateNN as unnormalized log of gate, and we set new gate is 1e-4
+        set_gate = ch.tensor(1e-4).to(device)
+    elif gate_strategy == 3:
+        # idea 3: based on idea 2, but dynamically set the gate, i.e. the 1e-4 of the average gate
+        set_gate = 1e-4 * ch.tensor(1 / len(model.active_component_indices)).to(device)
+    elif gate_strategy == 4:
+        # basic idea from VIPS
+        init_gates = ch.tensor([1000, 500, 250, 100])
+        random_index = ch.randint(0, len(init_gates), (1,)).item()
+        set_gate = ch.exp(-init_gates[random_index]).to(device)
     else:
-        new_component_gate = ch.log(ch.tensor(1e-4)).to(device)
-    print("Adding Step: new component gate:", ch.exp(new_component_gate))
-
-    # strategy in VIPS++ paper
-    # init_gates = ch.tensor([100, 50, 25, 10])
-    # random_index = ch.randint(0, len(init_gates), (1,)).item()
-    # new_component_gate = -init_gates[random_index].to(device)
+        raise ValueError("Invalid gate strategy.")
+    new_component_gate = ch.log(set_gate)
+    new_gate_bias = ch.log(set_gate * ch.sum(avg_gate) / (1 - set_gate))
+    print("Adding Step: new component gate:", set_gate.numpy())
 
     # draw samples from a basic Gaussian distribution for better exploration
     basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
@@ -139,7 +140,7 @@ def add_components(model, target, contexts, new_chol=1):
     model.embedded_chol_bias[idx] = chol_bias
 
     # update the gate of the new component
-    model.gate.fc_gate.bias.data[idx] = new_component_gate
+    model.gate.fc_gate.bias.data[idx] = new_gate_bias
     model.gate.fc_gate.weight.data[idx] = ch.tensor(0, dtype=ch.float32).to(device)
 
     return chosen_context
@@ -151,7 +152,7 @@ def adaptive_components(model, target, adaption_contexts, plot_contexts, device)
         delete_components(model, adaption_contexts)
         if len(model.active_component_indices) < model.max_components:
             chosen_context = add_components(model, target, adaption_contexts)
-            new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(1).to('cpu')])
+            new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(0).to('cpu')])
         else:
             new_plot_contexts = plot_contexts
         plot(model, target, device=device, contexts=new_plot_contexts, plot_type="Adding")
@@ -159,92 +160,96 @@ def adaptive_components(model, target, adaption_contexts, plot_contexts, device)
     model.train()
 
 
-def train_new_component(model, target, contexts, new_component_index, new_embedded_mean_bias, n_epochs=20):
-
-    model.train()
-    optimizer_add = optim.Adam([
-        # {'params': model.gate.fc_gate.parameters(), 'lr': 0.01},
-        {'params': model.gaussian_list.fc_mean.parameters(), 'lr': 0.01},
-        {'params': model.gaussian_list.fc_chol.parameters(), 'lr': 0.01}
-    ])
-    # optimizer_add = optim.Adam(model.parameters(), lr=0.01)
-
-    _, mean_init, _ = model(contexts)
-    mean_init = mean_init.detach()
-    init_bias = new_embedded_mean_bias.clone().detach()
-    for epoch in range(n_epochs):
-        # gradually decrease the embedded mean bias to 0
-        n_steps = n_epochs // 10
-        if (epoch + 1) % n_steps == 0:
-            new_embedded_mean_bias = (1 - (epoch + 1) / n_epochs) * init_bias
-
-
-        # _, mean, chol = model(contexts)
-        # model_samples = model.get_rsamples(mean, chol, 10)
-        # log_model = model.log_prob(mean, chol, model_samples)
-        # log_target = target.log_prob_tgt(contexts, model_samples)
-        # loss = ch.sum(log_model - log_target)
-        #
-        # loss = ch.mean(10*(mean[:,:new_component_index]-mean_init[:,:new_component_index]) **2)+ch.mean((mean[:,new_component_index]-mean_init[:,new_component_index]) **2)
-
-        gate_pred, mean_pred, chol_pred = model(contexts)
-        mean_pred[:, new_component_index] += new_embedded_mean_bias
-
-        # idea 1: update only the new component, doesn't work
-        mean_pred_new = mean_pred[:, new_component_index]
-        chol_pred_new = chol_pred[:, new_component_index]
-        model_samples = model.get_rsamples(mean_pred_new, chol_pred_new, 2)
-
-        log_model = model.log_prob(mean_pred_new, chol_pred_new, model_samples)
-        log_target = target.log_prob_tgt(contexts, model_samples)
-        # loss = ch.sum(log_model - log_target) + ch.sum(5 * (mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
-
-        aux_loss = model.auxiliary_reward(new_component_index, gate_pred.clone().detach(), mean_pred.clone().detach(),
-                                      chol_pred.clone().detach(), model_samples)
-        # loss = ch.sum(log_model - log_target - aux_loss) + ch.sum(5 * (mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
-        gate_new = gate_pred[:, new_component_index].unsqueeze(1).expand(-1, model_samples.shape[1])
-        # loss = ch.sum(ch.exp(gate_new) * (log_model - log_target - aux_loss + gate_new))
-        loss = ch.sum(log_model - log_target - aux_loss + gate_new)
-
-        # # idea 2: update same loss but detach the current component, doesn't work
-        # loss_component = []
-        # for j in range(model.active_components):
-        #     mean_pred_j = mean_pred[:, j]  # (batched_c, 2)
-        #     chol_pred_j = chol_pred[:, j]
-        #
-        #     # target and target log probability
-        #     model_samples = model.get_rsamples(mean_pred_j, chol_pred_j, 10)
-        #     log_model_j = model.log_prob(mean_pred_j, chol_pred_j, model_samples)
-        #     log_target_j = target.log_prob_tgt(contexts, model_samples)
-        #
-        #     aux_loss = model.auxiliary_reward(j, gate_pred.clone().detach(), mean_pred.clone().detach(),
-        #                                       chol_pred.clone().detach(), model_samples)
-        #
-        #     gate_pred_j = gate_pred[:, j].unsqueeze(1).expand(-1, model_samples.shape[1])
-        #     approx_reward_j = log_model_j - log_target_j - aux_loss + gate_pred_j
-        #     loss_j = ch.exp(gate_pred_j) * approx_reward_j
-        #
-        #     loss_component.append(loss_j)
-        # loss = ch.stack(loss_component).sum() + ch.sum(5*(mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
-        # # loss = ch.stack(loss_component).sum()
-
-        optimizer_add.zero_grad()
-        loss.backward()
-
-        optimizer_add.step()
+# def train_new_component(model, target, contexts, new_component_index, new_embedded_mean_bias, n_epochs=20):
+#
+#     model.train()
+#     optimizer_add = optim.Adam([
+#         # {'params': model.gate.fc_gate.parameters(), 'lr': 0.01},
+#         {'params': model.gaussian_list.fc_mean.parameters(), 'lr': 0.01},
+#         {'params': model.gaussian_list.fc_chol.parameters(), 'lr': 0.01}
+#     ])
+#     # optimizer_add = optim.Adam(model.parameters(), lr=0.01)
+#
+#     _, mean_init, _ = model(contexts)
+#     mean_init = mean_init.detach()
+#     init_bias = new_embedded_mean_bias.clone().detach()
+#     for epoch in range(n_epochs):
+#         # gradually decrease the embedded mean bias to 0
+#         n_steps = n_epochs // 10
+#         if (epoch + 1) % n_steps == 0:
+#             new_embedded_mean_bias = (1 - (epoch + 1) / n_epochs) * init_bias
+#
+#
+#         # _, mean, chol = model(contexts)
+#         # model_samples = model.get_rsamples(mean, chol, 10)
+#         # log_model = model.log_prob(mean, chol, model_samples)
+#         # log_target = target.log_prob_tgt(contexts, model_samples)
+#         # loss = ch.sum(log_model - log_target)
+#         #
+#         # loss = ch.mean(10*(mean[:,:new_component_index]-mean_init[:,:new_component_index]) **2)+ch.mean((mean[:,new_component_index]-mean_init[:,new_component_index]) **2)
+#
+#         gate_pred, mean_pred, chol_pred = model(contexts)
+#         mean_pred[:, new_component_index] += new_embedded_mean_bias
+#
+#         # idea 1: update only the new component, doesn't work
+#         mean_pred_new = mean_pred[:, new_component_index]
+#         chol_pred_new = chol_pred[:, new_component_index]
+#         model_samples = model.get_rsamples(mean_pred_new, chol_pred_new, 2)
+#
+#         log_model = model.log_prob(mean_pred_new, chol_pred_new, model_samples)
+#         log_target = target.log_prob_tgt(contexts, model_samples)
+#         # loss = ch.sum(log_model - log_target) + ch.sum(5 * (mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
+#
+#         aux_loss = model.auxiliary_reward(new_component_index, gate_pred.clone().detach(), mean_pred.clone().detach(),
+#                                       chol_pred.clone().detach(), model_samples)
+#         # loss = ch.sum(log_model - log_target - aux_loss) + ch.sum(5 * (mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
+#         gate_new = gate_pred[:, new_component_index].unsqueeze(1).expand(-1, model_samples.shape[1])
+#         # loss = ch.sum(ch.exp(gate_new) * (log_model - log_target - aux_loss + gate_new))
+#         loss = ch.sum(log_model - log_target - aux_loss + gate_new)
+#
+#         # # idea 2: update same loss but detach the current component, doesn't work
+#         # loss_component = []
+#         # for j in range(model.active_components):
+#         #     mean_pred_j = mean_pred[:, j]  # (batched_c, 2)
+#         #     chol_pred_j = chol_pred[:, j]
+#         #
+#         #     # target and target log probability
+#         #     model_samples = model.get_rsamples(mean_pred_j, chol_pred_j, 10)
+#         #     log_model_j = model.log_prob(mean_pred_j, chol_pred_j, model_samples)
+#         #     log_target_j = target.log_prob_tgt(contexts, model_samples)
+#         #
+#         #     aux_loss = model.auxiliary_reward(j, gate_pred.clone().detach(), mean_pred.clone().detach(),
+#         #                                       chol_pred.clone().detach(), model_samples)
+#         #
+#         #     gate_pred_j = gate_pred[:, j].unsqueeze(1).expand(-1, model_samples.shape[1])
+#         #     approx_reward_j = log_model_j - log_target_j - aux_loss + gate_pred_j
+#         #     loss_j = ch.exp(gate_pred_j) * approx_reward_j
+#         #
+#         #     loss_component.append(loss_j)
+#         # loss = ch.stack(loss_component).sum() + ch.sum(5*(mean_pred[:,:new_component_index]-mean_init[:,:new_component_index]) **2)
+#         # # loss = ch.stack(loss_component).sum()
+#
+#         optimizer_add.zero_grad()
+#         loss.backward()
+#
+#         optimizer_add.step()
 
 
 def get_all_contexts(target, n_context, device):
     train_contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     # bmm and gmm
-    plot_contexts = ch.tensor([[-0.3],
-                               [0.7],
-                               [-1.8]])
+    # plot_contexts = ch.tensor([[-0.3],
+    #                            [0.7],
+    #                            [-1.8]])
+
     # funnel
     # plot_contexts = ch.tensor([[-0.3],
     #                            [0.1],
     #                            [-0.8]])
+
+    # 2d gmm
+    plot_contexts = target.get_contexts(3)
     return train_contexts, eval_contexts, plot_contexts
 
 
@@ -281,7 +286,7 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
             # js_divergence_gates = js_divergence_gate(approx_reward, model, eval_contexts, device)
             # kl_gate = kl_divergence_gate(approx_reward, model, eval_contexts, device)
             js_div = js_divergence(model, target, eval_contexts, device)
-            j_div = jeffreys_divergence(model, target, eval_contexts, device)
+            # j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
             plot(model, target, device=device, contexts=plot_contexts)
 
@@ -289,18 +294,14 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                 # "reverse KL between gates": kl_gate.item(),
                 # "Jensen Shannon Divergence between gates": js_divergence_gates.item(),
                 "Jensen Shannon Divergence": js_div.item(),
-                "Jeffreys Divergence": j_div.item()
+                # "Jeffreys Divergence": j_div.item()
             })
 
         model.train()
     return loss_history, adaption
 
 
-def plot(model: ConditionalGMM,
-         target: AbstractTarget,
-         device,
-         contexts=None,
-         plot_type="Evaluation"):
+def plot(model: ConditionalGMM, target: AbstractTarget, device, contexts=None, plot_type="Evaluation"):
     model.eval()
     with ch.no_grad():
         if contexts is None:
@@ -309,7 +310,7 @@ def plot(model: ConditionalGMM,
             contexts = contexts.clone().detach().to('cpu')
         # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
         plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
-                          min_x=-35, max_x=35, min_y=-35, max_y=35)
+                          min_x=-40, max_x=40, min_y=-40, max_y=40)
         model.to(device)
     model.train()
 
@@ -332,8 +333,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
     train_size = int(n_context)
     loss_history = []
-    history_size = 50
-    stability_threshold = 50
+    history_size = 100
     adaption = False
 
     for epoch in range(n_epochs):
@@ -462,10 +462,10 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
+        stability_threshold = 40 - len(model.active_component_indices)
         loss_history.append(sum(batch_loss) / len(batch_loss))
         loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                                                 adaption, loss_history, history_size, stability_threshold, device)
-        stability_threshold = 50 - len(model.active_component_indices)
 
         # # trick from VIPS++ paper
         # if project:
@@ -527,8 +527,8 @@ def toy_task(config):
                 project, eps_mean, eps_cov, alpha)
 
 
-# if __name__ == "__main__":
-#     set_seed(1001)
+if __name__ == "__main__":
+    set_seed(1001)
 
     # test
     # funnel_config = {
@@ -552,27 +552,27 @@ def toy_task(config):
     #     "alpha": 50
     # }
 
-    # gmm_config = {
-    #     "n_epochs": 2500,
-    #     "batch_size": 64,
-    #     "n_context": 1280,
-    #     "max_components": 30,
-    #     "num_gate_layer": 3,
-    #     "num_component_layer": 5,
-    #     "n_samples": 5,
-    #     "gate_lr": 0.0001,
-    #     "gaussian_lr": 0.001,
-    #     "model_name": "toy_task_model_3",
-    #     "target_name": "gmm",
-    #     "target_components": 30,
-    #     "dim": 2,
-    #     "initialization_type": "xavier",
-    #     "project": False,
-    #     "eps_mean": 0.5,
-    #     "eps_cov": 0.01,
-    #     "alpha": 50
-    # }
-    # group_name = "test"
-    # run_name = "1"
-    # wandb.init(project="spiral_gmm_target", group=group_name, config=gmm_config)
-    # toy_task(gmm_config)
+    gmm_config = {
+        "n_epochs": 2500,
+        "batch_size": 64,
+        "n_context": 1280,
+        "max_components": 30,
+        "num_gate_layer": 3,
+        "num_component_layer": 5,
+        "n_samples": 5,
+        "gate_lr": 0.0001,
+        "gaussian_lr": 0.001,
+        "model_name": "toy_task_model_3",
+        "target_name": "gmm",
+        "target_components": 30,
+        "dim": 2,
+        "initialization_type": "xavier",
+        "project": False,
+        "eps_mean": 0.5,
+        "eps_cov": 0.01,
+        "alpha": 50
+    }
+    group_name = "test"
+    run_name = "2d_context"
+    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
+    toy_task(gmm_config)
