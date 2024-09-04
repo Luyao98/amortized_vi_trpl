@@ -83,13 +83,13 @@ def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     unnormalized_current_gate = model.gate(contexts)
     avg_gate = ch.mean(ch.exp(unnormalized_current_gate[:, list(active_indices)]), dim=0)
     if gate_strategy == 1:
-        # idea 1: from Hongyi, set the new gate w.r.t. the max of the current gate
+        # idea 1: from Hongyi, set the new gate w.r.t. the current gate
         set_gate = 0.001 * ch.max(avg_gate)
     elif gate_strategy == 2:
-        # idea 2: treat the result from GateNN as unnormalized log of gate, and we set new gate is 1e-4
+        # idea 2: treat the result from GateNN as unnormalized log of gate
         set_gate = ch.tensor(1e-4).to(device)
     elif gate_strategy == 3:
-        # idea 3: based on idea 2, but dynamically set the gate, i.e. the 1e-4 of the average gate
+        # idea 3: based on idea 2, but dynamically set the gate
         set_gate = 1e-4 * ch.tensor(1 / len(model.active_component_indices)).to(device)
     elif gate_strategy == 4:
         # basic idea from VIPS
@@ -100,7 +100,7 @@ def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
         raise ValueError("Invalid gate strategy.")
     new_component_gate = ch.log(set_gate)
     new_gate_bias = ch.log(set_gate * ch.sum(avg_gate) / (1 - set_gate))
-    print("Adding Step: new component gate:", set_gate.numpy())
+    print("Adding Step: new component gate:", set_gate.cpu().numpy())
 
     # draw samples from a basic Gaussian distribution for better exploration
     basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
@@ -557,11 +557,11 @@ if __name__ == "__main__":
         "batch_size": 64,
         "n_context": 1280,
         "max_components": 30,
-        "num_gate_layer": 3,
+        "num_gate_layer": 5,
         "num_component_layer": 5,
         "n_samples": 5,
-        "gate_lr": 0.0001,
-        "gaussian_lr": 0.001,
+        "gate_lr": 0.00001,
+        "gaussian_lr": 0.0001,
         "model_name": "toy_task_model_3",
         "target_name": "gmm",
         "target_components": 30,
