@@ -54,10 +54,12 @@ def get_model(model_name,target_name, dim, device, max_components, gate_layer, c
                                 num_layers_gaussian=com_layer,
                                 gaussian_size=256,
                                 max_components=max_components,
-                                init_components=1,
+                                init_components=30,
                                 dim=dim,
+                                context_dim=1,
                                 init_bias_gate=None,
-                                init_bias_mean=[0.0] * dim)
+                                init_bias_mean=[0.0] * dim,
+                                init_std=3)
         initialize_weights(model, initialization_type, preserve_bias_layers=['fc_mean', 'embedded'])
     else:
         raise ValueError(f"Invalid model name {model_name}. Choose one from 'toy_task_model_1', 'toy_task_model_2', toy_task_model_3, toy_task_model_4.")
