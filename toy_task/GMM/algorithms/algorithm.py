@@ -13,7 +13,6 @@ from toy_task.GMM.algorithms.visualization.GMM_plot import plot2d_matplotlib
 from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, js_divergence_gate, kl_divergence_gate
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
-from toy_task.GMM.utils.torch_utils import tensorize
 
 import wandb
 from toy_task.GMM.utils.network_utils import set_seed
@@ -22,30 +21,30 @@ from toy_task.GMM.utils.network_utils import set_seed
 def init_some_components(model, target, contexts, plot_contexts, device):
     model.eval()
     with ch.no_grad():
-        current_gate, current_mean, current_chol = model(contexts)
-
-        # draw samples from a basic Gaussian distribution for better exploration
-        basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
-        basic_cov = 2500 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
-        basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([15]))
-
-        model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 15)  # (b,s,f)
-        samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1)  # (b, s=s1+s2, f)
-        log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
-
-        max_value, max_idx = ch.max(log_target, dim=1)
-        chosen_mean_batch_idx = ch.argmax(max_value)
-
-        sorted_values, sorted_indices = ch.sort(log_target[chosen_mean_batch_idx], descending=True)
         required_components = len(model.active_component_indices)
-        required_indices = sorted_indices[:required_components]
-        chosen_mean = samples[chosen_mean_batch_idx, required_indices]
+        if required_components > 1:
+            current_gate, current_mean, current_chol = model(contexts)
 
-        # update the mean bias of the new component
-        model.embedded_mean_bias[:required_components] += chosen_mean - current_mean[chosen_mean_batch_idx]
+            # draw samples from a basic Gaussian distribution for better exploration
+            basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
+            basic_cov = 2500 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+            basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([15]))
+
+            model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 15)  # (b,s,f)
+            samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1)  # (b, s=s1+s2, f)
+            log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
+
+            max_value, max_idx = ch.max(log_target, dim=1)
+            chosen_mean_batch_idx = ch.argmax(max_value)
+
+            sorted_values, sorted_indices = ch.sort(log_target[chosen_mean_batch_idx], descending=True)
+            required_indices = sorted_indices[:required_components]
+            chosen_mean = samples[chosen_mean_batch_idx, required_indices]
+
+            # update the mean bias of the new component
+            model.embedded_mean_bias[:required_components] += chosen_mean - current_mean[chosen_mean_batch_idx]
 
         plot(model, target, device=device, contexts=plot_contexts)
-        model.to(device)
     model.train()
 
 
@@ -64,7 +63,7 @@ def delete_components(model, contexts, threshold=1e-4):
         print(f"Gate values after deleting: {avg_gate}")
 
 
-def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
+def add_components(model, target, contexts, new_chol=5, gate_strategy=3):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
@@ -99,7 +98,7 @@ def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     else:
         raise ValueError("Invalid gate strategy.")
     new_component_gate = ch.log(set_gate)
-    new_gate_bias = ch.log(set_gate * ch.sum(avg_gate) / (1 - set_gate))
+    # new_gate_bias = ch.log(set_gate * ch.sum(avg_gate) / (1 - set_gate))
     print("Adding Step: new component gate:", set_gate.cpu().numpy())
 
     # draw samples from a basic Gaussian distribution for better exploration
@@ -140,6 +139,8 @@ def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     model.embedded_chol_bias[idx] = chol_bias
 
     # update the gate of the new component
+    chosen_gate = unnormalized_current_gate[chosen_mean_batch_idx, list(active_indices)]
+    new_gate_bias = ch.log(set_gate / (1 - set_gate)) + ch.logsumexp(chosen_gate, dim=0)
     model.gate.fc_gate.bias.data[idx] = new_gate_bias
     model.gate.fc_gate.weight.data[idx] = ch.tensor(0, dtype=ch.float32).to(device)
 
@@ -248,36 +249,36 @@ def get_all_contexts(target, n_context, device):
     #                            [0.1],
     #                            [-0.8]])
 
-    # 2d gmm
+    # random gmm
     plot_contexts = target.get_contexts(3)
     return train_contexts, eval_contexts, plot_contexts
 
 
 def get_optimizer(model, gate_lr, gaussian_lr):
     return optim.Adam([
-        {'params': model.gate.parameters(), 'lr': gate_lr},
+        {'params': model.gate.parameters(), 'lr': gate_lr,},
         {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
     ])
 
 
 def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                    adaption, loss_history, history_size, stability_threshold, device):
-    if len(loss_history) > history_size:
-        loss_history.pop(0)
-
-    if len(loss_history) == history_size:
-        # test
-        diff = max(loss_history) - min(loss_history)
-        wandb.log({"loss difference": diff})
-        # test end
-        if (max(loss_history) - min(loss_history)) < stability_threshold:
-            adaption = True
-            loss_history = []  # reset loss history, to avoid immediate adaption
-            if len(model.active_component_indices) < model.max_components:
-                print(f"\nStability reached at epoch {epoch}. Start adaption.")
-        if len(model.active_component_indices) == model.max_components:
-            adaption = True
-            loss_history = []  # reset loss history, to avoid immediate adaption
+    # if len(loss_history) > history_size:
+    #     loss_history.pop(0)
+    #
+    # if len(loss_history) == history_size:
+    #     # test
+    #     diff = max(loss_history) - min(loss_history)
+    #     wandb.log({"loss difference": diff})
+    #     # test end
+    #     if (max(loss_history) - min(loss_history)) < stability_threshold:
+    #         adaption = True
+    #         loss_history = []  # reset loss history, to avoid immediate adaption
+    #         if len(model.active_component_indices) < model.max_components:
+    #             print(f"\nStability reached at epoch {epoch}. Start adaption.")
+    #     if len(model.active_component_indices) == model.max_components:
+    #         adaption = True
+    #         loss_history = []  # reset loss history, to avoid immediate adaption
 
     if (epoch + 1) % (n_epochs // 50)== 0:
         model.eval()
@@ -302,17 +303,14 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
 
 
 def plot(model: ConditionalGMM, target: AbstractTarget, device, contexts=None, plot_type="Evaluation"):
-    model.eval()
-    with ch.no_grad():
-        if contexts is None:
-            contexts = target.get_contexts(3).to('cpu')
-        else:
-            contexts = contexts.clone().detach().to('cpu')
-        # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
-        plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
-                          min_x=-40, max_x=40, min_y=-40, max_y=40)
-        model.to(device)
-    model.train()
+    if contexts is None:
+        contexts = target.get_contexts(3).to('cpu')
+    else:
+        contexts = contexts.clone().detach().to('cpu')
+    # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
+    plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
+                      min_x=-40, max_x=40, min_y=-40, max_y=40)
+    model.to(device)
 
 
 def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
@@ -333,23 +331,22 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
     train_size = int(n_context)
     loss_history = []
-    history_size = 100
+    history_size = 50  # 2D 100
     adaption = False
 
     for epoch in range(n_epochs):
-        # plot initial model
+        # initialize and plot the model
         if epoch == 0:
-            plot(model, target, device=device, contexts=plot_contexts)
-            # init_some_components(model, target, contexts, plot_contexts, device)
+            init_some_components(model, target, contexts, plot_contexts, device)
 
         # shuffle sampled contexts, since the same sample set is used.
         indices = ch.randperm(train_size)
         shuffled_contexts = contexts[indices]
 
-        # add and delete components
-        if adaption:
-            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device)
-            adaption = False
+        # # add and delete components
+        # if adaption:
+        #     adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device)
+        #     adaption = False
 
         # training loop
         batch_loss = []
@@ -423,12 +420,19 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         else:
             # with log responsibility but without projection
             batched_approx_reward = []
+            b_gate_old, b_mean_old, b_chol_old = None, None, None
+
             for batch_idx in range(0, train_size, batch_size):
                 # get old distribution for current batch
                 b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
 
                 # prediction step
                 gate_pred, mean_pred, chol_pred = model(b_contexts)
+
+                # calculate the KL divergence between the current gate and old gate
+                if b_mean_old is not None:
+                    kl_gating = ch.sum(ch.exp(gate_pred) * (gate_pred - b_gate_old), dim=-1)
+                    wandb.log({"kl_gating": kl_gating.mean().item()})
 
                 # component-wise calculation
                 loss_component = []
@@ -451,6 +455,10 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                     loss_component.append(loss_j)
                     approx_reward_component.append(approx_reward_j)
 
+                if batch_idx + batch_size < train_size:
+                    b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
+                    b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
+
                 batched_approx_reward.append(ch.stack(approx_reward_component))
                 loss = ch.sum(ch.stack(loss_component))
                 batch_loss.append(loss.clone().detach().item())
@@ -462,7 +470,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        stability_threshold = 40 - len(model.active_component_indices)
+        stability_threshold = 50 - 1.5 * len(model.active_component_indices)
         loss_history.append(sum(batch_loss) / len(batch_loss))
         loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                                                 adaption, loss_history, history_size, stability_threshold, device)
@@ -509,7 +517,7 @@ def toy_task(config):
     print("Current device:", device)
 
     # Target
-    target = get_target(target_name, target_components=target_components).to(device)
+    target = get_target(target_name, target_components=target_components, context_dim=1).to(device)
 
     # Model
     model = get_model(model_name,
@@ -527,8 +535,8 @@ def toy_task(config):
                 project, eps_mean, eps_cov, alpha)
 
 
-if __name__ == "__main__":
-    set_seed(1001)
+# if __name__ == "__main__":
+#     set_seed(1001)
 
     # test
     # funnel_config = {
@@ -552,27 +560,51 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
 
-    gmm_config = {
-        "n_epochs": 2500,
-        "batch_size": 64,
-        "n_context": 1280,
-        "max_components": 30,
-        "num_gate_layer": 5,
-        "num_component_layer": 5,
-        "n_samples": 5,
-        "gate_lr": 0.00001,
-        "gaussian_lr": 0.0001,
-        "model_name": "toy_task_model_3",
-        "target_name": "gmm",
-        "target_components": 30,
-        "dim": 2,
-        "initialization_type": "xavier",
-        "project": False,
-        "eps_mean": 0.5,
-        "eps_cov": 0.01,
-        "alpha": 50
-    }
-    group_name = "test"
-    run_name = "2d_context"
-    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
-    toy_task(gmm_config)
+    # 2D config
+    # gmm_config = {
+    #     "n_epochs": 5000,
+    #     "batch_size": 64,
+    #     "n_context": 1280,
+    #     "max_components": 30,
+    #     "num_gate_layer": 3,
+    #     "num_component_layer": 5,
+    #     "n_samples": 5,
+    #     "gate_lr": 0.0001,
+    #     "gaussian_lr": 0.001,
+    #     "model_name": "toy_task_model_3",
+    #     "target_name": "gmm",
+    #     "target_components": 30,
+    #     "dim": 2,
+    #     "initialization_type": "xavier",
+    #     "project": False,
+    #     "eps_mean": 0.5,
+    #     "eps_cov": 0.01,
+    #     "alpha": 50
+    # }
+
+    # 1D, 30 init components, no adaption
+    # gmm_config = {
+    #     "n_epochs": 2500,
+    #     "batch_size": 64,
+    #     "n_context": 1280,
+    #     "max_components": 30,
+    #     "num_gate_layer": 3,
+    #     "num_component_layer": 5,
+    #     "n_samples": 5,
+    #     "gate_lr": 0.0001,
+    #     "gaussian_lr": 0.001,
+    #     "model_name": "toy_task_model_3",
+    #     "target_name": "gmm",
+    #     "target_components": 30,
+    #     "dim": 2,
+    #     "initialization_type": "xavier",
+    #     "project": False,
+    #     "eps_mean": 0.5,
+    #     "eps_cov": 0.01,
+    #     "alpha": 50
+    # }
+    # run_name = "1d_context_30_init_components_no_adaption"
+    #
+    # group_name = "test"
+    # wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
+    # toy_task(gmm_config)

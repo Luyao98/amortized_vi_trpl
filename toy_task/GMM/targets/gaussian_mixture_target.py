@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
-    def __init__(self, gate_fn, mean_fn, chol_fn, context_dim=2, context_bound_low=-3, context_bound_high=3):
+    def __init__(self, gate_fn, mean_fn, chol_fn, context_dim, context_bound_low=-3, context_bound_high=3):
         super().__init__()
         self.context_bound_low = context_bound_low
         self.context_bound_high = context_bound_high
@@ -89,9 +89,9 @@ def get_weights_fn(n_components):
         elif c.shape[-1] == 2:
             for i in range(n_components):
                 if i % 2 == 0:
-                    weights.append(ch.sin((i + 1) * c[:, 0] * c[:, 1]))
+                    weights.append(ch.sin((i + 1) * c[:, 0]))
                 else:
-                    weights.append(ch.cos((i + 1) * c[:, 0] * c[:, 1]))
+                    weights.append(ch.cos((i + 1) * c[:, 0]))
         else:
             raise ValueError('Context dimension must be 1 or 2')
         weights = ch.stack(weights, dim=1)
@@ -123,10 +123,9 @@ def spiral(t, c, a=0.3):
     if c.shape[-1] == 1:
         b = t + 0.1 * c
     elif c.shape[-1] == 2:
-        b = t + c[:, 0].unsqueeze(1) * c[:, 1].unsqueeze(1)
+        b = t + 0.1 * c[:, 0].unsqueeze(1) * c[:, 1].unsqueeze(1)
     else:
         raise ValueError('Context dimension must be 1 or 2')
-    # b = t + 5 * ch.exp(c)
     x = a * t * ch.cos(b)
     y = a * t * ch.sin(b)
     return ch.stack([x, y], dim=-1)
@@ -140,16 +139,16 @@ def get_mean_fn(n_components):
     return generate_spiral_means
 
 
-def get_gmm_target(n_components):
+def get_gmm_target(n_components, context_dim):
     gate_target = get_weights_fn(n_components)
     mean_target = get_mean_fn(n_components)
     chol_target = get_chol_fn(n_components)
-    gmm_target = ConditionalGMMTarget(gate_target, mean_target, chol_target)
+    gmm_target = ConditionalGMMTarget(gate_target, mean_target, chol_target, context_dim)
     return gmm_target
 
 
 # test
-# target = get_gmm_target(30)
+# target = get_gmm_target(30,1)
 # contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
 # log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
