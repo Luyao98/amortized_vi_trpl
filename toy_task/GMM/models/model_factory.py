@@ -5,7 +5,8 @@ from toy_task.GMM.models.GMM_model_3 import ConditionalGMM3
 from toy_task.GMM.utils.network_utils import initialize_weights, generate_init_biases
 
 
-def get_model(model_name,target_name, dim, device, max_components, gate_layer, com_layer, initialization_type):
+def get_model(model_name,target_name, dim, context_dim, random_init, device, max_components, init_components,
+              gate_layer, com_layer, initialization_type):
     if model_name == "toy_task_model_1":
         if target_name == "gmm":
             scale = 5.0
@@ -54,12 +55,13 @@ def get_model(model_name,target_name, dim, device, max_components, gate_layer, c
                                 num_layers_gaussian=com_layer,
                                 gaussian_size=256,
                                 max_components=max_components,
-                                init_components=30,
+                                init_components=init_components,
                                 dim=dim,
-                                context_dim=1,
+                                context_dim=context_dim,
+                                random_init=random_init,
                                 init_bias_gate=None,
                                 init_bias_mean=[0.0] * dim,
-                                init_std=3)
+                                init_std=1)
         initialize_weights(model, initialization_type, preserve_bias_layers=['fc_mean', 'embedded'])
     else:
         raise ValueError(f"Invalid model name {model_name}. Choose one from 'toy_task_model_1', 'toy_task_model_2', toy_task_model_3, toy_task_model_4.")

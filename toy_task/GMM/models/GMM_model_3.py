@@ -72,7 +72,8 @@ class GaussianNN3(nn.Module):
 
 class ConditionalGMM3(AbstractGMM, nn.Module):
     def __init__(self, num_layers_gate, gate_size, num_layers_gaussian, gaussian_size, max_components, init_components,
-                 dim, context_dim, init_bias_gate=None, init_bias_mean=None, init_std=None, dropout_prob=0.0, random_init=True):
+                 dim, context_dim, random_init, init_bias_gate=None, init_bias_mean=None, init_std=None,
+                 dropout_prob=0.0):
         super(ConditionalGMM3, self).__init__()
         self.dim = dim
         self.init_std = ch.tensor(init_std, dtype=ch.float32)
