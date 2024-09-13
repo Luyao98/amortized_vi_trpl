@@ -1,5 +1,5 @@
-n_epochs: 3000
-batch_size: 64
+n_epochs: 6000
+batch_size: 128
 n_context: 1280
 max_components: 10
 init_components: 1
@@ -11,9 +11,9 @@ gaussian_lr: 0.001
 
 model_name: "toy_task_model_3"
 dim: 2
-context_dim: 1
+context_dim: 2
 random_init: False
 initialization_type: "xavier"
 
 target_name: "gmm"
-target_components: 30
+target_components: 10
