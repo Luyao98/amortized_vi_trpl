@@ -33,7 +33,6 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         samples = MultivariateNormal(chosen_means, scale_tril=chosen_chols).sample() # [n_contexts, n_samples, n_features]
         return samples
 
-
     def log_prob_tgt(self, contexts, samples):
         device = contexts.device
         gate = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
@@ -61,7 +60,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
     def visualize(self, contexts, n_samples=None):
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
-            x, y = np.meshgrid(np.linspace(-100, 100, 300), np.linspace(-100, 100, 300))
+            x, y = np.meshgrid(np.linspace(-30, 30, 300), np.linspace(-30, 30, 300))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
             pdf_values = self.log_prob_tgt(c.unsqueeze(0), grid)
             pdf_values = pdf_values.exp().view(300, 300).numpy()
@@ -91,7 +90,7 @@ def get_weights_fn(n_components):
                 if i % 2 == 0:
                     weights.append(ch.sin((i + 1) * c[:, 0]))
                 else:
-                    weights.append(ch.cos((i + 1) * c[:, 0]))
+                    weights.append(ch.cos((i + 1) * c[:, 1]))
         else:
             raise ValueError('Context dimension must be 1 or 2')
         weights = ch.stack(weights, dim=1)
@@ -112,8 +111,8 @@ def get_chol_fn(n_components):
         elif c.shape[-1] == 2:
             for i in range(n_components):
                 chol = ch.stack([
-                    ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 0.8, ch.zeros_like(c[:, 0])], dim=1),
-                    ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 1]) + 0.8], dim=1)], dim=1)
+                    ch.stack([0.3 * ch.sin((i + 1) * c[:, 0]) + 0.5, ch.zeros_like(c[:, 0])], dim=1),
+                    ch.stack([0.3 * ch.sin(c[:, 0]) * ch.cos(c[:, 1]), 0.3 * ch.cos((i + 1) * c[:, 1]) + 0.5], dim=1)], dim=1)
                 chols.append(chol)
         return ch.stack(chols, dim=1)
     return cat_chol
@@ -123,7 +122,7 @@ def spiral(t, c, a=0.3):
     if c.shape[-1] == 1:
         b = t + 0.1 * c
     elif c.shape[-1] == 2:
-        b = t + 0.1 * c[:, 0].unsqueeze(1) * c[:, 1].unsqueeze(1)
+        b = t + 0.1 * c[:, 0].unsqueeze(1)
     else:
         raise ValueError('Context dimension must be 1 or 2')
     x = a * t * ch.cos(b)
@@ -133,7 +132,7 @@ def spiral(t, c, a=0.3):
 
 def get_mean_fn(n_components):
     def generate_spiral_means(contexts):
-        t_values = np.linspace(0, 35 * np.pi, n_components, endpoint=False)
+        t_values = np.linspace(0, 14 * np.pi, n_components, endpoint=False) # 2D 10components use 14, otherwise 35
         means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device), contexts)
         return means
     return generate_spiral_means
@@ -148,10 +147,9 @@ def get_gmm_target(n_components, context_dim):
 
 
 # test
-# target = get_gmm_target(30,1)
+# target = get_gmm_target(10,2)
 # contexts = target.get_contexts(3)  # (3, 1)
 # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
-# log_prob = target.log_prob_tgt(contexts, samples)  # (3, 1000)
 # target.visualize(contexts, n_samples=20)
 # contexts = ch.tensor([[-0.3],
 #                       [0.7],
