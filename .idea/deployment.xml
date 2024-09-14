@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="luyao_deng@141.3.53.15:22 password" confirmBeforeUploading="false" confirmBeforeDeletion="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="luyao_deng@141.3.53.15:22 password (2)" confirmBeforeUploading="false" confirmBeforeDeletion="false">
     <option name="confirmBeforeDeletion" value="false" />
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
-      <paths name="Lab_Luyao">
+      <paths name="Cluster">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/kit/anthropomatik/ic7094/code/TRPL_Cluster" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="Lab">
         <serverdata>
           <mappings>
             <mapping deploy="/home/i53/student/luyao_deng/TRPL_Lab" local="$PROJECT_DIR$" web="/" />
@@ -12,6 +19,13 @@
         </serverdata>
       </paths>
       <paths name="luyao_deng@141.3.53.15:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_277" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="luyao_deng@141.3.53.15:22 password (2)">
         <serverdata>
           <mappings>
             <mapping deploy="/home/i53/student/luyao_deng/TRPL_Lab" local="$PROJECT_DIR$" />

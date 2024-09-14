@@ -74,7 +74,9 @@ def fill_triangular_gmm(chols, n_components, init_std):
     for i in range(n_components):
         chol_vec = chols[:, i, :]
         tril_matrix = fill_triangular(chol_vec)
-        tril_matrix = diag_bijector(lambda z: diag_activation(z + inverse_softplus(init_std - minimal_std)) + minimal_std, tril_matrix)
+        tril_matrix = diag_bijector(
+            lambda z: diag_activation(z + inverse_softplus(init_std - minimal_std)) + minimal_std, tril_matrix
+        )
         tril_matrices.append(tril_matrix)
 
     tril_matrices_stacked = ch.stack(tril_matrices, dim=1)

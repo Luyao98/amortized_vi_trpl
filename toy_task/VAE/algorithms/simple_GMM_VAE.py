@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
-import matplotlib.pyplot as plt
 
 import random
 import wandb
@@ -29,14 +28,14 @@ class BinarizedMNISTDataset(Dataset):
         return self.data[idx]
 
 def loss_function(log_gates, log_responsibility, kld, likelihood, beta):
-    recon_loss = (-log_responsibility - likelihood).mean(-1)
-    loss = torch.exp(log_gates) * (beta * kld + log_gates + recon_loss)
+    recon_loss = (log_responsibility + likelihood).mean(-1)
+    loss = torch.exp(log_gates) * (beta * kld + log_gates - recon_loss)
     # loss = beta * kld + log_gates + recon_loss
     return loss.mean()
 
 
 def train(epoch, model, optimizer, train_loader, device, train_loss_list, config):
-    model.train()
+
     train_loss = 0
 
     # store init state
@@ -67,7 +66,14 @@ def train(epoch, model, optimizer, train_loader, device, train_loss_list, config
 
         optimizer.zero_grad()
         log_gates, _, _, log_responsibility, kld, likelihood, _ = model(data)
-        loss = loss_function(log_gates, log_responsibility, kld, likelihood, config["beta"])
+
+        # beta scheduler
+        if config["beta_scheduler"]:
+            current_beta = beta_scheduler(epoch, config["beta"], config["epochs"])
+        else:
+            current_beta = config["beta"]
+
+        loss = loss_function(log_gates, log_responsibility, kld, likelihood, current_beta)
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         train_loss += loss.item()
@@ -77,7 +83,8 @@ def train(epoch, model, optimizer, train_loader, device, train_loss_list, config
             "kld": kld.mean().item(),
             "likelihood": likelihood.mean().item(),
             "log_responsibility": log_responsibility.mean().item(),
-            "log_gates": log_gates.mean().item()
+            "log_gates": log_gates.mean().item(),
+            "current_beta": current_beta
         })
 
     avg_loss = train_loss / len(train_loader.dataset)
@@ -98,8 +105,8 @@ def test(model, test_loader, device, beta):
 
     random_idx = random.randint(0, len(test_loader) - 1)
     data = list(test_loader)[3].to(device)
-    log_px = marginal_likelihood(model, data[:8], device)
-    wandb.log({"log p(x)": log_px.item()})
+    # log_px = marginal_likelihood(model, data[:8], device)
+    # wandb.log({"log p(x)": log_px.item()})
     show_samples(model, data)
     # plot_2d_encoder(model, data[:3], min_x=-1.5, max_x=1.5, min_y=-1.5, max_y=1.5)
 
@@ -145,6 +152,8 @@ def marginal_likelihood(model, x, device):
     marginal_log_likelihood = torch.distributions.Normal(recon_mean, torch.ones_like(recon_mean)).log_prob(x.unsqueeze(1))
     return marginal_log_likelihood.mean()
 
+def beta_scheduler(epoch, beta, max_epochs):
+    return min(beta * (epoch / max_epochs), beta)
 
 def vae(config):
 
@@ -188,6 +197,7 @@ def vae(config):
         with torch.no_grad():
             plot_2d_encoder(model, test_data[:3], min_x=-2.5, max_x=2.5, min_y=-2.5, max_y=2.5)
 
+        model.train()
         train(epoch, model, optimizer, train_loader, device, train_loss_list, config)
 
     # plot training loss curve
@@ -215,31 +225,32 @@ def vae(config):
     # wandb.log({
     #     "fid_score_value": fid_score_value.item(),
     # })
-# if __name__ == "__main__":
-#
-#     # configuration parameters
-#     config = {
-#         "batch_size": 100,
-#         "latent_dim": 2,
-#         "gmm_components": 3,
-#         "hidden_dim": 400,
-#         "encoder_layer_1": 3,
-#         "encoder_layer_2": 4,
-#         "decoder_layer": 3,
-#         "n_samples": 1,
-#         "beta": 0.1,
-#         "epochs": 10,
-#         "learning_rate": 1e-3,
-#         "projection": True,
-#         "eps_means": 0.01,
-#         "eps_chols": 0.001,
-#         "alpha": 10,
-#         "output_dir": "output_images_1",
-#         "wandb_project": "VAE",
-#         "wandb_group": "simple_GMM_VAE",
-#         "wandb_run_name": "init_try"
-#     }
-#     wandb.init(project=config["wandb_project"], group=config["wandb_group"], config=config,
-#                name=config["wandb_run_name"])
-#     vae(config)
 
+if __name__ == "__main__":
+
+    # configuration parameters
+    config = {
+        "batch_size": 100,
+        "latent_dim": 2,
+        "gmm_components": 3,
+        "hidden_dim": 400,
+        "encoder_layer_1": 1,
+        "encoder_layer_2": 3,
+        "decoder_layer": 1,
+        "n_samples": 1,
+        "beta": 1,
+        "beta_scheduler": True,
+        "epochs": 10,
+        "learning_rate": 1e-3,
+        "projection": False,
+        "eps_means": 0.01,
+        "eps_chols": 0.001,
+        "alpha": 10,
+        "output_dir": "output_images_1",
+        "wandb_project": "VAE",
+        "wandb_group": "simple_GMM_VAE",
+        "wandb_run_name": "init_try"
+    }
+    wandb.init(project=config["wandb_project"], group=config["wandb_group"], config=config,
+               name=config["wandb_run_name"])
+    vae(config)

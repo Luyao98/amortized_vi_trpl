@@ -65,7 +65,7 @@ def delete_components(model, contexts, threshold=1e-4):
         print(f"Gate values after deleting: {avg_gate}")
 
 
-def add_components(model, target, contexts, new_chol=3, gate_strategy=3):
+def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
@@ -91,7 +91,7 @@ def add_components(model, target, contexts, new_chol=3, gate_strategy=3):
         set_gate = ch.tensor(1e-4).to(device)
     elif gate_strategy == 3:
         # idea 3: based on idea 2, but dynamically set the gate
-        set_gate = 1e-3 * ch.tensor(1 / len(model.active_component_indices)).to(device)
+        set_gate = 1e-4 * ch.tensor(1 / len(model.active_component_indices)).to(device)
     elif gate_strategy == 4:
         # basic idea from VIPS
         init_gates = ch.tensor([1000, 500, 250, 100])
@@ -308,9 +308,8 @@ def plot(model: ConditionalGMM, target: AbstractTarget, device, contexts=None, p
         contexts = target.get_contexts(3).to('cpu')
     else:
         contexts = contexts.clone().detach().to('cpu')
-    # plot2d_matplotlib(target, model.to('cpu'), contexts, min_x=-6.5, max_x=6.5, min_y=-6.5, max_y=6.5)
     plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
-                      min_x=-35, max_x=35, min_y=-35, max_y=35)
+                      min_x=-15, max_x=10, min_y=-10, max_y=15)  # 6.5 for bmm and funnel
     model.to(device)
 
 
@@ -471,7 +470,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        stability_threshold = 40 - 1.5 * len(model.active_component_indices)
+        stability_threshold = 50 - 4 * len(model.active_component_indices)
         loss_history.append(sum(batch_loss) / len(batch_loss))
         loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                                                 adaption, loss_history, history_size, stability_threshold, device)
@@ -574,7 +573,7 @@ if __name__ == "__main__":
 
     # 2D config
     gmm_config = {
-        "n_epochs": 5000,
+        "n_epochs": 2500,
         "batch_size": 64,
         "n_context": 1280,
         "max_components": 10,
@@ -583,7 +582,7 @@ if __name__ == "__main__":
         "num_component_layer": 5,
         "n_samples": 5,
         "gate_lr": 0.0001,
-        "gaussian_lr": 0.0001,
+        "gaussian_lr": 0.001,
         "model_name": "toy_task_model_3",
         "target_name": "gmm",
         "target_components": 10,

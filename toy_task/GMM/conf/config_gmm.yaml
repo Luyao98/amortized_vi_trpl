@@ -1,22 +1,24 @@
 defaults:
   - _self_
   - target: 30_gmm_target
+#  - target: 10_gmm_2d_target
   - schema: no_projection
   - seed: a
-#  - override hydra/sweeper: list
+  - override hydra/sweeper: list
 
 #exp_name: algo_basic
 #exp_name: algo_kl
 #exp_name: algo_direct
 #exp_name: algo_stl
-#exp_name: random_init_30_components
-#exp_name: init_10_components
-exp_name: init_1_components_single_context
+#exp_name: random_init_30_components_no_gate_projection
+#exp_name: init_10_components_no_adaptation
+exp_name: init_10_components_2d_context
+#exp_name: init_1_components_single_context
 
-#hydra:
-#  sweeper:
-#    grid_params:
-#      seed: [a, b, c]
+hydra:
+  sweeper:
+    grid_params:
+      seed: [a, b, c]
 #    list_params:
 #      target.num_gate_layer: [3,4,5,4,5,6 ]
 #      target.num_component_layer: [5,5,5,6,6,6]

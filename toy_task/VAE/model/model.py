@@ -1,90 +1,19 @@
 import numpy as np
 import torch as ch
 import torch.nn as nn
-from torch.distributions import Normal, MultivariateNormal, kl_divergence
+from torch.distributions import MultivariateNormal, kl_divergence
 
 from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
-from toy_task.GMM.models.abstract_gmm_model import AbstractGMM
+from toy_task.GMM.models.GMM_model_3 import ConditionalGMM3
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 from toy_task.GMM.utils.network_utils import generate_init_biases
 
-# class GateNN(nn.Module):
-#     def __init__(self, n_components, num_layers, gate_size, init_bias_gate=None):
-#         super(GateNN, self).__init__()
-#         self.num_layers = num_layers
-#         self.fc_layers = nn.ModuleList()
-#
-#         self.fc_layers.append(nn.Linear(784, gate_size))
-#         for _ in range(1, num_layers):
-#             self.fc_layers.append(nn.Linear(gate_size, gate_size))
-#         self.fc_gate = nn.Linear(gate_size, n_components)
-#
-#         # set init uniform bias for gates
-#         if init_bias_gate is not None:
-#             with ch.no_grad():
-#                 self.fc_gate.bias.copy_(ch.tensor(init_bias_gate, dtype=self.fc_gate.bias.dtype))
-#
-#     def forward(self, x):
-#         for fc in self.fc_layers:
-#             x = ch.relu(fc(x))
-#         x = ch.log_softmax(self.fc_gate(x), dim=-1)
-#         return x
-#
-#
-# class GaussianNN2(nn.Module):
-#     def __init__(self,
-#                  num_layers,
-#                  gaussian_size,
-#                  n_components,
-#                  dim):
-#         super(GaussianNN2, self).__init__()
-#         self.num_layers = num_layers
-#         self.layer_size = gaussian_size
-#         self.n_components = n_components
-#         self.dim = dim
-#         self.mean_dim = n_components * dim
-#         # self.chol_dim = n_components * dim * (dim + 1) // 2
-#
-#         self.fc_layers = nn.ModuleList()
-#         self.fc_layers.append(nn.Linear(784, gaussian_size))
-#         for _ in range(1, num_layers):
-#             self.fc_layers.append(nn.Linear(gaussian_size, gaussian_size))
-#         self.fc_mean = nn.Linear(gaussian_size, self.mean_dim)
-#         self.fc_chol = nn.Linear(gaussian_size, self.mean_dim)
-#         self.fc0 = nn.Linear(gaussian_size, dim)
-#
-#     def forward(self, x):
-#         for fc in self.fc_layers:
-#             x = ch.relu(fc(x))
-#         means = self.fc_mean(x).view(-1, self.n_components, self.dim)
-#         flat_chols = ch.exp(self.fc_chol(x)).view(-1, self.n_components, self.dim)
-#         chols = ch.diag_embed(flat_chols)
-#
-#         return means, chols
-#
-#
-# class ConditionalGMM2(AbstractGMM, nn.Module):
-#     def __init__(self,
-#                  num_layers_gate,
-#                  gate_size,
-#                  num_layers_gaussian,
-#                  gaussian_size,
-#                  n_components,
-#                  dim,
-#                  init_bias_gate=None):
-#         super(ConditionalGMM2, self).__init__()
-#         self.gate = GateNN(n_components, num_layers_gate, gate_size, init_bias_gate)
-#         self.gaussian_list = GaussianNN2(num_layers_gaussian, gaussian_size, n_components, dim)
-#
-#     def forward(self, x):
-#         log_gates = self.gate(x)
-#         means, chols = self.gaussian_list(x)
-#         return log_gates, means, chols
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim, hidden_dim, output_dim, num_layers):
+    def __init__(self, latent_dim, hidden_dim, output_dim, num_layers, dropout_prob=0.1):
         super(Decoder, self).__init__()
         self.fc_layers = nn.ModuleList()
+        self.dropout = nn.Dropout(dropout_prob)
         self.fc_layers.append(nn.Linear(latent_dim, hidden_dim))
         for _ in range(1, num_layers):
             self.fc_layers.append(nn.Linear(hidden_dim, hidden_dim))
@@ -96,6 +25,7 @@ class Decoder(nn.Module):
         for fc in self.fc_layers:
             z = ch.nn.functional.leaky_relu(fc(z))
             # z= ch.relu(fc(z))
+            z = self.dropout(z)
         recon_mean = ch.sigmoid(self.fc_mu(z))
         # recon_var = ch.exp(self.fc_var(z))
         return recon_mean
@@ -105,15 +35,7 @@ class VAE(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim, n_components, encoder_layer_1, encoder_layer_2, decoder_layer,
                  n_samples, projection=False, eps_means=None, eps_chols=None, alpha=None):
         super(VAE, self).__init__()
-        self.encoder = ConditionalGMM2(num_layers_gate=encoder_layer_1,
-                                       gate_size=hidden_dim,
-                                       num_layers_gaussian=encoder_layer_2,
-                                       gaussian_size=hidden_dim,
-                                       n_components=n_components,
-                                       dim=latent_dim,
-                                       init_bias_gate=[0.0] * n_components,
-                                       init_bias_mean=np.array(generate_init_biases(n_components, latent_dim, 2.0)).flatten())
-        self.decoder = Decoder(latent_dim, hidden_dim, input_dim, decoder_layer)
+
         self.input_dim = input_dim
         self.latent_dim = latent_dim
         self.n_components = n_components
@@ -125,6 +47,18 @@ class VAE(nn.Module):
         self.alpha = alpha
         self.old_means = None
         self.old_chols = None
+
+        self.init_bias_gate = [0.0] * n_components
+        self.init_bias_mean = np.array(generate_init_biases(n_components, latent_dim, 2.0)).flatten()
+        self.encoder = ConditionalGMM3(num_layers_gate=encoder_layer_1,
+                                       gate_size=hidden_dim,
+                                       num_layers_gaussian=encoder_layer_2,
+                                       gaussian_size=hidden_dim,
+                                       n_components=n_components,
+                                       dim=latent_dim,
+                                       init_bias_gate=self.init_bias_gate,
+                                       init_bias_mean=self.init_bias_mean)
+        self.decoder = Decoder(latent_dim, hidden_dim, input_dim, decoder_layer)
 
     def forward(self, x):
         # encoder

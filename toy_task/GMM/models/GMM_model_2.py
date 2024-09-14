@@ -81,7 +81,7 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
                  gate_size,
                  num_layers_gaussian,
                  gaussian_size,
-                 n_components,
+                 max_components,
                  active_components,
                  dim,
                  init_bias_gate=None,
@@ -92,8 +92,8 @@ class ConditionalGMM2(AbstractGMM, nn.Module):
         super(ConditionalGMM2, self).__init__()
         self.dim = dim
         self.active_components = active_components
-        self.gate = GateNN(n_components, num_layers_gate, gate_size, dropout_prob, init_bias_gate)
-        self.gaussian_list = GaussianNN2(num_layers_gaussian, gaussian_size, n_components, dim, dropout_prob, init_bias_mean)
+        self.gate = GateNN(max_components, num_layers_gate, gate_size, dropout_prob, init_bias_gate)
+        self.gaussian_list = GaussianNN2(num_layers_gaussian, gaussian_size, max_components, dim, dropout_prob, init_bias_mean)
 
         self.hooks = []
         self.mode = mode
