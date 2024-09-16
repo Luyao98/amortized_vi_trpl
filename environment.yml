@@ -1,4 +1,4 @@
-name: TRPL_Local
+name: TRPL_C
 channels:
   - pytorch
   - nvidia
@@ -199,7 +199,7 @@ dependencies:
       - gitdb==4.0.11
       - gitpython==3.1.43
       - hydra-core==1.3.2
-      - hydra-list-sweeper==1.0.0
+#      - hydra-list-sweeper==1.0.0
       - hydra-submitit-launcher==1.2.0
       - omegaconf==2.3.0
       - platformdirs==4.3.3
@@ -210,4 +210,3 @@ dependencies:
       - smmap==5.0.1
       - submitit==1.5.1
       - wandb==0.18.0
-prefix: /home/luyao/miniconda3/envs/TRPL_Local
