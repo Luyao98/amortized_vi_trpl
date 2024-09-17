@@ -17,7 +17,6 @@ from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 
 import wandb
-from toy_task.GMM.utils.network_utils import set_seed
 
 
 def init_some_components(model, target, contexts, plot_contexts, device):
@@ -50,22 +49,33 @@ def init_some_components(model, target, contexts, plot_contexts, device):
     model.train()
 
 
-def delete_components(model, contexts, threshold=1e-4):
+previous_deleted_indices = None
+delete_counter = 0
+def delete_components(model, contexts, threshold=1e-3):
+    global previous_deleted_indices, delete_counter
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
     deleted_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] < threshold]
     model.active_component_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold]
 
+    if deleted_indices == previous_deleted_indices:
+        delete_counter += 1
+    else:
+        delete_counter = 1
+    previous_deleted_indices = deleted_indices
+
     if deleted_indices:
         print(f"Deleting Step: remaining active components: {model.active_component_indices}.")
-        print(f"Deleted components: {deleted_indices}")
+        print(f"Deleted components: {deleted_indices}. Consecutive same deletions: {delete_counter}")
     else:
         print(f"Deleting Step: no components deleted, currently {len(model.active_component_indices)} active components.")
         print(f"Gate values after deleting: {avg_gate}")
 
+    return delete_counter
 
-def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
+
+def add_components(model, target, contexts, counter, gate_strategy, new_chol=1):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
@@ -89,9 +99,21 @@ def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     elif gate_strategy == 2:
         # idea 2: treat the result from GateNN as unnormalized log of gate
         set_gate = ch.tensor(1e-4).to(device)
-    elif gate_strategy == 3:
+    elif gate_strategy == 3.1:
+        # idea 3: based on idea 2, but dynamically set the gate
+        set_gate = 1e-3 * ch.tensor(1 / len(model.active_component_indices)).to(device)
+    elif gate_strategy == 3.2:
         # idea 3: based on idea 2, but dynamically set the gate
         set_gate = 1e-4 * ch.tensor(1 / len(model.active_component_indices)).to(device)
+    elif gate_strategy == 3.3:
+        # idea 3: based on idea 2, but dynamically set the gate
+        set_gate = 1e-5 * ch.tensor(1 / len(model.active_component_indices)).to(device)
+    elif gate_strategy == 3.4:
+        # idea 3: based on idea 2, but dynamically set the gate
+        set_gate = 1e-4 * ch.tensor(counter / len(model.active_component_indices)).to(device)
+    elif gate_strategy == 3.5:
+        # idea 3: based on idea 2, but dynamically set the gate
+        set_gate = 1e-4 * ch.tensor(1 / (len(model.active_component_indices)-1)).to(device)
     elif gate_strategy == 4:
         # basic idea from VIPS
         init_gates = ch.tensor([1000, 500, 250, 100])
@@ -149,12 +171,12 @@ def add_components(model, target, contexts, new_chol=1, gate_strategy=3):
     return chosen_context
 
 
-def adaptive_components(model, target, adaption_contexts, plot_contexts, device):
+def adaptive_components(model, target, adaption_contexts, plot_contexts, device, gate_strategy):
     model.eval()
     with ch.no_grad():
-        delete_components(model, adaption_contexts)
+        counter = delete_components(model, adaption_contexts)
         if len(model.active_component_indices) < model.max_components:
-            chosen_context = add_components(model, target, adaption_contexts)
+            chosen_context = add_components(model, target, adaption_contexts, counter, gate_strategy)
             new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(0).to('cpu')])
         else:
             new_plot_contexts = plot_contexts
@@ -325,7 +347,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 project,
                 eps_mean: float or None,
                 eps_cov: float or None,
-                alpha: int or None):
+                alpha: int or None,
+                gate_strategy):
 
     optimizer = get_optimizer(model, gate_lr, gaussian_lr)
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
@@ -345,7 +368,7 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
         # add and delete components
         if adaption:
-            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device)
+            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device, gate_strategy)
             adaption = False
 
         # training loop
@@ -508,6 +531,7 @@ def toy_task(config):
     n_samples = config['n_samples']
     gate_lr = config['gate_lr']
     gaussian_lr = config['gaussian_lr']
+    gate_strategy = config['gate_strategy']
 
     # target parameters
     target_name = config['target_name']
@@ -543,11 +567,12 @@ def toy_task(config):
 
     # Training
     train_model(model, target, n_epochs, batch_size, n_context, n_samples, gate_lr, gaussian_lr, device,
-                project, eps_mean, eps_cov, alpha)
+                project, eps_mean, eps_cov, alpha, gate_strategy)
 
 
-if __name__ == "__main__":
-    set_seed(1001)
+# if __name__ == "__main__":
+#     from toy_task.GMM.utils.network_utils import set_seed
+    # set_seed(1001)
 
     # test
     # funnel_config = {
@@ -571,30 +596,30 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
 
-    # 2D config
-    gmm_config = {
-        "n_epochs": 2500,
-        "batch_size": 64,
-        "n_context": 1280,
-        "max_components": 10,
-        "init_components": 1,
-        "num_gate_layer": 3,
-        "num_component_layer": 5,
-        "n_samples": 5,
-        "gate_lr": 0.0001,
-        "gaussian_lr": 0.001,
-        "model_name": "toy_task_model_3",
-        "target_name": "gmm",
-        "target_components": 10,
-        "dim": 2,
-        "context_dim": 2,
-        "random_init": False,
-        "initialization_type": "xavier",
-        "project": False,
-        "eps_mean": 0.5,
-        "eps_cov": 0.01,
-        "alpha": 50
-    }
+    # # 2D config
+    # gmm_config = {
+    #     "n_epochs": 2500,
+    #     "batch_size": 64,
+    #     "n_context": 1280,
+    #     "max_components": 10,
+    #     "init_components": 1,
+    #     "num_gate_layer": 3,
+    #     "num_component_layer": 5,
+    #     "n_samples": 5,
+    #     "gate_lr": 0.0001,
+    #     "gaussian_lr": 0.001,
+    #     "model_name": "toy_task_model_3",
+    #     "target_name": "gmm",
+    #     "target_components": 10,
+    #     "dim": 2,
+    #     "context_dim": 2,
+    #     "random_init": False,
+    #     "initialization_type": "xavier",
+    #     "project": False,
+    #     "eps_mean": 0.5,
+    #     "eps_cov": 0.01,
+    #     "alpha": 50
+    # }
 
     # 1D, 30 init components, no adaption
     # gmm_config = {
@@ -618,7 +643,8 @@ if __name__ == "__main__":
     #     "alpha": 50
     # }
     # run_name = "1d_context_30_init_components_no_adaption"
-    run_name = "2d_context_1_init_components_with_adaption"
-    group_name = "test"
-    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
-    toy_task(gmm_config)
+
+    # run_name = "2d_context_1_init_components_with_adaption"
+    # group_name = "test"
+    # wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
+    # toy_task(gmm_config)
