@@ -8,7 +8,7 @@ from toy_task.GMM.algorithms.algorithm import toy_task
 from toy_task.GMM.utils.network_utils import set_seed
 
 
-@hydra.main(version_base=None, config_path="toy_task/GMM/conf", config_name="config_gmm")
+@hydra.main(version_base=None, config_path="../toy_task/GMM/conf", config_name="config_gmm_c")
 def my_app(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 

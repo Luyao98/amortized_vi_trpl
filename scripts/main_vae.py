@@ -6,7 +6,7 @@ from toy_task.GMM.utils.network_utils import set_seed
 from toy_task.VAE.algorithms.simple_GMM_VAE import vae
 
 
-@hydra.main(version_base=None, config_path="toy_task/VAE/conf", config_name="config_vae")
+@hydra.main(version_base=None, config_path="../toy_task/VAE/conf", config_name="config_vae")
 def my_vae(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 

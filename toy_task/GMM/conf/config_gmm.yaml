@@ -12,7 +12,7 @@ defaults:
 #exp_name: algo_stl
 #exp_name: random_init_30_components_no_gate_projection
 #exp_name: init_10_components_no_adaptation
-exp_name: init_1_max_10_components_2d_context
+exp_name: gate_strategy_sweeper_ctx_2d_mdl_init1_max15_tgt_max10
 #exp_name: init_1_components_single_context
 
 
@@ -20,7 +20,14 @@ hydra:
     mode: MULTIRUN
     sweeper:
       grid_params:
-        seed: [a, b, c]
-  #    list_params:
-  #      target.num_gate_layer: [3,4,5,4,5,6 ]
-  #      target.num_component_layer: [5,5,5,6,6,6]
+        target.gate_strategy:
+          - 2
+          - 3.1
+          - 3.2
+          - 3.3
+          - 3.4
+          - 3.5
+#        seed: [a, b, c]
+#      list_params:
+#        target.n_samples: [5, 10]
+#        target.batch_size: [128, 64]

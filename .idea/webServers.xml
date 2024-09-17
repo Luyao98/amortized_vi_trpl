@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="ccc626a9-4561-464f-b431-91557e36b1f5" name="Cluster">
+        <fileTransfer accessType="SFTP" host="uc2.scc.kit.edu" port="22" sshConfigId="6627993e-2ec3-4261-af47-4bb620c1eeea" sshConfig="ic7094@uc2.scc.kit.edu:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
