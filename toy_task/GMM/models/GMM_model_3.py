@@ -79,9 +79,12 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
         self.init_std = ch.tensor(init_std, dtype=ch.float32)
         self.max_components = max_components
         self.active_component_indices = list(range(init_components))
+        self.previous_deleted_indices = None
+        self.delete_counter = 0
+
         if random_init:
-            mean_bias = 60 * ch.rand(max_components, dim) - 30
-            mean_bias[:init_components] = 0
+            mean_bias = ch.zeros((max_components, dim))
+            mean_bias[:init_components] = 20 * ch.rand(init_components, dim) - 10
             self.embedded_mean_bias = nn.Parameter(mean_bias, requires_grad=False)
         else:
             self.embedded_mean_bias = nn.Parameter(ch.zeros((max_components, dim)), requires_grad=False)

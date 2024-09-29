@@ -19,7 +19,7 @@ from toy_task.GMM.projections.split_kl_projection import split_kl_projection
 import wandb
 
 
-def init_some_components(model, target, contexts, plot_contexts, device):
+def init_some_components(model, target, contexts, plot_contexts, device, scale=225):
     model.eval()
     with ch.no_grad():
         required_components = len(model.active_component_indices)
@@ -28,10 +28,11 @@ def init_some_components(model, target, contexts, plot_contexts, device):
 
             # draw samples from a basic Gaussian distribution for better exploration
             basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
-            basic_cov = 2500 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
-            basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([15]))
+            # basic_mean[:, -1] += 5
+            basic_cov = scale * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+            basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([100]))
 
-            model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 15)  # (b,s,f)
+            model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 50)  # (b,s,f)
             samples = ch.cat([basic_samples.transpose(0, 1), model_samples], dim=1)  # (b, s=s1+s2, f)
             log_target = target.log_prob_tgt(contexts, samples)  # (b,s)
 
@@ -49,33 +50,28 @@ def init_some_components(model, target, contexts, plot_contexts, device):
     model.train()
 
 
-previous_deleted_indices = None
-delete_counter = 0
 def delete_components(model, contexts, threshold=1e-3):
-    global previous_deleted_indices, delete_counter
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
     deleted_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] < threshold]
     model.active_component_indices = [idx for i, idx in enumerate(model.active_component_indices) if avg_gate[i] >= threshold]
 
-    if deleted_indices == previous_deleted_indices:
-        delete_counter += 1
+    if deleted_indices == model.previous_deleted_indices:
+        model.delete_counter += 1
     else:
-        delete_counter = 1
-    previous_deleted_indices = deleted_indices
+        model.delete_counter = 1
+    model.previous_deleted_indices = deleted_indices
 
     if deleted_indices:
         print(f"Deleting Step: remaining active components: {model.active_component_indices}.")
-        print(f"Deleted components: {deleted_indices}. Consecutive same deletions: {delete_counter}")
+        print(f"Deleted components: {deleted_indices}. Consecutive same deletions: {model.delete_counter}")
     else:
         print(f"Deleting Step: no components deleted, currently {len(model.active_component_indices)} active components.")
         print(f"Gate values after deleting: {avg_gate}")
 
-    return delete_counter
 
-
-def add_components(model, target, contexts, counter, gate_strategy, new_chol=1):
+def add_components(model, target, contexts, gate_strategy, new_chol=1, scale=225):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
@@ -110,7 +106,7 @@ def add_components(model, target, contexts, counter, gate_strategy, new_chol=1):
         set_gate = 1e-5 * ch.tensor(1 / len(model.active_component_indices)).to(device)
     elif gate_strategy == 3.4:
         # idea 3: based on idea 2, but dynamically set the gate
-        set_gate = 1e-4 * ch.tensor(counter / len(model.active_component_indices)).to(device)
+        set_gate = 1e-4 * ch.tensor(model.delete_counter / len(model.active_component_indices)).to(device)
     elif gate_strategy == 3.5:
         # idea 3: based on idea 2, but dynamically set the gate
         set_gate = 1e-4 * ch.tensor(1 / (len(model.active_component_indices)-1)).to(device)
@@ -127,7 +123,7 @@ def add_components(model, target, contexts, counter, gate_strategy, new_chol=1):
 
     # draw samples from a basic Gaussian distribution for better exploration
     basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
-    basic_cov = 2500 * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+    basic_cov = scale * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
     basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([10]))
 
     model_samples = model.get_samples_gmm(current_gate[:, mask], current_mean[:, mask],
@@ -174,13 +170,13 @@ def add_components(model, target, contexts, counter, gate_strategy, new_chol=1):
 def adaptive_components(model, target, adaption_contexts, plot_contexts, device, gate_strategy):
     model.eval()
     with ch.no_grad():
-        counter = delete_components(model, adaption_contexts)
+        delete_components(model, adaption_contexts)
         if len(model.active_component_indices) < model.max_components:
-            chosen_context = add_components(model, target, adaption_contexts, counter, gate_strategy)
+            chosen_context = add_components(model, target, adaption_contexts, gate_strategy)
             new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(0).to('cpu')])
         else:
             new_plot_contexts = plot_contexts
-        plot(model, target, device=device, contexts=new_plot_contexts, plot_type="Adding")
+        plot(model, target, device=device, contexts=new_plot_contexts, plot_type="Adaptive Step")
     model.train()
 
 
@@ -331,7 +327,7 @@ def plot(model: ConditionalGMM, target: AbstractTarget, device, contexts=None, p
     else:
         contexts = contexts.clone().detach().to('cpu')
     plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
-                      min_x=-15, max_x=10, min_y=-10, max_y=15)  # 6.5 for bmm and funnel
+                      min_x=-10, max_x=10, min_y=-5, max_y=15)  # 6.5 for bmm and funnel
     model.to(device)
 
 
@@ -348,13 +344,14 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 eps_mean: float or None,
                 eps_cov: float or None,
                 alpha: int or None,
-                gate_strategy):
+                gate_strategy,
+                history_size):
 
     optimizer = get_optimizer(model, gate_lr, gaussian_lr)
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
     train_size = int(n_context)
     loss_history = []
-    history_size = 100  # 2D 100
+    history_size = history_size
     adaption = False
 
     for epoch in range(n_epochs):
@@ -366,13 +363,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         indices = ch.randperm(train_size)
         shuffled_contexts = contexts[indices]
 
-        # add and delete components
-        if adaption:
-            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device, gate_strategy)
-            adaption = False
+        # # add and delete components
+        # if adaption:
+        #     adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device, gate_strategy)
+        #     adaption = False
 
         # training loop
-        batch_loss = []
+        eva_loss = []
         if project:
             batched_approx_reward = []
             init_contexts = shuffled_contexts[0:batch_size]
@@ -432,8 +429,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                     b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
 
                 batched_approx_reward.append(ch.stack(approx_reward_component))
-                loss = ch.sum(ch.stack(loss_component))
-                batch_loss.append(loss.clone().detach().item())
+                loss = ch.stack(loss_component).sum(dim=0).mean()
+                eva_loss.append(ch.stack(loss_component).sum().detach().item())
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -443,7 +440,10 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
         else:
             # with log responsibility but without projection
             batched_approx_reward = []
-            # b_gate_old, b_mean_old, b_chol_old = None, None, None
+
+            # do we need gate projection?
+            b_gate_old, b_mean_old, b_chol_old = None, None, None
+            # end
 
             for batch_idx in range(0, train_size, batch_size):
                 # get old distribution for current batch
@@ -452,10 +452,13 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 # prediction step
                 gate_pred, mean_pred, chol_pred = model(b_contexts)
 
+                # do we need gate projection?
                 # calculate the KL divergence between the current gate and old gate
-                # if b_mean_old is not None:
-                #     kl_gating = ch.sum(ch.exp(gate_pred) * (gate_pred - b_gate_old), dim=-1)
-                #     wandb.log({"kl_gating": kl_gating.mean().item()})
+                if b_mean_old is not None:
+                    kl_gating = ch.sum(ch.exp(gate_pred) * (gate_pred - b_gate_old), dim=-1)
+                    wandb.log({"kl_gating": kl_gating.mean().item(),
+                               "context variance": ch.var(b_contexts)})
+                # end
 
                 # component-wise calculation
                 loss_component = []
@@ -478,13 +481,15 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                     loss_component.append(loss_j)
                     approx_reward_component.append(approx_reward_j)
 
-                # if batch_idx + batch_size < train_size:
-                #     b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
-                #     b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
+                # do we need gate projection?
+                if batch_idx + batch_size < train_size:
+                    b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
+                    b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
+                # end
 
                 batched_approx_reward.append(ch.stack(approx_reward_component))
-                loss = ch.sum(ch.stack(loss_component))
-                batch_loss.append(loss.clone().detach().item())
+                loss = ch.stack(loss_component).sum(dim=0).mean()
+                eva_loss.append(ch.stack(loss_component).sum().detach().item())
                 optimizer.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
@@ -493,8 +498,8 @@ def train_model(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                 wandb.log({"train_loss": loss.item()})
 
         # Evaluation
-        stability_threshold = 50 - 4 * len(model.active_component_indices)
-        loss_history.append(sum(batch_loss) / len(batch_loss))
+        stability_threshold = 50 - 3 * len(model.active_component_indices)
+        loss_history.append(sum(eva_loss) / len(eva_loss))
         loss_history, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                                                 adaption, loss_history, history_size, stability_threshold, device)
 
@@ -532,6 +537,7 @@ def toy_task(config):
     gate_lr = config['gate_lr']
     gaussian_lr = config['gaussian_lr']
     gate_strategy = config['gate_strategy']
+    history_size = config['history_size']
 
     # target parameters
     target_name = config['target_name']
@@ -567,7 +573,7 @@ def toy_task(config):
 
     # Training
     train_model(model, target, n_epochs, batch_size, n_context, n_samples, gate_lr, gaussian_lr, device,
-                project, eps_mean, eps_cov, alpha, gate_strategy)
+                project, eps_mean, eps_cov, alpha, gate_strategy, history_size)
 
 
 # if __name__ == "__main__":
