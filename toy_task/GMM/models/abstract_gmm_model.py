@@ -149,7 +149,7 @@ class AbstractGMM(ABC):
     def auxiliary_reward(self, j: int, gate_old: ch.Tensor, mean_old: ch.Tensor, chol_old: ch.Tensor,
                          samples: ch.Tensor) -> ch.Tensor:
         """
-        Compute the auxiliary reward for reinforcement learning applications.
+        Compute the auxiliary reward.
 
         Args:
             j (int): Index of the component.

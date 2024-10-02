@@ -84,7 +84,7 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
 
         if random_init:
             mean_bias = ch.zeros((max_components, dim))
-            mean_bias[:init_components] = 20 * ch.rand(init_components, dim) - 10
+            mean_bias[:init_components] = 30 * ch.rand(init_components, dim) - 15
             self.embedded_mean_bias = nn.Parameter(mean_bias, requires_grad=False)
         else:
             self.embedded_mean_bias = nn.Parameter(ch.zeros((max_components, dim)), requires_grad=False)
