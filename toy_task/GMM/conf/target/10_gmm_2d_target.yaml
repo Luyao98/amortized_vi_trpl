@@ -1,19 +1,26 @@
-n_epochs: 6000
+# config for experiment: do we need adaption
+
+# training config
+n_epochs: 4000
 batch_size: 128
 n_context: 1280
-max_components: 12
-init_components: 10
 num_gate_layer: 3
 num_component_layer: 5
 n_samples: 5
-gate_lr: 0.0001
-gaussian_lr: 0.001
+gate_lr: 0.001
+gaussian_lr: 0.01
+gate_strategy: 3.3
+history_size: 100
 
+# model config
 model_name: "toy_task_model_3"
 dim: 2
 context_dim: 2
 random_init: True
 initialization_type: "xavier"
+max_components: 15
+init_components: 15
 
+# target config
 target_name: "gmm"
 target_components: 10

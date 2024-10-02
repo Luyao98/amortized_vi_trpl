@@ -1,7 +1,5 @@
-# config for experiment: do we need adaption
-
 # training config
-n_epochs: 4500
+n_epochs: 2000
 batch_size: 128
 n_context: 1280
 num_gate_layer: 3
@@ -18,9 +16,9 @@ dim: 2
 context_dim: 2
 random_init: True
 initialization_type: "xavier"
-max_components: 15
-init_components: 5
+max_components: 8
+init_components: 8
 
 # target config
 target_name: "gmm"
-target_components: 10
+target_components: 6
