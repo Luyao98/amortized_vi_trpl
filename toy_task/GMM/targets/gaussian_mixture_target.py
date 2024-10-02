@@ -146,13 +146,14 @@ def get_gmm_target(n_components, context_dim):
     return gmm_target
 
 
-# test
-# target = get_gmm_target(10,2)
-# contexts = target.get_contexts(3)  # (3, 1)
-# samples = target.sample(contexts, 1000)  # (3, 1000, 2)
-# target.visualize(contexts, n_samples=20)
-# contexts = ch.tensor([[-0.3],
-#                       [0.7],
-#                       [-1.8]])
-# print(ch.exp(target.gate_fn(contexts)))
-# target.visualize(contexts)
+if __name__ == "__main__":
+
+    target = get_gmm_target(10, 2)
+    contexts = target.get_contexts(3)  # (3, 1)
+    # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
+    # target.visualize(contexts, n_samples=20)
+    # contexts = ch.tensor([[-0.3],
+    #                       [0.7],
+    #                       [-1.8]])
+    # print(ch.exp(target.gate_fn(contexts)))
+    target.visualize(contexts)
