@@ -141,3 +141,82 @@ def gumbel_softmax(logits, temperature=1.0, hard=False):
         y_hard.scatter_(1, y.argmax(dim=1, keepdim=True), 1.0)
         y = (y_hard - y).detach() + y
     return y
+
+
+def gmm_log_density_grad_point(
+        target_gate: ch.Tensor,  # (n_components,)
+        target_mean: ch.Tensor,  # (n_components, d_z)
+        target_chol: ch.Tensor,  # (n_components, d_z, d_z)
+        x: ch.Tensor  # (d_z,)
+) -> ch.Tensor:
+    """
+    Compute the log density gradient of a single point `x` under a GMM with multiple components.
+
+    Parameters:
+    target_gate (torch.Tensor): Tensor of shape (n_components,) representing the log weights (unnormalized).
+    target_mean (torch.Tensor): Tensor of shape (n_components, d_z) representing the mean of each Gaussian component.
+    target_chol (torch.Tensor): Tensor of shape (n_components, d_z, d_z) representing the Cholesky decomposition of the covariance matrix of each component.
+    x (torch.Tensor): Tensor of shape (d_z,) representing the input point.
+
+    Returns:
+    torch.Tensor: Tensor of shape (d_z,) representing the gradient of the log density at the point `x`.
+    """
+    # Number of components and dimension of data
+    n_components, d_z = target_mean.shape
+
+    # Compute precision matrices using Cholesky decomposition
+    precision = ch.inverse(target_chol)  # shape (n_components, d_z, d_z)
+    precision_t = ch.transpose(precision, -1, -2)  # Transpose the last two dimensions
+
+    # Calculate log probabilities for each Gaussian component
+    diffs = target_mean - x.unsqueeze(0)  # (n_components, d_z) - (d_z,) -> (n_components, d_z)
+    mahalanobis_term = ch.einsum('ni,nij,nj->n', diffs, precision_t, diffs)  # (n_components,)
+    log_prob_components = -0.5 * mahalanobis_term - ch.sum(ch.log(ch.diagonal(target_chol, dim1=1, dim2=2)),
+                                                              dim=1)
+    # Combine with log gates to get full log density
+    log_component_densities = log_prob_components + target_gate
+    log_density = ch.logsumexp(log_component_densities, dim=0)
+
+    # Compute responsibilities
+    log_responsibilities = log_component_densities - log_density  # (n_components,)
+    responsibilities = ch.exp(log_responsibilities)  # (n_components,)
+
+    # Compute the gradient
+    grad_log_density = ch.zeros(d_z, device=x.device)
+    for k in range(n_components):
+        diff_k = diffs[k]  # (d_z,)
+        grad_k = precision_t[k] @ diff_k  # (d_z,)
+        grad_log_density += responsibilities[k] * grad_k  # Weight by responsibility
+
+    return grad_log_density
+
+
+def gradient_ascent_on_point(
+        target_gate: ch.Tensor,  # (n_components,)
+        target_mean: ch.Tensor,  # (n_components, d_z)
+        target_chol: ch.Tensor,  # (n_components, d_z, d_z)
+        x: ch.Tensor,  # (d_z,)
+        learning_rate: float,  # Learning rate (alpha)
+        n: int  # Number of iterations
+) -> ch.Tensor:
+    """
+    Perform gradient ascent to update point `x` to move towards higher density regions of the GMM.
+
+    Parameters:
+    target_gate (torch.Tensor): Tensor of shape (n_components,) representing the log weights (unnormalized).
+    target_mean (torch.Tensor): Tensor of shape (n_components, d_z) representing the mean of each Gaussian component.
+    target_chol (torch.Tensor): Tensor of shape (n_components, d_z, d_z) representing the Cholesky decomposition of the covariance matrix of each component.
+    x (torch.Tensor): Tensor of shape (d_z,) representing the input point.
+    learning_rate (float): Step size for gradient ascent.
+    n (int): Number of gradient ascent steps.
+
+    Returns:
+    torch.Tensor: Updated tensor of shape (d_z,) representing the new location of the point `x`.
+    """
+    for i in range(n):
+        # Compute the gradient of the log density at the point x
+        grad = gmm_log_density_grad_point(target_gate, target_mean, target_chol, x)
+
+        # Update the point x using gradient ascent
+        x = x + learning_rate * grad
+    return x
