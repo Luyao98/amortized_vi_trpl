@@ -1,0 +1,22 @@
+defaults:
+  - _self_
+  - target: star_2d_target
+  - schema: no_projection
+  - seed: a
+  - override hydra/sweeper: list
+  - override hydra/launcher: joblib
+
+exp_name: star_no_proj_ctx_2d_mdl_init10_max10_tgt_max5
+
+hydra:
+    mode: MULTIRUN
+    launcher:
+        n_jobs: 10
+    sweeper:
+      grid_params:
+#        schema: no_projection, projection
+        seed: a, b, c
+#      list_params:
+#        target.n_samples: [5, 10]
+#        target.batch_size: [128, 64]
+#        target.history_size: [100, 150]
