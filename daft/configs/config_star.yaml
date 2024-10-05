@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+  - tgt: star_2d_target
+#  - override hydra/sweeper: list
+#  - override hydra/launcher: joblib
+
+exp_name: DAFT_star_2d_target
+
+#hydra:
+#    mode: MULTIRUN
+#    launcher:
+#        n_jobs: 10
+#    sweeper:
+#      grid_params:
+#        schema: no_projection, projection
+#        seed: a, b, c
+#      list_params:
+#        tgt.n_samples: [5, 10]
+#        tgt.batch_size: [128, 64]
+#        tgt.history_size: [100, 150]
