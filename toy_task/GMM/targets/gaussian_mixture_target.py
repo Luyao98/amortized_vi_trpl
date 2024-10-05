@@ -1,63 +1,125 @@
+from typing import Callable
 import torch as ch
-from torch.distributions import uniform, MultivariateNormal, Categorical
-from toy_task.GMM.targets.abstract_target import AbstractTarget
+from torch.distributions import uniform, MultivariateNormal, Categorical, MixtureSameFamily
 import numpy as np
 import matplotlib.pyplot as plt
 
+from toy_task.GMM.targets.abstract_target import AbstractTarget
+
 
 class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
-    def __init__(self, gate_fn, mean_fn, chol_fn, context_dim, context_bound_low=-3, context_bound_high=3):
+    """
+    A conditional Gaussian Mixture Model target distribution.
+    """
+    def __init__(self,
+                 gate_fn: Callable,
+                 mean_fn: Callable,
+                 chol_fn: Callable,
+                 context_dim: int,
+                 context_bound_low: float = -3,
+                 context_bound_high: float = 3
+                 ):
+        """
+        Initializes the ConditionalGMMTarget with functions defining the GMM's components.
+
+        Parameters:
+        - gate_fn (Callable): A function to generate the mixture weights given a context.
+        - mean_fn (Callable): A function to generate the means of the Gaussian components given a context.
+        - chol_fn (Callable): A function to generate the Cholesky decomposition of the covariance matrices given a context.
+        - context_dim (int): The dimensionality of the context.
+        - context_bound_low (float, optional): Lower bound for the uniform context distribution.
+        - context_bound_high (float, optional): Upper bound for the uniform context distribution.
+        """
         super().__init__()
-        self.context_bound_low = context_bound_low
-        self.context_bound_high = context_bound_high
         self.context_dim = context_dim
         self.context_dist = uniform.Uniform(context_bound_low, context_bound_high)
         self.gate_fn = gate_fn
         self.mean_fn = mean_fn
         self.chol_fn = chol_fn
 
-    def get_contexts(self, n_contexts):
+    def get_contexts(self,
+                     n_contexts: int
+                     ) -> ch.Tensor:
+        """
+        Generates a set of contexts for the conditional GMM.
+
+        Parameters:
+        - n_contexts (int): Number of contexts to generate.
+
+        Returns:
+        - ch.Tensor: shape (n_contexts, context_dim).
+        """
         size = ch.Size([n_contexts, self.context_dim])
-        contexts = self.context_dist.sample(size)  # return shape(n_contexts, 1)
+        contexts = self.context_dist.sample(size)  # return shape[n_contexts, context_dim]
         return contexts
 
-    def sample(self, contexts, n_samples):
+    def sample(self,
+               contexts: ch.Tensor,
+               n_samples: int
+               ) -> ch.Tensor:
+        """
+        Samples from the conditional GMM given contexts.
+
+        Parameters:
+        - contexts (ch.Tensor): The context vectors parameterizing the GMM.
+        - n_samples (int): The number of samples to draw.
+
+        Returns:
+        - ch.Tensor: shape (n_contexts, n_samples, d_z).
+        """
         device = contexts.device
-        gate = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
-        means = self.mean_fn(contexts).to(device) # [n_contexts, n_components, n_features]
-        chols = self.chol_fn(contexts).to(device) # [n_contexts, n_components, n_features, n_features]
+        log_gates = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
+        means = self.mean_fn(contexts).to(device)  # [n_contexts, n_components, dz]
+        chols = self.chol_fn(contexts).to(device)  # [n_contexts, n_components, dz, dz]
 
-        indices = Categorical(ch.exp(gate)).sample(ch.Size([n_samples])).transpose(0, 1) # [n_contexts, n_samples]
-        chosen_means = ch.gather(means, 1, indices.unsqueeze(-1).expand(-1, -1, means.shape[-1]))
-        chosen_chols = ch.gather(chols, 1, indices.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, means.shape[-1], means.shape[-1]))
-        samples = MultivariateNormal(chosen_means, scale_tril=chosen_chols).sample() # [n_contexts, n_samples, n_features]
-        return samples
+        samples = MixtureSameFamily(
+            mixture_distribution=Categorical(logits=log_gates),
+            component_distribution=MultivariateNormal(loc=means, scale_tril=chols
+            ),
+        ).sample(ch.Size([n_samples,]))
+        return samples.transpose(0, 1)
 
-    def log_prob_tgt(self, contexts, samples):
+    def log_prob_tgt(self,
+                     contexts: ch.Tensor,
+                     samples: ch.Tensor
+                     ) -> ch.Tensor:
+        """
+        Calculates the log-probability of samples under the conditional GMM.
+
+        Parameters:
+        - contexts (ch.Tensor): The context vectors parameterizing the GMM.
+        - samples (ch.Tensor): The samples for which to calculate the log-probability.
+
+        Returns:
+        - ch.Tensor: Log densities of the target with shape (n_contexts, n_samples).
+        """
         device = contexts.device
-        gate = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
-        means = self.mean_fn(contexts).to(device) # [n_contexts, n_components, n_features]
-        chols = self.chol_fn(contexts).to(device) # [n_contexts, n_components, n_features, n_features]
-        batch_size, n_components, n_features = means.shape
+        log_gates = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
+        means = self.mean_fn(contexts).to(device)  # [n_contexts, n_components, dz]
+        chols = self.chol_fn(contexts).to(device)  # [n_contexts, n_components, dz, dz]
+        n_contexts, n_components, dz = means.shape
 
-        if samples.dim() == 3:
-            n_samples = samples.shape[1]
-        else:
-            # for plotting
-            n_samples = samples.shape[0]
-            samples = samples.unsqueeze(0).expand(batch_size, -1, -1)
+        if samples.dim() != means.dim():
+            samples = samples.unsqueeze(0).expand(n_contexts, -1, -1)
 
-        gate_expanded = gate.unsqueeze(1).expand(-1, n_samples, -1)
-        means_expanded = means.unsqueeze(1).expand(-1, n_samples, -1, -1)
-        chols_expanded = chols.unsqueeze(1).expand(-1, n_samples, -1, -1, -1)
-        samples_expanded = samples.unsqueeze(2).expand(-1, -1, n_components, -1)
+        log_probs = MixtureSameFamily(
+            mixture_distribution=Categorical(logits=log_gates),
+            component_distribution=MultivariateNormal(loc=means, scale_tril=chols
+            ),
+        ).log_prob(samples.transpose(0, 1))
+        return log_probs.transpose(0, 1)  # [batch_size, n_samples]
 
-        mvn = MultivariateNormal(means_expanded, scale_tril=chols_expanded)
-        log_probs = mvn.log_prob(samples_expanded) + gate_expanded # [batch_size, n_samples, n_components]
-        log_probs = ch.logsumexp(log_probs, dim=2)  # [batch_size, n_samples]
-        return log_probs
+    def visualize(self,
+                  contexts: ch.Tensor,
+                  n_samples: int = None
+                  ):
+        """
+        Visualizes the target distribution given the contexts.
 
-    def visualize(self, contexts, n_samples=None):
+        Parameters:
+        - contexts (ch.Tensor): The context vectors parameterizing the GMM.
+        - n_samples (int, optional): Number of samples to draw for visualization. Default is None.
+        """
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
             x, y = np.meshgrid(np.linspace(-30, 30, 300), np.linspace(-30, 30, 300))
@@ -68,7 +130,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
             ax = axes[i]
             ax.contourf(x, y, pdf_values, levels=50, cmap='viridis')
             if n_samples is not None:
-                samples = self.sample(c.unsqueeze(1), n_samples)
+                samples = self.sample(c.unsqueeze(0), n_samples)
                 ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
             ax.set_title(f'Target {i + 1} with context {c}')
 
@@ -76,21 +138,100 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         plt.show()
 
 
-def get_weights_fn(n_components):
-    def get_weights(c):
+def spiral(
+        t: ch.Tensor,
+        contexts: ch.Tensor,
+        a: float = 0.3
+) -> ch.Tensor:
+    """
+    Generates a spiral pattern based on input contexts.
+
+    Parameters:
+    - t (ch.Tensor): A tensor representing the t-values used to generate the spiral.
+    - contexts (ch.Tensor): Context vectors used to parameterize the spiral.
+    - a (float, optional): Scaling factor for the spiral. Default is 0.3.
+
+    Returns:
+    - ch.Tensor: A tensor containing the generated spiral coordinates with shape (n_contexts, t_dim, 2).
+    """
+    if contexts.shape[-1] == 1:
+        b = t + 0.1 * contexts
+    elif contexts.shape[-1] == 2:
+        b = t + 0.1 * contexts[:, 0].unsqueeze(1)
+    else:
+        raise ValueError('Context dimension must be 1 or 2')
+    x = a * t * ch.cos(b)
+    y = a * t * ch.sin(b)
+    return ch.stack([x, y], dim=-1)
+
+
+def get_mean_fn(
+        n_components: int
+) -> Callable:
+    """
+    Generates a function to compute the means of the Gaussian components of the GMM.
+
+    Parameters:
+    - n_components (int): Number of Gaussian components in the mixture.
+
+    Returns:
+    - Callable: A function that takes contexts as input and returns the component means.
+    """
+    def generate_spiral_means(
+            contexts: ch.Tensor
+    ) -> ch.Tensor:
+        """
+        Computes the means of the Gaussian components based on spiral generation.
+
+        Parameters:
+        - contexts (ch.Tensor): The context vectors used to parameterize the means.
+
+        Returns:
+        - ch.Tensor: shape (n_contexts, n_components, 2).
+        """
+        t_values = np.linspace(0, 14 * np.pi, n_components, endpoint=False)
+        means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device), contexts)
+        return means
+    return generate_spiral_means
+
+
+def get_weights_fn(
+        n_components: int
+) -> Callable:
+    """
+    Generates a function to compute the mixture weights of the Gaussian components.
+
+    Parameters:
+    - n_components (int): Number of Gaussian components in the mixture.
+
+    Returns:
+    - Callable: A function that takes contexts as input and returns the log-softmax weights.
+    """
+    def get_weights(
+            contexts: ch.Tensor
+    ) -> ch.Tensor:
+        """
+        Computes the mixture weights of the Gaussian components based on the input contexts.
+
+        Parameters:
+        - contexts (ch.Tensor): The context vectors used to parameterize the weights.
+
+        Returns:
+        - ch.Tensor: A tensor containing the log-softmax weights with shape (n_contexts, n_components).
+        """
         weights = []
-        if c.shape[-1] == 1:
+        if contexts.shape[-1] == 1:
             for i in range(n_components):
                 if i % 2 == 0:
-                    weights.append(ch.sin((i + 1) * c[:, 0]))
+                    weights.append(ch.sin((i + 1) * contexts[:, 0]))
                 else:
-                    weights.append(ch.cos((i + 1) * c[:, 0]))
-        elif c.shape[-1] == 2:
+                    weights.append(ch.cos((i + 1) * contexts[:, 0]))
+        elif contexts.shape[-1] == 2:
             for i in range(n_components):
                 if i % 2 == 0:
-                    weights.append(ch.sin((i + 1) * c[:, 0]))
+                    weights.append(ch.sin((i + 1) * contexts[:, 0]))
                 else:
-                    weights.append(ch.cos((i + 1) * c[:, 1]))
+                    weights.append(ch.cos((i + 1) * contexts[:, 1]))
         else:
             raise ValueError('Context dimension must be 1 or 2')
         weights = ch.stack(weights, dim=1)
@@ -99,46 +240,64 @@ def get_weights_fn(n_components):
     return get_weights
 
 
-def get_chol_fn(n_components):
-    def cat_chol(c):
+def get_chol_fn(
+        n_components: int
+) -> Callable:
+    """
+    Generates a function to compute the Cholesky decomposition of the covariance matrices of the Gaussian components.
+
+    Parameters:
+    - n_components (int): Number of Gaussian components in the mixture.
+
+    Returns:
+    - Callable: A function that takes contexts as input and returns the Cholesky decompositions.
+    """
+    def cat_chol(
+            contexts: ch.Tensor
+    ) -> ch.Tensor:
+        """
+        Computes the Cholesky decompositions of the covariance matrices based on the input contexts.
+
+        Parameters:
+        - contexts (ch.Tensor): The context vectors used to parameterize the Cholesky decompositions.
+
+        Returns:
+        - ch.Tensor: A tensor containing the Cholesky decompositions with shape (n_contexts, n_components, 2, 2).
+        """
         chols = []
-        if c.shape[-1] == 1:
+        element0 = ch.zeros_like(contexts[:, 0])
+        element1 = ch.sin(3 * contexts[:, 0]) * ch.cos(3 * contexts[:, 0])
+        element2 = 0.3 * ch.sin(contexts[:, 0]) * ch.cos(contexts[:, 1])
+        if contexts.shape[-1] == 1:
             for i in range(n_components):
                 chol = ch.stack([
-                    ch.stack([0.5 * ch.sin((i + 1) * c[:, 0]) + 0.8, ch.zeros_like(c[:, 0])], dim=1),
-                    ch.stack([ch.sin(3 * c[:, 0]) * ch.cos(3 * c[:, 0]), 0.5 * ch.cos((i + 1) * c[:, 0]) + 0.8], dim=1)], dim=1)
+                    ch.stack([0.5 * ch.sin((i + 1) * contexts[:, 0]) + 0.8, element0], dim=1),
+                    ch.stack([element1, 0.5 * ch.cos((i + 1) * contexts[:, 0]) + 0.8], dim=1)], dim=1)
                 chols.append(chol)
-        elif c.shape[-1] == 2:
+        elif contexts.shape[-1] == 2:
             for i in range(n_components):
                 chol = ch.stack([
-                    ch.stack([0.3 * ch.sin((i + 1) * c[:, 0]) + 0.5, ch.zeros_like(c[:, 0])], dim=1),
-                    ch.stack([0.3 * ch.sin(c[:, 0]) * ch.cos(c[:, 1]), 0.3 * ch.cos((i + 1) * c[:, 1]) + 0.5], dim=1)], dim=1)
+                    ch.stack([0.3 * ch.sin((i + 1) * contexts[:, 0]) + 0.5, element0], dim=1),
+                    ch.stack([element2, 0.3 * ch.cos((i + 1) * contexts[:, 1]) + 0.5], dim=1)], dim=1)
                 chols.append(chol)
         return ch.stack(chols, dim=1)
     return cat_chol
 
 
-def spiral(t, c, a=0.3):
-    if c.shape[-1] == 1:
-        b = t + 0.1 * c
-    elif c.shape[-1] == 2:
-        b = t + 0.1 * c[:, 0].unsqueeze(1)
-    else:
-        raise ValueError('Context dimension must be 1 or 2')
-    x = a * t * ch.cos(b)
-    y = a * t * ch.sin(b)
-    return ch.stack([x, y], dim=-1)
+def get_gmm_target(
+        n_components: int,
+        context_dim: int
+) -> ConditionalGMMTarget:
+    """
+    Creates a ConditionalGMMTarget instance with the specified number of components and context dimension.
 
+    Parameters:
+    - n_components (int): Number of Gaussian components in the mixture.
+    - context_dim (int): The dimensionality of the context.
 
-def get_mean_fn(n_components):
-    def generate_spiral_means(contexts):
-        t_values = np.linspace(0, 14 * np.pi, n_components, endpoint=False) # 2D 10components use 14, otherwise 35
-        means = spiral(ch.tensor(t_values, dtype=ch.float32, device=contexts.device), contexts)
-        return means
-    return generate_spiral_means
-
-
-def get_gmm_target(n_components, context_dim):
+    Returns:
+    - ConditionalGMMTarget: An instance of ConditionalGMMTarget with specified parameters.
+    """
     gate_target = get_weights_fn(n_components)
     mean_target = get_mean_fn(n_components)
     chol_target = get_chol_fn(n_components)
@@ -149,11 +308,11 @@ def get_gmm_target(n_components, context_dim):
 if __name__ == "__main__":
 
     target = get_gmm_target(10, 2)
-    contexts = target.get_contexts(3)  # (3, 1)
-    # samples = target.sample(contexts, 1000)  # (3, 1000, 2)
-    # target.visualize(contexts, n_samples=20)
-    # contexts = ch.tensor([[-0.3],
-    #                       [0.7],
-    #                       [-1.8]])
-    # print(ch.exp(target.gate_fn(contexts)))
-    target.visualize(contexts)
+    test_ctx = target.get_contexts(3)  # (3, 2)
+    assert test_ctx.shape == (3, 2)
+    test_samples = target.sample(test_ctx, 1000)  # (3, 1000, 2)
+    assert test_samples.shape == (3, 1000, 2)
+    test_log_prob = target.log_prob_tgt(test_ctx, test_samples)  # (3, 1000)
+    assert test_log_prob.shape == (3, 1000)
+    # target.visualize(test_ctx, n_samples=20)
+    # target.visualize(test_ctx)
