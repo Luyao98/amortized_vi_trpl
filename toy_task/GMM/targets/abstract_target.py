@@ -39,7 +39,7 @@ class AbstractTarget(ABC):
         - n_samples (int): The number of samples to draw from the target distribution.
 
         Returns:
-        - ch.Tensor: drawn samples from the target distribution with shape (n_contexts, n_samples, d_z).
+        - ch.Tensor: drawn samples from the target distribution with shape (n_samples, n_contexts, d_z).
         """
         pass
 
@@ -58,7 +58,7 @@ class AbstractTarget(ABC):
         - samples (ch.Tensor): The samples for which to evaluate the log probability.
 
         Returns:
-        - ch.Tensor: log densities of the target with shape (n_contexts, n_samples)
+        - ch.Tensor: log densities of the target with shape (n_samples, n_contexts)
         """
         pass
 
@@ -98,8 +98,7 @@ class AbstractTarget(ABC):
         - ch.Tensor: The updated samples.
 
         """
-
-        updated_samples = samples.transpose(0,1).clone().detach()
+        updated_samples = samples.clone().detach()
         updated_samples.requires_grad = True
 
         for i in range(n):
@@ -108,5 +107,5 @@ class AbstractTarget(ABC):
             with ch.no_grad():
                 updated_samples += lr * grad
 
-        return updated_samples.transpose(0,1).detach()
+        return updated_samples.detach()
 

@@ -50,7 +50,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         - ch.Tensor: shape (n_contexts, context_dim).
         """
         size = ch.Size([n_contexts, self.context_dim])
-        contexts = self.context_dist.sample(size)  # return shape[n_contexts, context_dim]
+        contexts = self.context_dist.sample(size)
         return contexts
 
     def sample(self,
@@ -61,23 +61,23 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         Samples from the conditional GMM given contexts.
 
         Parameters:
-        - contexts (ch.Tensor): The context vectors parameterizing the GMM.
+        - contexts (ch.Tensor): The context vectors parameterizing the GMM with shape (n_contexts, context_dim).
         - n_samples (int): The number of samples to draw.
 
         Returns:
-        - ch.Tensor: shape (n_contexts, n_samples, d_z).
+        - ch.Tensor: shape (n_samples, n_contexts, d_z).
         """
         device = contexts.device
-        log_gates = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
-        means = self.mean_fn(contexts).to(device)  # [n_contexts, n_components, dz]
-        chols = self.chol_fn(contexts).to(device)  # [n_contexts, n_components, dz, dz]
+        log_gates = self.gate_fn(contexts).to(device)
+        means = self.mean_fn(contexts).to(device)
+        chols = self.chol_fn(contexts).to(device)
 
         samples = MixtureSameFamily(
             mixture_distribution=Categorical(logits=log_gates),
             component_distribution=MultivariateNormal(loc=means, scale_tril=chols
             ),
         ).sample(ch.Size([n_samples,]))
-        return samples.transpose(0, 1)
+        return samples
 
     def log_prob_tgt(self,
                      contexts: ch.Tensor,
@@ -87,27 +87,27 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         Calculates the log-probability of samples under the conditional GMM.
 
         Parameters:
-        - contexts (ch.Tensor): The context vectors parameterizing the GMM.
-        - samples (ch.Tensor): The samples for which to calculate the log-probability.
+        - contexts (ch.Tensor): The context vectors parameterizing the GMM with shape (n_contexts, context_dim).
+        - samples (ch.Tensor):  shape (n_samples, n_contexts, d_z).
 
         Returns:
-        - ch.Tensor: Log densities of the target with shape (n_contexts, n_samples).
+        - ch.Tensor: Log densities of the target with shape (n_samples, n_contexts).
         """
         device = contexts.device
-        log_gates = self.gate_fn(contexts).to(device)  # [n_contexts, n_components]
-        means = self.mean_fn(contexts).to(device)  # [n_contexts, n_components, dz]
-        chols = self.chol_fn(contexts).to(device)  # [n_contexts, n_components, dz, dz]
+        log_gates = self.gate_fn(contexts).to(device)
+        means = self.mean_fn(contexts).to(device)
+        chols = self.chol_fn(contexts).to(device)
         n_contexts, n_components, dz = means.shape
 
         if samples.dim() != means.dim():
-            samples = samples.unsqueeze(0).expand(n_contexts, -1, -1)
+            samples = samples.unsqueeze(1).expand(-1, n_contexts, -1)
 
         log_probs = MixtureSameFamily(
             mixture_distribution=Categorical(logits=log_gates),
             component_distribution=MultivariateNormal(loc=means, scale_tril=chols
             ),
-        ).log_prob(samples.transpose(0, 1))
-        return log_probs.transpose(0, 1)  # [batch_size, n_samples]
+        ).log_prob(samples)
+        return log_probs
 
     def visualize(self,
                   contexts: ch.Tensor,
@@ -303,16 +303,3 @@ def get_gmm_target(
     chol_target = get_chol_fn(n_components)
     gmm_target = ConditionalGMMTarget(gate_target, mean_target, chol_target, context_dim)
     return gmm_target
-
-
-if __name__ == "__main__":
-
-    target = get_gmm_target(10, 2)
-    test_ctx = target.get_contexts(3)  # (3, 2)
-    assert test_ctx.shape == (3, 2)
-    test_samples = target.sample(test_ctx, 1000)  # (3, 1000, 2)
-    assert test_samples.shape == (3, 1000, 2)
-    test_log_prob = target.log_prob_tgt(test_ctx, test_samples)  # (3, 1000)
-    assert test_log_prob.shape == (3, 1000)
-    # target.visualize(test_ctx, n_samples=20)
-    # target.visualize(test_ctx)
