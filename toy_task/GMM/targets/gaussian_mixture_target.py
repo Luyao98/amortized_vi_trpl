@@ -127,7 +127,7 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
         for i, c in enumerate(contexts):
             x, y = np.meshgrid(np.linspace(-30, 30, 300), np.linspace(-30, 30, 300))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
-            pdf_values = self.log_prob_tgt(c.unsqueeze(0), grid)
+            pdf_values = self.log_prob_tgt(c.unsqueeze(0), grid.unsqueeze(1))
             pdf_values = pdf_values.exp().view(300, 300).numpy()
 
             ax = axes[i]
