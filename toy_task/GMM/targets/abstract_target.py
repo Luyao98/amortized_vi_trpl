@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Tuple
 from abc import ABC, abstractmethod
 import torch as ch
 
@@ -80,7 +80,7 @@ class AbstractTarget(ABC):
 
 
     def update_samples(self,
-                       samples: ch.Tensor,
+                       input_samples: Tuple[ch.Tensor, ch.Tensor],
                        fn: Callable,
                        lr: float,
                        n: int
@@ -89,7 +89,7 @@ class AbstractTarget(ABC):
         Updates the samples towards promising area by gradient ascend given the specified contexts.
 
         Parameters:
-        - samples (ch.Tensor): The samples to update.
+        - input_samples (Tuple[ch.Tensor, ch.Tensor]): contexts and samples.
         - fn (Callable): The target function (e.g. GMM's log_prob).
         - lr (float): The learning rate.
         - n (int): The number of gradient updates.
@@ -98,14 +98,15 @@ class AbstractTarget(ABC):
         - ch.Tensor: The updated samples.
 
         """
+
+        contexts, samples = input_samples
         updated_samples = samples.clone().detach()
         updated_samples.requires_grad = True
 
         for i in range(n):
-            _, grad = eval_fn_grad(fn, updated_samples, compute_grad=True)
+            _, grad = eval_fn_grad(fn, contexts, updated_samples, compute_grad=True)
 
             with ch.no_grad():
-                updated_samples += lr * grad
+                updated_samples = updated_samples + lr * grad
 
         return updated_samples.detach()
-
