@@ -88,25 +88,28 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
 
         Parameters:
         - contexts (ch.Tensor): The context vectors parameterizing the GMM with shape (n_contexts, context_dim).
-        - samples (ch.Tensor):  shape (n_samples, n_contexts, d_z).
+        - samples (ch.Tensor):  shape (n_samples, n_contexts, d_z) or (n_samples, n_contexts, n_components, d_z)
 
         Returns:
-        - ch.Tensor: Log densities of the target with shape (n_samples, n_contexts).
+        - ch.Tensor: Target log densities with shape (n_samples, n_contexts) or (n_samples, n_contexts, n_components).
         """
         device = contexts.device
-        log_gates = self.gate_fn(contexts).to(device)
-        means = self.mean_fn(contexts).to(device)
-        chols = self.chol_fn(contexts).to(device)
-        n_contexts, n_components, dz = means.shape
+        log_gates = self.gate_fn(contexts).to(device) # (n_contexts, n_components_tgt)
+        means = self.mean_fn(contexts).to(device) # (n_contexts, n_components_tgt, d_z)
+        chols = self.chol_fn(contexts).to(device) # (n_contexts, n_components_tgt, d_z, d_z)
 
-        if samples.dim() != means.dim():
-            samples = samples.unsqueeze(1).expand(-1, n_contexts, -1)
-
-        log_probs = MixtureSameFamily(
+        tgt = MixtureSameFamily(
             mixture_distribution=Categorical(logits=log_gates),
-            component_distribution=MultivariateNormal(loc=means, scale_tril=chols
-            ),
-        ).log_prob(samples)
+            component_distribution=MultivariateNormal(loc=means, scale_tril=chols)
+        )
+        if samples.dim() == 3:
+            log_probs = tgt.log_prob(samples)
+        else:
+            n_samples, n_contexts, n_components, d_z = samples.shape
+            reshaped_samples = samples.permute(0, 2, 1, 3).reshape(-1, n_contexts, d_z)  # (n_samples * n_components, n_contexts, d_z)
+            reshaped_log_probs = tgt.log_prob(reshaped_samples)  # (n_samples * n_components, n_contexts)
+            log_probs = reshaped_log_probs.view(n_samples, n_components, n_contexts).permute(0, 2, 1)
+
         return log_probs
 
     def visualize(self,
