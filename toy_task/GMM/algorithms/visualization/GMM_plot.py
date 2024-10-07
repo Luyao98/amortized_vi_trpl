@@ -1,8 +1,11 @@
 import numpy as np
-import torch
+import torch as ch
 import matplotlib.pyplot as plt
+
+
 from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget
 from toy_task.GMM.targets.funnel_target import FunnelTarget
+from toy_task.GMM.utils.torch_utils import get_numpy
 
 import wandb
 import io
@@ -41,7 +44,7 @@ def plot2d_matplotlib(
         min_y=min_y,
         max_y=max_y,
     )
-    n_tasks = data["n_tasks"]
+    n_contexts = data["n_contexts"]
     n_components = data["n_components"]
     n_plt = data["n_plt"]
     xx = data["xx"]
@@ -51,24 +54,23 @@ def plot2d_matplotlib(
     locs = data["locs"]
     scale_trils = data["scale_trils"]
     weights = data["weights"]
+
     # plot
     if type(target_dist) == ConditionalGMMTarget:
-        target_weights = np.exp(target_dist.gate_fn(contexts).detach().cpu().numpy())
+        real_weights = np.exp(target_dist.gate_fn(contexts).detach().cpu().numpy())
         if ideal_gates is not None:
-            fig, axes = plt.subplots(6, n_tasks, figsize=(15, 30))
+            fig, axes = plt.subplots(6, n_contexts, figsize=(15, 30))
         else:
-            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 25))
-    elif not type(target_dist) == ConditionalGMMTarget:
-        if ideal_gates is not None:
-            fig, axes = plt.subplots(5, n_tasks, figsize=(15, 25))
-        else:
-            fig, axes = plt.subplots(4, n_tasks, figsize=(15, 20))
+            fig, axes = plt.subplots(5, n_contexts, figsize=(15, 25))
     else:
-        raise ValueError("plotting failed!")
+        if ideal_gates is not None:
+            fig, axes = plt.subplots(5, n_contexts, figsize=(15, 25))
+        else:
+            fig, axes = plt.subplots(4, n_contexts, figsize=(15, 20))
 
-    for l in range(n_tasks):
+    for l in range(n_contexts):
         # plot target distribution
-        if n_tasks == 1:
+        if n_contexts == 1:
             ax = axes[0]
         else:
             ax = axes[0, l]
@@ -82,12 +84,11 @@ def plot2d_matplotlib(
         ax.set_ylim(min_y, max_y)
 
         # plot model distribution with background target distribution
-        if n_tasks == 1:
+        if n_contexts == 1:
             ax = axes[1]
         else:
             ax = axes[1, l]
         ax.clear()
-        # ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
         ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         colors = []
         for k in range(n_components):
@@ -107,7 +108,7 @@ def plot2d_matplotlib(
         ax.set_ylim(min_y, max_y)
 
         # plot model distribution with background model distribution
-        if n_tasks == 1:
+        if n_contexts == 1:
             ax = axes[2]
         else:
             ax = axes[2, l]
@@ -121,7 +122,7 @@ def plot2d_matplotlib(
         ax.set_ylim(min_y, max_y)
 
         # plot weights
-        if n_tasks == 1:
+        if n_contexts == 1:
             ax = axes[3]
         else:
             ax = axes[3, l]
@@ -132,7 +133,7 @@ def plot2d_matplotlib(
 
         if ideal_gates is not None:
             # plot ideal weights
-            if n_tasks == 1:
+            if n_contexts == 1:
                 ax = axes[4]
             else:
                 ax = axes[4, l]
@@ -143,22 +144,22 @@ def plot2d_matplotlib(
 
             if type(target_dist) == ConditionalGMMTarget:
                 # plot weights
-                if n_tasks == 1:
+                if n_contexts == 1:
                     ax = axes[5]
                 else:
                     ax = axes[5, l]
                 ax.clear()
-                ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
+                ax.pie(real_weights[l], labels=[f"{w * 100:.2f}%" for w in real_weights[l]], colors=colors)
                 ax.axis("scaled")
                 ax.set_title("target weights")
         elif type(target_dist) == ConditionalGMMTarget and ideal_gates is None:
             # plot weights
-            if n_tasks == 1:
+            if n_contexts == 1:
                 ax = axes[4]
             else:
                 ax = axes[4, l]
             ax.clear()
-            ax.pie(target_weights[l], labels=[f"{w * 100:.2f}%" for w in target_weights[l]], colors=colors)
+            ax.pie(real_weights[l], labels=[f"{w * 100:.2f}%" for w in real_weights[l]], colors=colors)
             ax.axis("scaled")
             ax.set_title("target weights")
     # ax = axes[0, -1]
@@ -191,14 +192,11 @@ def compute_data_for_plot(
     # create meshgrid
     n_plt = 100
 
-    # extract weights already here, to figure out which components are relevant
     weights, means, scale_trils = model(contexts)
-    dim = means.shape[-1]
-    # determine n_task. i.e. n_contexts
-    n_tasks, n_components, _ = means.shape
-    weights = np.exp(weights.detach().to("cpu").numpy())
-    mean_resahpe = torch.reshape(means, (-1, dim))
-    scale_trils_reshape = torch.reshape(scale_trils, (-1, dim, dim))
+    n_contexts, n_components, dim = means.shape
+
+    mean_flatten = ch.reshape(means, (-1, dim))
+    scale_trils_flatten = ch.reshape(scale_trils, (-1, dim, dim))
     if min_x is not None:
         assert max_x is not None
         assert min_y is not None
@@ -206,16 +204,16 @@ def compute_data_for_plot(
     else:
         assert dim == 2, "feature dimension must be 2 for visualization"
         min_x, max_x, min_y, max_y = (
-            mean_resahpe[:, 0].min(),
-            mean_resahpe[:, 0].max(),
-            mean_resahpe[:, 1].min(),
-            mean_resahpe[:, 1].max(),
+            mean_flatten[:, 0].min(),
+            mean_flatten[:, 0].max(),
+            mean_flatten[:, 1].min(),
+            mean_flatten[:, 1].max(),
         )
         min_x = min_x.detach().cpu().numpy()
         max_x = max_x.detach().cpu().numpy()
         min_y = min_y.detach().cpu().numpy()
         max_y = max_y.detach().cpu().numpy()
-        for scale_tril, mean in zip(scale_trils_reshape, mean_resahpe):
+        for scale_tril, mean in zip(scale_trils_flatten, mean_flatten):
             ellipse = compute_gaussian_ellipse(
                 mean.detach().cpu().numpy(), scale_tril.detach().cpu().numpy()
             )
@@ -228,43 +226,39 @@ def compute_data_for_plot(
     y = np.linspace(min_y, max_y, n_plt)
     xx, yy = np.meshgrid(x, y)
     xy = np.vstack([xx.ravel(), yy.ravel()]).T
-    xy = torch.tensor(xy, dtype=torch.float32).to(device)
+    xy = ch.tensor(xy, dtype=ch.float32).unsqueeze(1).expand(-1, n_contexts, -1).to(device)  # (n_plt**2, n_contexts, 2)
 
     # evaluate distributions
-    with torch.no_grad():
-        log_p_tgt = target_dist.log_prob_tgt(contexts, xy)
+    with ch.no_grad():
+        log_p_tgt = target_dist.log_prob_tgt(contexts, xy) # (n_plt**2, n_contexts)
         # if  type(target_dist) == FunnelTarget:
         #     # with this modification, the funnel target can be plotted with the GMM model
-        #     xy_funnel = torch.cat([xy, torch.zeros(xy.shape[0], dim - 2)], dim=1)
-        #     xy_funnel = xy_funnel.unsqueeze(0).expand(n_tasks, -1, -1)
-        #     log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy_funnel)
+        #     xy_funnel = ch.cat([xy, ch.zeros(xy.shape[0], dim - 2)], dim=1)
+        #     xy_funnel = xy_funnel.unsqueeze(0).expand(n_contexts, -1, -1)
+        #     log_p_model = model.log_prob_gmm(means, scale_trils, ch.log(ch.tensor(weights)), xy_funnel)
         # else:
-        log_p_model = model.log_prob_gmm(means, scale_trils, torch.log(torch.tensor(weights)), xy.unsqueeze(0).expand(n_tasks, -1, -1))
+        log_p_model = model.log_prob_gmm(means, scale_trils, weights, xy)
 
-    log_p_tgt = log_p_tgt.to("cpu").numpy()
+    log_p_tgt = get_numpy(log_p_tgt.transpose(0, 1)) # (n_contexts, n_plt**2)
     if normalize_output:
         # maximum is now 0, so exp(0) = 1
         log_p_tgt -= log_p_tgt.max()
-    log_p_model = log_p_model.to("cpu").numpy()
+    log_p_model = get_numpy(log_p_model.transpose(0, 1))
     p_tgt = np.exp(log_p_tgt)
     p_model = np.exp(log_p_model)
-    # extract gmm parameters
-    locs = means.detach().to("cpu").numpy()
-    scale_trils = scale_trils.detach().to("cpu").numpy()
+
+    locs = get_numpy(means)
+    scale_trils = get_numpy(scale_trils)
+    weights = get_numpy(weights.exp())
 
     return {
-        "n_tasks": n_tasks,
+        "n_contexts": n_contexts,
         "n_components": n_components,
         "n_plt": n_plt,
-        "x": x,
-        "y": y,
         "xx": xx,
         "yy": yy,
-        "xy": xy,
         "p_tgt": p_tgt,
-        "log_p_tgt": log_p_tgt,
         "p_model": p_model,
-        "log_p_model": log_p_model,
         "locs": locs,
         "scale_trils": scale_trils,
         "weights": weights,
