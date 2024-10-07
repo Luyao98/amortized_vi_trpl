@@ -1,7 +1,6 @@
-import torch as ch
-import numpy as np
-import scipy.linalg
 from typing import Tuple, Union
+
+import torch as ch
 from toy_task.GMM.utils.torch_utils import torch_batched_trace
 
 
