@@ -3,11 +3,19 @@ import cpp_projection
 import numpy as np
 import torch as ch
 
+
 from toy_task.GMM.utils.torch_utils import get_numpy
 from toy_task.GMM.utils.projection_utils import gaussian_kl
 
 
 def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
+
+    batch_size, n_components, dz = mean.shape
+    mean = mean.view(-1, dz)
+    chol = chol.view(-1, dz, dz)
+    old_mean = old_mean.view(-1, dz)
+    old_chol = old_chol.view(-1, dz, dz)
+
     maha_part, cov_part = gaussian_kl(mean, chol, old_mean, old_chol)
 
     # project mean
@@ -44,8 +52,7 @@ def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
         print("Projection failed, taking old cholesky for projection.")
         chol_proj = old_chol
         raise e
-    return mean_proj, chol_proj
-
+    return mean_proj.view(batch_size, n_components, dz), chol_proj.view(batch_size, n_components, dz, dz)
 
 
 def mean_projection(mean, old_mean, maha, eps_mu):
