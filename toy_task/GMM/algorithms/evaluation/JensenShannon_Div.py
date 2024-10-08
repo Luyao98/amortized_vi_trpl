@@ -2,15 +2,16 @@ import torch as ch
 from toy_task.GMM.targets.abstract_target import AbstractTarget
 from toy_task.GMM.models.GMM_model import ConditionalGMM
 from toy_task.GMM.models.GMM_model_2 import ConditionalGMM2
-from toy_task.GMM.models.GMM_model_3 import ConditionalGMM3
+from toy_task.GMM.models.GMM_model_3 import EmbeddedConditionalGMM
 
+# TODO adaption for sample shape change
 def ideal_calculated_gates(stack_loss_component):
     eva_loss_component = stack_loss_component.clone().mean(dim=-1)
     eva_sum_loss = ch.logsumexp(eva_loss_component, dim=0)  # [n_contexts]
     log_ideal_gates = eva_loss_component - eva_sum_loss
     return log_ideal_gates.transpose(0, 1)
 
-
+# TODO adaption for sample shape change
 def js_divergence_gate(stack_loss_component, model, eval_contexts, device):
     ideal_gates = ideal_calculated_gates(stack_loss_component).to(device)
     eval_gate, _, _ = model(eval_contexts)
@@ -20,6 +21,7 @@ def js_divergence_gate(stack_loss_component, model, eval_contexts, device):
     js_div = 0.5 * (ideal_log_mid + pred_log_mid)
     return js_div.mean()
 
+# TODO adaption for sample shape change
 def kl_divergence_gate(stack_loss_component, model, eval_contexts, device):
     """
     KL(model_gate || ground_truth_gate)
@@ -37,12 +39,12 @@ def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
                   num_samples=1000):
     """
     MC estimation of Jenson's Shannon Divergence between two random, unknown distributions,
-    the derivation see my note: https://www.notion.so/KLD-JSD-17c7d900e3e64e2ea04776e04fdda44c?pvs=4
+    the full derivation see my note: https://www.notion.so/KLD-JSD-17c7d900e3e64e2ea04776e04fdda44c?pvs=4
 
     """
 
     eval_gate, eval_mean, eval_chol = model(eval_contexts)
-    target_samples = target.sample(eval_contexts, num_samples).to(device)
+    target_samples = target.sample(eval_contexts, num_samples).to(device)  # (n_samples, n_contexts, dz)
 
     # if proj_type == "w2":
     #     eval_sqrt = eval_chol @ eval_chol.transpose(-1, -2)
@@ -56,7 +58,7 @@ def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
     # else:
     model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
 
-    t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # [batch_size, n_samples]
+    t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # (n_samples, n_contexts)
     t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
     m_log_t = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, target_samples)
     m_log_m = model.log_prob_gmm(eval_mean, eval_chol, eval_gate, model_samples)
@@ -71,7 +73,7 @@ def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
 
     return js_div.mean()
 
-
+# TODO adaption for sample shape change
 def ideal_js_divergence(model: ConditionalGMM or ConditionalGMM2,
                         approx_reward,
                         eval_contexts,

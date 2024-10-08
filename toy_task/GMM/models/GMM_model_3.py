@@ -14,14 +14,14 @@ def embedding(contexts, n_components):
 
 
 class GateNN3(nn.Module):
-    def __init__(self, in_size, n_components, num_layers, gate_size, dropout_prob, init_bias_gate=None):
+    def __init__(self, in_size, n_components, num_layers, num_neuron_gate_layer, dropout_prob, init_bias_gate=None):
         super(GateNN3, self).__init__()
         self.dropout = nn.Dropout(dropout_prob)
         self.fc_layers = nn.ModuleList()
-        self.fc_layers.append(nn.Linear(in_size, gate_size))
+        self.fc_layers.append(nn.Linear(in_size, num_neuron_gate_layer))
         for _ in range(1, num_layers):
-            self.fc_layers.append(nn.Linear(gate_size, gate_size))
-        self.fc_gate = nn.Linear(gate_size, n_components)
+            self.fc_layers.append(nn.Linear(num_neuron_gate_layer, num_neuron_gate_layer))
+        self.fc_gate = nn.Linear(num_neuron_gate_layer, n_components)
 
         # set initial uniform bias for gates if provided
         if init_bias_gate is not None:
@@ -37,7 +37,7 @@ class GateNN3(nn.Module):
 
 
 class GaussianNN3(nn.Module):
-    def __init__(self, in_size, num_layers, gaussian_size, n_components, dim, dropout_prob, init_bias_mean=None):
+    def __init__(self, in_size, num_layers, num_neuron_component_layer, n_components, dim, dropout_prob, init_bias_mean=None):
         super(GaussianNN3, self).__init__()
         self.n_components = n_components
         self.mean_dim = dim
@@ -46,13 +46,13 @@ class GaussianNN3(nn.Module):
 
         # Fully connected layers
         self.fc_layers = nn.ModuleList()
-        self.fc_layers.append(nn.Linear(in_size + n_components, gaussian_size))
+        self.fc_layers.append(nn.Linear(in_size + n_components, num_neuron_component_layer))
         for _ in range(1, num_layers):
-            self.fc_layers.append(nn.Linear(gaussian_size, gaussian_size))
+            self.fc_layers.append(nn.Linear(num_neuron_component_layer, num_neuron_component_layer))
 
         # Output layers
-        self.fc_mean = nn.Linear(gaussian_size, self.mean_dim)
-        self.fc_chol = nn.Linear(gaussian_size, self.chol_dim)
+        self.fc_mean = nn.Linear(num_neuron_component_layer, self.mean_dim)
+        self.fc_chol = nn.Linear(num_neuron_component_layer, self.chol_dim)
 
         # Initialize mean bias if provided
         if init_bias_mean is not None:
@@ -70,11 +70,24 @@ class GaussianNN3(nn.Module):
         return means, chols_reshape
 
 
-class ConditionalGMM3(AbstractGMM, nn.Module):
-    def __init__(self, num_layers_gate, gate_size, num_layers_gaussian, gaussian_size, max_components, init_components,
-                 dim, context_dim, random_init, init_bias_gate=None, init_bias_mean=None, init_std=None,
-                 dropout_prob=0.0):
-        super(ConditionalGMM3, self).__init__()
+class EmbeddedConditionalGMM(AbstractGMM, nn.Module):
+    def __init__(self,
+                 num_gate_layer,
+                 num_neuron_gate_layer,
+                 num_component_layer,
+                 num_neuron_component_layer,
+                 max_components,
+                 init_components,
+                 dim,
+                 context_dim,
+                 random_init,
+                 init_scale,
+                 init_bias_gate=None,
+                 init_bias_mean=None,
+                 init_std=None,
+                 dropout_prob=0.0
+                 ):
+        super(EmbeddedConditionalGMM, self).__init__()
         self.dim = dim
         self.init_std = ch.tensor(init_std, dtype=ch.float32)
         self.max_components = max_components
@@ -84,14 +97,14 @@ class ConditionalGMM3(AbstractGMM, nn.Module):
 
         if random_init:
             mean_bias = ch.zeros((max_components, dim))
-            mean_bias[:init_components] = 30 * ch.rand(init_components, dim) - 15
+            mean_bias[:init_components] = 2 * init_scale * ch.rand(init_components, dim) - init_scale
             self.embedded_mean_bias = nn.Parameter(mean_bias, requires_grad=False)
         else:
             self.embedded_mean_bias = nn.Parameter(ch.zeros((max_components, dim)), requires_grad=False)
         self.embedded_chol_bias = nn.Parameter(ch.zeros((max_components, dim, dim)), requires_grad=False)
 
-        self.gate = GateNN3(context_dim, max_components, num_layers_gate, gate_size, dropout_prob, init_bias_gate)
-        self.gaussian_list = GaussianNN3(context_dim, num_layers_gaussian, gaussian_size, max_components, dim, dropout_prob,
+        self.gate = GateNN3(context_dim, max_components, num_gate_layer, num_neuron_gate_layer, dropout_prob, init_bias_gate)
+        self.gaussian_list = GaussianNN3(context_dim, num_component_layer, num_neuron_component_layer, max_components, dim, dropout_prob,
                                          init_bias_mean)
 
     def forward(self, x):
