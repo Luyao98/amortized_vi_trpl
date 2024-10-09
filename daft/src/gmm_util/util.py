@@ -1,7 +1,7 @@
 from typing import Tuple, Union
 
 import numpy as np
-from einops import reduce, rearrange, repeat, einsum
+from einops import reduce, rearrange, einsum
 import torch
 
 from daft.src.gmm_util.weighted_logsumexp import weighted_logsumexp

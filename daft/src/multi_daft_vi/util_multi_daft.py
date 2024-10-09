@@ -2,6 +2,7 @@ import einops
 import torch
 import numpy
 import random
+from torch.distributions import MultivariateNormal, Categorical, MixtureSameFamily
 
 from daft.src.gmm_util.gmm import GMM
 from daft.src.multi_daft_vi.lnpdf import LNPDF
@@ -58,17 +59,48 @@ def create_initial_gmm_parameters(
     n_components: int,
     prior_scale: float,
     initial_var: float,
+    target_dist
 ):
-    # TODO: check more sophisticated initializations
-    prior = torch.distributions.Normal(loc=torch.zeros(d_z), scale=prior_scale * torch.ones(d_z))
+    init_scale = 15
+    means= 2 * init_scale * torch.rand(n_tasks, n_components, d_z) - init_scale
+
+    # prior = torch.distributions.Normal(loc=torch.zeros(d_z), scale=prior_scale * torch.ones(d_z))
     initial_cov = initial_var * torch.eye(d_z)  # same as prior covariance
     initial_prec = torch.linalg.inv(initial_cov)
 
     weights = torch.ones((n_tasks, n_components)) / n_components
     log_weights = torch.log(weights)
-    means = prior.sample((n_tasks, n_components))
+    # means = prior.sample((n_tasks, n_components))
     precs = torch.stack([initial_prec] * n_components, dim=0)
     precs = torch.stack([precs] * n_tasks, dim=0)
+
+    # update init means
+    basic_mean = torch.zeros((n_tasks, d_z))
+    basic_cov = prior_scale * torch.eye(d_z).unsqueeze(0).expand(n_tasks, -1, -1)
+    basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(torch.Size([100]))
+    model_samples = MixtureSameFamily(
+        mixture_distribution=Categorical(logits=log_weights),
+        component_distribution=MultivariateNormal(loc=means, precision_matrix=precs
+                                                  ),
+    ).sample(torch.Size([50]))
+    samples = torch.cat([basic_samples, model_samples], dim=0)  # (s=s1+s2,c,f)
+
+    updated_samples = samples.clone().detach()
+    updated_samples.requires_grad = True
+    for i in range(10):
+        _, log_target_grad = target_dist.log_density(z=updated_samples, compute_grad=True)  # (s,c)
+        with torch.no_grad():
+            updated_samples = updated_samples + 0.001 * log_target_grad
+    samples = updated_samples.detach()
+
+    log_target = target_dist.log_density(samples, compute_grad=False)[0]  # (s,c)
+    max_value, max_idx = torch.max(log_target, dim=0)
+    chosen_ctx = torch.argmax(max_value)
+
+    sorted_values, sorted_indices = torch.sort(log_target[:, chosen_ctx], descending=True)
+    chosen_sample = sorted_indices[:n_components]
+    chosen_mean = samples[chosen_sample, chosen_ctx]
+    means = chosen_mean.unsqueeze(0).expand(n_tasks, -1, -1)
 
     # check output
     assert log_weights.shape == (n_tasks, n_components)
@@ -90,10 +122,10 @@ def compute_elbo(model: GMM, target_dist: LNPDF, num_samples_per_component, mini
     # should now have shape [num_samples_per_comp * num_comp, task, dz]
     # get the tgt and model log densities
     if mini_batch_size is None:
-        target_densities, _ = target_dist.log_density(samples_flattened, compute_grad=False)
+        target_densities, _ = target_dist.log_density(samples_flattened.cpu(), compute_grad=False)
     else:
         target_densities, _ = target_dist.mini_batch_log_density(
-            samples_flattened,
+            samples_flattened.cpu(),
             mini_batch_size=mini_batch_size,
             compute_grad=False,
         )
@@ -113,7 +145,7 @@ def compute_elbo(model: GMM, target_dist: LNPDF, num_samples_per_component, mini
         c=num_components,
     )
     # compute the elbo
-    densities_diff = target_densities - model_densities
+    densities_diff = target_densities.to(model.mean.device) - model_densities
     # take the mean over the samples
     densities_mean = einops.reduce(densities_diff, "s t c -> t c", reduction="mean")
     # take the weighted sum over the components (weighted by the model weights exp(model.log_w))
@@ -132,5 +164,3 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-

@@ -54,7 +54,7 @@ class LNPDF:
 
 class GmmLNPDF(LNPDF):
     """
-    Dummy tgt distribution for testing. This is internally a GMM.
+    Dummy target distribution for testing. This is internally a GMM.
     """
 
     def __init__(
@@ -66,7 +66,7 @@ class GmmLNPDF(LNPDF):
         prec = torch.linalg.inv(torch.tensor(target_covars.astype(np.float32)))
 
         self.target_gmm = GMM(
-            log_w=torch.log(torch.tensor(target_weights.astype(np.float32))),
+            log_w=torch.tensor(target_weights.astype(np.float32)),
             mean=torch.tensor(target_means.astype(np.float32)),
             prec=prec,
         )
@@ -202,12 +202,13 @@ def make_single_gaussian(n_tasks: int, mean: list, std: list):
 
 
 def get_context(n_contexts, context_dim):
-    # n_contexts is n_task
-
+    # n_contexts is n_task, use torch to generate random contexts to ensure has same results
     context_bound_low = -3
     context_bound_high = 3
-    contexts = np.random.uniform(context_bound_low, context_bound_high, size=(n_contexts, context_dim))
-    return contexts
+    size = torch.Size([n_contexts, context_dim])
+    contexts = torch.distributions.uniform.Uniform(context_bound_low, context_bound_high).sample(size)
+
+    return contexts.numpy()
 
 
 def make_contextual_star_target(n_tasks: int, n_components: int):
@@ -224,9 +225,10 @@ def make_contextual_star_target(n_tasks: int, n_components: int):
     mus = [np.array([1.5, 0.0])]
     diag1 = np.sin(ctx[:, 0]) + 1.1  # Shape: (batch_size,)
     diag2 = 0.05 * np.cos(ctx[:, 1]) + 0.08
+    diag3 = 0.05 * np.sin(ctx[:, 0]) * np.cos(ctx[:, 1])
     zeros = np.zeros_like(ctx[:, 0])
     chols = [np.stack([np.stack([diag1, zeros], axis=1),
-                     np.stack([zeros, diag2], axis=1)], axis=1)]  # Shape: (batch_size, 2, 2)
+                     np.stack([diag3, diag2], axis=1)], axis=1)]  # Shape: (batch_size, 2, 2)
     # other components are generated through rotation
     theta = 2 * math.pi / n_components
     for _ in range(n_components - 1):
@@ -239,6 +241,35 @@ def make_contextual_star_target(n_tasks: int, n_components: int):
 
     # repeat parameters n_tasks times
     mu_true = np.repeat(mu_true[None, ...], repeats=n_tasks, axis=0)
+
+    # check shapes
+    assert w_true.shape == (n_tasks, n_components)
+    assert mu_true.shape == (n_tasks, n_components, 2)
+    assert cov_true.shape == (n_tasks, n_components, 2, 2)
+
+    # generate tgt dist
+    target_dist = GmmLNPDF(
+        target_weights=np.log(w_true),
+        target_means=mu_true,
+        target_covars=cov_true,
+    )
+
+    return target_dist
+
+def make_contextual_gmm_target(n_tasks: int, n_components: int):
+    from toy_task.GMM.targets.gaussian_mixture_target import get_mean_fn, get_weights_fn, get_chol_fn
+
+    ## contexts and dist fn
+    ctx = get_context(n_tasks, 2)
+    weight_fn = get_weights_fn(n_components)
+    mean_fn = get_mean_fn(n_components)
+    chol_fn = get_chol_fn(n_components)
+
+    ## get dist
+    w_true = weight_fn(torch.tensor(ctx)).numpy()
+    mu_true = mean_fn(torch.tensor(ctx)).numpy()
+    chol_true = chol_fn(torch.tensor(ctx)).numpy()
+    cov_true = chol_true @ np.transpose(chol_true, (0, 1, 3, 2))
 
     # check shapes
     assert w_true.shape == (n_tasks, n_components)

@@ -17,7 +17,7 @@ class MultiDaft:
         log_w_init: torch.Tensor,
         mean_init: torch.Tensor,
         prec_init: torch.Tensor,
-        device: str = "cpu",
+        device: str = "cuda",
     ):
         self._device = device
         self.batch_shape = log_w_init.shape[:-1]
@@ -57,7 +57,7 @@ class MultiDaft:
             device=device,
         )
 
-    def step(self, logging: bool = False) -> dict:
+    def step(self, logging: bool = False) -> float:
         # get samples and rewards from the model and tgt distribution
         samples, rewards, rewards_grad = self.get_samples_and_rewards()
         num_samples_per_component, num_task, num_components, dim_z = samples.shape
@@ -101,8 +101,8 @@ class MultiDaft:
                 num_samples_per_component=self.config["n_samples_per_comp"],
                 mini_batch_size=self.config["mini_batch_size_for_target_density"],
             )
-            elbo = elbo.mean().detach().cpu().numpy()
-        return  -elbo
+
+        return  - elbo.mean().detach().cpu().numpy()
         #     if len(elbo) == 1:
         #         # only one task, save the scalar
         #         elbo = elbo[0]
@@ -129,14 +129,14 @@ class MultiDaft:
         # get the tgt and model log densities + gradients
         # use mini batch for tgt density, to avoid memory issues
         target_densities, target_grad = self.target_dist.mini_batch_log_density(
-            samples_flattened,
+            samples_flattened.cpu(),
             mini_batch_size=self.config["mini_batch_size_for_target_density"],
             compute_grad=True,
         )
         model_densities, model_grad = self.model.log_density(samples_flattened, compute_grad=True)
         # combine to get rewards
-        rewards_flatten = target_densities - model_densities
-        rewards_grad_flatten = target_grad - model_grad
+        rewards_flatten = target_densities.to(self._device) - model_densities
+        rewards_grad_flatten = target_grad.to(self._device)- model_grad
         # unflatten
         rewards = einops.rearrange(
             rewards_flatten,
@@ -151,3 +151,23 @@ class MultiDaft:
             c=num_components,
         )
         return rewards, rewards_grad
+
+    def evaluation(self, num_samples: int) -> float:
+        with torch.no_grad():
+            model_samples = self.model.sample(num_samples)
+            target_samples = self.target_dist.sample(num_samples)
+
+            model_log_model, _ = self.model.log_density(model_samples, compute_grad=False)
+            model_log_target, _ = self.model.log_density(target_samples.to(self._device), compute_grad=False)
+            target_log_target, _ = self.target_dist.log_density(target_samples, compute_grad=False)
+            target_log_model, _ = self.target_dist.log_density(model_samples.cpu(), compute_grad=False)
+
+            mid_t = torch.logsumexp(torch.stack([target_log_target.to(self._device), model_log_target]), dim=0) - torch.log(torch.tensor(2.0))
+            mid_m = torch.logsumexp(torch.stack([target_log_model.to(self._device), model_log_model]), dim=0) - torch.log(torch.tensor(2.0))
+
+            kl_target_midpoint = target_log_target.to(self._device) - mid_t
+            kl_model_midpoint = model_log_model - mid_m
+
+            js_div = 0.5 * (kl_target_midpoint + kl_model_midpoint)
+
+        return js_div.mean().detach().cpu().numpy()

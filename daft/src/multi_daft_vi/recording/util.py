@@ -36,7 +36,7 @@ def compute_data_for_plot2d(
 
     # extract weights already here, to figure out which components are relevant
     weights = np.exp(model.log_w.detach().to("cpu").numpy())
-    mask = (weights > 0.01).flatten()
+    mask = (weights > 0.001).flatten()
     relevant_means = torch.reshape(model.mean, (-1, 2))[mask, :]
     scale_trils = model.cov_chol
     relevant_scale_trils = torch.reshape(scale_trils, (-1, 2, 2))[mask, :, :]
@@ -91,7 +91,7 @@ def compute_data_for_plot2d(
                 fun = lambda z: (target_dist(z), None)
                 log_p_tgt, _ = mini_batch_function_no_grad(fun, xy, mini_batch_size=mini_batch_size)
 
-        log_p_model, _ = model.log_density(xy, compute_grad=False)
+        log_p_model, _ = model.log_density(xy.to(model.mean.device), compute_grad=False)
     log_p_tgt = log_p_tgt.to("cpu").numpy()
     if normalize_output:
         # maximum is now 0, so exp(0) = 1
@@ -407,14 +407,8 @@ def plot2d_matplotlib(
         max_x: int or None = None,
         min_y: int or None = None,
         max_y: int or None = None,
+        logging = False
 ):
-    def plot_gaussian_ellipse(ax, mean, scale_tril, color):
-        n_plot = 100
-        evals, evecs = np.linalg.eig(scale_tril @ scale_tril.T)
-        theta = np.linspace(0, 2 * np.pi, n_plot)
-        ellipsis = (np.sqrt(evals[None, :]) * evecs) @ [np.sin(theta), np.cos(theta)]
-        ellipsis = ellipsis + mean[:, None]
-        ax.plot(ellipsis[0, :], ellipsis[1, :], color=color)
 
     assert model.d_z == 2, "Only 2D models are supported"
 
@@ -430,14 +424,12 @@ def plot2d_matplotlib(
         min_y=min_y,
         max_y=max_y,
     )
-    n_tasks = data["n_tasks"]
+    n_tasks = 3 # only plot fisrt 3 tasks
     n_plt = data["n_plt"]
-    x = data["x"]
-    y = data["y"]
     xx = data["xx"]
     yy = data["yy"]
-    xy = data["xy"]
     p_tgt = data["p_tgt"]
+    p_model = data["p_model"]
     locs = data["locs"]
     scale_trils = data["scale_trils"]
     weights = data["weights"]
@@ -457,9 +449,8 @@ def plot2d_matplotlib(
         ax.clear()
         ax.contourf(xx, yy, p_tgt[:, l].reshape(n_plt, n_plt), levels=100)
         colors = []
-        tab_color_map = plt.get_cmap('tab10')
         for k in range(model.n_components):
-            color = tab_color_map.colors[k]
+            color = next(ax._get_lines.prop_cycler)["color"]
             colors.append(color)
             cur_scale_tril = scale_trils[l, k]
             cur_loc = locs[l, k]
@@ -467,26 +458,39 @@ def plot2d_matplotlib(
             ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
-        ax.set_title("Model density")
+        ax.set_title("Comparision")
         ax.set_xlabel("$z_1$")
         ax.set_ylabel("$z_2$")
         # ax.set_xlim(min_x, max_x)
         # ax.set_ylim(min_y, max_y)
 
-        # plot weights
+        # plot model distribution
         ax = axes[2, l]
+        ax.clear()
+        ax.contourf(xx, yy, p_model[:, l].reshape(n_plt, n_plt), levels=100)
+        ax.axis("scaled")
+        ax.set_title("Model density")
+        ax.set_xlabel("$z_1$")
+        ax.set_ylabel("$z_2$")
+
+        # plot weights
+        ax = axes[3, l]
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
         ax.set_title("Mixture weights")
     ax = axes[0, -1]
     # color bar of last tgt density
-    cbar = plt.colorbar(contour_plot, cax=ax)
+    # cbar = plt.colorbar(contour_plot, cax=ax)
 
-    img_buf = io.BytesIO()
-    plt.savefig(img_buf, format='png')
-    img_buf.seek(0)
-    image = Image.open(img_buf)
-    wandb.log({"Evaluation": [wandb.Image(image, caption="Plot of tgt and tgt distributions")]})
-    fig.tight_layout()
-    plt.close(fig)
+    if logging:
+        img_buf = io.BytesIO()
+        plt.savefig(img_buf, format='png')
+        img_buf.seek(0)
+        image = Image.open(img_buf)
+        wandb.log({"Evaluation": [wandb.Image(image, caption="Plot of target and target distributions")]})
+        fig.tight_layout()
+        plt.close(fig)
+    else:
+        fig.tight_layout()
+    # plt.pause(0.001)
