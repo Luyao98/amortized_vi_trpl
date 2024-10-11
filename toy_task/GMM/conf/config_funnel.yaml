@@ -14,11 +14,11 @@ exp_name: 10d_funnel_algo_kl
 hydra:
   sweeper:
     grid_params:
-#      schema: projection_10d_funnel
+#      projection: projection_10d_funnel
       target.model_name: ["toy_task_model_3"]
       seed: a,b
-#      schema.eps_mean: [0.1, 0.5]
+#      projection.eps_mean: [0.1, 0.5]
 
 #    list_params:
-#      schema.eps_mean: [0.1]
-#      schema.eps_cov: [0.]
+#      projection.eps_mean: [0.1]
+#      projection.eps_cov: [0.]

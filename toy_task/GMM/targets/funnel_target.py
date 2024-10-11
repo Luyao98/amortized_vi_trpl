@@ -12,8 +12,20 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         self.sig = sig_fn
         self.context_dist = uniform.Uniform(-1, 1)
 
-    def get_contexts(self, n_contexts):
-        contexts = self.context_dist.sample((n_contexts, 1))  # return shape(n_contexts, 1)
+    def get_contexts(self,
+                     n_contexts: int
+                     ) -> ch.Tensor:
+        """
+        Generates a set of contexts for the funnel.
+
+        Parameters:
+        - n_contexts (int): Number of contexts to generate.
+
+        Returns:
+        - ch.Tensor: shape (n_contexts, context_dim).
+        """
+        size = ch.Size([n_contexts, self.context_dim])
+        contexts = self.context_dist.sample(size)
         return contexts
 
     def sample(self, contexts, n_samples):
@@ -21,13 +33,13 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         sigs = self.sig(contexts).to(contexts.device)
 
         samples_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs.squeeze(-1)).sample((n_samples,))
-        samples_v_expand = samples_v.transpose(-1, -2).unsqueeze(-1)  # [n_contexts, n_samples, 1]
+        samples_v = samples_v.unsqueeze(-1)  # (S, C, 1)
         other_dim = self.dim - 1
-        variance_other = ch.exp(samples_v_expand).expand(-1, -1, other_dim)  # [n_contexts, n_samples, 9]
+        variance_other = ch.exp(samples_v).expand(-1, -1, other_dim)  # [S, C, 9]
         cov_other = ch.diag_embed(variance_other)
-        mean_other = ch.zeros(n_contexts, n_samples, other_dim).to(contexts.device)  # [n_contexts, n_samples, other_dim]
-        samples_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).sample()  # [n_contexts, n_samples, other_dim]
-        full_samples = ch.cat((samples_v_expand, samples_other), dim=-1)  # [n_contexts, n_samples, dim]
+        mean_other = ch.zeros_like(variance_other).to(contexts.device)
+        samples_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).sample()  # [S, C, 9]
+        full_samples = ch.cat((samples_v, samples_other), dim=-1)  # (S, C, 10)
         return full_samples
 
     def log_prob_tgt(self, contexts, samples):

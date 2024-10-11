@@ -12,12 +12,15 @@ eps_mean = 0.1
 eps_cov = 0.5
 
 mean = ch.randn(batch_size, n_components, dz)
-chol = ch.randn(batch_size, n_components, dz, dz)
-chol = ch.tril(chol)
+A = ch.randn(batch_size, n_components, dz, dz)
+chol = ch.matmul(A, A.transpose(-2, -1))
+chol = ch.linalg.cholesky(chol)
+
 
 old_mean = ch.randn(batch_size, n_components, dz)
-old_chol = ch.randn(batch_size, n_components, dz, dz)
-old_chol = ch.tril(old_chol)
+B = ch.randn(batch_size, n_components, dz, dz)
+old_chol = ch.matmul(B, B.transpose(-2, -1))
+old_chol = ch.linalg.cholesky(old_chol)
 
 mean_proj, chol_proj = split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov)
 

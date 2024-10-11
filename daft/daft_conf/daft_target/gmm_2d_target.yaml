@@ -1,0 +1,26 @@
+seed: 1001
+iterations: 30000
+
+task:
+    n_tasks: 640 # how many tasks in parallel the algorithm should solve
+    n_components: 10 # components in the star tgt
+
+algorithm:
+    model:
+        prior_scale: 225    # cov for distribution which samples the means parameter
+        initial_var: 1.0    # Initial Covars is initialized as torch.eye(d_z) * initial_var
+        n_components: 15    # Number of components in the mixture model
+        n_dimensions: 2     # world dim
+
+    n_samples_per_comp: 5  # important parameter: how many samples to draw from each component. Less samples are faster but less accurate
+    mini_batch_size_for_target_density: 1000  # not too important for now, should be large if the RAM is enough
+    prec_regularization: 1.0e-6  # not too important for now
+    more:
+        component_kl_bound: 0.001  # important parameter: bound on the KL divergence between old and new dist, basically the step size of the algo
+        global_upper_bound: 1000
+        global_lower_bound: 0.0
+        dual_conv_tol: 0.1
+        use_warm_starts: True   # not important, this is needed if there is a changing target density
+        warm_start_interval_size: 100  # not important
+        max_prec_element_value: 1.0e+8  # maximum value of precision matrix elements, updates with higher values are rejected
+        max_dual_steps: 50  # maximum number of dual steps per step

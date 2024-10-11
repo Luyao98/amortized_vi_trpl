@@ -32,7 +32,7 @@ def kl_divergence_gate(stack_loss_component, model, eval_contexts, device):
     return kl_div.mean()
 
 
-def js_divergence(model: ConditionalGMM or ConditionalGMM2 or ConditionalGMM3,
+def js_divergence(model: ConditionalGMM or ConditionalGMM2 or EmbeddedConditionalGMM,
                   target: AbstractTarget,
                   eval_contexts,
                   device,

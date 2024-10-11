@@ -1,0 +1,47 @@
+# config for experiment:  compare daft and amortized vips
+
+seed: 1001
+
+model_config:
+  model_name: embedded_model
+  dim: 2
+  context_dim: 2
+  random_init: True
+  init_scale : 5
+  init_std: 1
+  max_components: 10
+  init_components: 10
+  num_gate_layer: 3
+  num_component_layer: 5
+  num_neuron_gate_layer: 128
+  num_neuron_component_layer: 256
+  initialization_type: xavier
+
+target_config:
+  target_name: star
+  target_components: 7
+
+training_config:
+  n_epochs: 12000
+  batch_size: 320
+  n_context: 320
+  n_samples: 5
+  gate_lr: 0.001
+  gaussian_lr: 0.01
+
+  adaption:
+    adapt: False
+    threshold: 1e-3
+    scale: 50
+    chol_scale: 1
+    update_sample: True
+    lr: 0.1
+    itr: 10
+    gate_strategy: 2
+    history_size: 2000
+
+projection:
+  project: True
+  eps_mean: 0.01
+  eps_cov: 0.001
+  alpha: 5

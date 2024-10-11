@@ -21,7 +21,7 @@ def my_app(cfg: DictConfig) -> None:
     # group_name = f"{cfg['exp_name']}_{cfg.target.model_name}_adaption_from_1_gate_idea_3"
     group_name = f"{cfg['exp_name']}_{cfg.target.model_name}"
     run_name = f"seed_{cfg.seed.seed}_batch_size_{cfg.target.batch_size}_gate_lr_{cfg.target.gate_lr}_gaussian_lr_{cfg.target.gaussian_lr}"
-    # run_name = f"seed_{cfg.seed.seed}_mean_{cfg.schema.eps_mean}_cov_{cfg.schema.eps_cov}_alpha_{cfg.schema.alpha}"
+    # run_name = f"seed_{cfg.seed.seed}_mean_{cfg.projection.eps_mean}_cov_{cfg.projection.eps_cov}_alpha_{cfg.projection.alpha}"
     wandb.init(project="spiral_gmm_target", group=group_name, config=config_dict, name=run_name)
 
     #1: decomposition; 2: direct; 3: stl; p: decom + gate projection

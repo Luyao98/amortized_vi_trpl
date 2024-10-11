@@ -6,9 +6,6 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from toy_task.GMM.algorithms.algorithm import toy_task
-# from toy_task.GMM.algorithms.algorithm_direct import toy_task_2
-# from toy_task.GMM.algorithms.algorithm_stl import toy_task_3
-# from toy_task.GMM.algorithms.algorithm_p import toy_task_p
 from toy_task.GMM.utils.network_utils import set_seed
 
 
@@ -16,23 +13,17 @@ from toy_task.GMM.utils.network_utils import set_seed
 def my_app(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
-    set_seed(cfg.seed.seed)
+    set_seed(cfg.gmm_target.seed)
     config_dict = {
-        **OmegaConf.to_container(cfg.target, resolve=True),
-        **OmegaConf.to_container(cfg.schema, resolve=True)
+        **OmegaConf.to_container(cfg.gmm_target, resolve=True)
     }
+    # group_name = f"sweeper_{cfg['exp_name']}_mean_bound_{cfg.gmm_target.projection.eps_mean}_cov_bound_{cfg.gmm_target.projection.eps_cov}_alpha_{cfg.gmm_target.projection.alpha}_gate_lr_{cfg.gmm_target.training_config.gate_lr}"
+    group_name = f"sweeper_{cfg['exp_name']}_gate_lr_{cfg.gmm_target.training_config.gate_lr}"
+    # run_name = f"seed_{cfg.star_target.seed}"
+    run_name = f"seed_{cfg.gmm_target.seed}"
+    wandb.init(project="gmm_target", group=group_name, config=config_dict, name=run_name)
 
-    # group_name = f"{cfg['exp_name']}_{cfg.target.model_name}_adaption_from_1_gate_idea_3"
-    group_name = f"{cfg['exp_name']}"
-    run_name = f"seed_{cfg.seed.seed}_batch_size_{cfg.target.batch_size}_gate_lr_{cfg.target.gate_lr}_gaussian_lr_{cfg.target.gaussian_lr}"
-    # run_name = f"seed_{cfg.seed.seed}_mean_{cfg.schema.eps_mean}_cov_{cfg.schema.eps_cov}_alpha_{cfg.schema.alpha}"
-    wandb.init(project="spiral_gmm_target", group=group_name, config=config_dict, name=run_name)
-
-    #1: decomposition; 2: direct; 3: stl; p: decom + gate projection
     toy_task(config_dict)
-    # toy_task_2(config_dict)
-    # toy_task_3(config_dict)
-    # toy_task_p(config_dict)
 
     wandb.finish()
 

@@ -1,0 +1,47 @@
+# config for experiment:  compare daft and amortized vips
+
+seed: 1001
+
+model_config:
+  model_name: embedded_model
+  dim: 2
+  context_dim: 2
+  random_init: True
+  init_scale : 15
+  init_std: 1
+  max_components: 15
+  init_components: 15
+  num_gate_layer: 3
+  num_component_layer: 3
+  num_neuron_gate_layer: 64
+  num_neuron_component_layer: 256
+  initialization_type: xavier
+
+target_config:
+  target_name: gmm
+  target_components: 10
+
+training_config:
+  n_epochs: 100000
+  batch_size: 640
+  n_context: 640
+  n_samples: 5
+  gate_lr: 1e-3
+  gaussian_lr: 1e-2
+
+  adaption:
+    adapt: False
+    threshold: 1e-3
+    scale: 225
+    chol_scale: 1
+    update_sample: True
+    lr: 0.01
+    itr: 10
+    gate_strategy: 2
+    history_size: 3000
+
+projection:
+  project: False
+  eps_mean: 0.01
+  eps_cov: 0.0001
+  alpha: 10

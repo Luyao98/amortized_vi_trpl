@@ -1,33 +1,26 @@
 defaults:
   - _self_
-#  - target: 30_gmm_target
-  - target: 10_gmm_2d_target_adaption
-  - schema: no_projection
-  - seed: a
+  - gmm_target: 10_gmm_2d_target
   - override hydra/sweeper: list
+  - override hydra/launcher: joblib
 
-#exp_name: algo_basic
-#exp_name: algo_kl
-#exp_name: algo_direct
-#exp_name: algo_stl
-#exp_name: random_init_30_components_no_gate_projection
-#exp_name: init_10_components_no_adaptation
-exp_name: gate_strategy_sweeper_ctx_2d_mdl_init1_max15_tgt_max10
-#exp_name: init_1_components_single_context
+exp_name: gmm_2d_target_amortized_projection_30k
 
 
 hydra:
     mode: MULTIRUN
+    launcher:
+        n_jobs: 10
     sweeper:
       grid_params:
-        target.gate_strategy:
-          - 2
-          - 3.1
-          - 3.2
-          - 3.3
-          - 3.4
-          - 3.5
-#        seed: [a, b, c]
+#        gmm_target.model_config.num_gate_layer: 2, 3, 4, 5
+#        gmm_target.model_config.num_component_layer: 3, 4, 5
+#        gmm_target.model_config.num_neuron_component_layer: 64, 128, 256
+        gmm_target.training_config.gate_lr: 1e-3, 1e-2
+#        gmm_target.projection.alpha: [5, 10, 50, 75]
+        gmm_target.seed: [1001, 1002, 1003, 1004, 1005]
 #      list_params:
-#        target.n_samples: [5, 10]
-#        target.batch_size: [128, 64]
+#        gmm_target.projection.eps_mean: [0.01, 0.01, 0.001, 0.005, 0.0005, 0.0001]
+#        gmm_target.projection.eps_cov: [0.001, 0.0001, 0.0001, 0.0005, 0.0001, 0.0001]
+#        gmm_target.training_config.n_epochs: [10000, 5000, 1000]
+#        gmm_target.training_config.batch_size: [640, 128, 64]
