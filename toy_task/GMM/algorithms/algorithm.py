@@ -17,21 +17,27 @@ from toy_task.GMM.utils.torch_utils import get_numpy
 import wandb
 
 
-def init_some_components(model, target, contexts, plot_contexts, device, scale):
+def init_some_components(model: EmbeddedConditionalGMM,
+                         target: AbstractTarget,
+                         contexts,
+                         plot_contexts,
+                         device,
+                         scale
+                         ):
     model.eval()
     with ch.no_grad():
         required_components = len(model.active_component_indices)
         current_gate, current_mean, current_chol = model(contexts)
 
         # draw samples from a basic Gaussian distribution for better exploration
-        basic_mean = ch.zeros((contexts.shape[0], model.dim)).to(device)
-        basic_cov = scale * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1).to(device)
+        basic_mean = ch.zeros((contexts.shape[0], model.dim))
+        basic_cov = scale * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1)
         basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([100]))
 
         model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 50)  # (s,c,f)
-        samples = ch.cat([basic_samples, model_samples], dim=0)  # (s=s1+s2,c,f)
+        samples = ch.cat([basic_samples.to(device), model_samples], dim=0)  # (s=s1+s2,c,f)
         with ch.enable_grad():
-            samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr=0.1, n=100)
+            samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr=0.01, n=10)
         log_target = target.log_prob_tgt(contexts, samples)  # (s,c)
 
         max_value, max_idx = ch.max(log_target, dim=0)
@@ -48,7 +54,10 @@ def init_some_components(model, target, contexts, plot_contexts, device, scale):
     model.train()
 
 
-def delete_components(model, contexts, threshold):
+def delete_components(model,
+                      contexts,
+                      threshold
+                      ):
     current_log_gate, _, _ = model(contexts)
     avg_gate = ch.mean(ch.exp(current_log_gate), dim=0)
 
@@ -69,7 +78,16 @@ def delete_components(model, contexts, threshold):
         print(f"Gate values after deleting: {avg_gate}")
 
 
-def add_components(model, target, contexts, gate_strategy, chol_scale, scale, update_sample, lr, itr):
+def add_components(model: EmbeddedConditionalGMM,
+                   target: AbstractTarget,
+                   contexts,
+                   gate_strategy,
+                   chol_scale,
+                   scale,
+                   update_sample,
+                   lr,
+                   itr
+                   ):
     all_indices = set(range(model.max_components))
     active_indices = set(model.active_component_indices)
     available_indices = sorted(all_indices - active_indices)
@@ -179,7 +197,13 @@ def add_components(model, target, contexts, gate_strategy, chol_scale, scale, up
     return chosen_context
 
 
-def adaptive_components(model, target, adaption_contexts, plot_contexts, device, adaption_config):
+def adaptive_components(model: EmbeddedConditionalGMM,
+                        target: AbstractTarget,
+                        adaption_contexts,
+                        plot_contexts,
+                        device,
+                        adaption_config
+                        ):
     threshold = adaption_config["threshold"]
 
     gate_strategy = adaption_config["gate_strategy"]
@@ -202,7 +226,10 @@ def adaptive_components(model, target, adaption_contexts, plot_contexts, device,
     model.train()
 
 
-def get_all_contexts(target, n_context, device):
+def get_all_contexts(target,
+                     n_context,
+                     device
+                     ):
     train_contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
     # bmm and gmm
@@ -220,15 +247,27 @@ def get_all_contexts(target, n_context, device):
     return train_contexts, eval_contexts, plot_contexts
 
 
-def get_optimizer(model, gate_lr, gaussian_lr):
+def get_optimizer(model,
+                  gate_lr,
+                  gaussian_lr
+                  ):
     return optim.Adam([
         {'params': model.gate.parameters(), 'lr': gate_lr,},
         {'params': model.gaussian_list.parameters(), 'lr': gaussian_lr}
     ])
 
 
-def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
-                   adaption, loss_history, history_size, device):
+def evaluate_model(model: EmbeddedConditionalGMM,
+                   target: AbstractTarget,
+                   eval_contexts,
+                   plot_contexts,
+                   epoch,
+                   n_epochs,
+                   adaption,
+                   loss_history,
+                   history_size,
+                   device
+                   ):
     if len(loss_history) > history_size:
         loss_history.pop(0)
         assert len(loss_history) == history_size
@@ -246,6 +285,7 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
                 print(f"\nStability reached at epoch {epoch} with max active components.")
 
     n_eval = 50
+    n_plot = 10
     if (epoch + 1) % (n_epochs // n_eval)== 0:
         model.eval()
         with ch.no_grad():
@@ -255,10 +295,11 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
             js_div = js_divergence(model, target, eval_contexts, device)
             # j_div = jeffreys_divergence(model, target, eval_contexts, device)
 
-            # check the active components before final evaluation
-            if epoch + 1 == n_epochs:
-                delete_components(model, eval_contexts, 1e-3)
-            plot(model, target, device=device, contexts=plot_contexts)
+            if (epoch + 1) % (n_epochs // n_plot) == 0:
+                # check the active components before final evaluation
+                if epoch + 1 == n_epochs:
+                    delete_components(model, eval_contexts, 1e-3)
+                plot(model, target, device=device, contexts=plot_contexts)
 
             wandb.log({
                 # "reverse KL between gates": kl_gate.item(),
@@ -271,7 +312,12 @@ def evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs,
     return loss_history, history_size, adaption
 
 
-def plot(model: EmbeddedConditionalGMM, target: AbstractTarget, device, contexts=None, plot_type="Evaluation"):
+def plot(model: EmbeddedConditionalGMM,
+         target: AbstractTarget,
+         device,
+         contexts=None,
+         plot_type="Evaluation"
+         ):
     if contexts is None:
         contexts = target.get_contexts(3).to('cpu')
     else:
@@ -281,7 +327,15 @@ def plot(model: EmbeddedConditionalGMM, target: AbstractTarget, device, contexts
     model.to(device)
 
 
-def perform_training_step(model, target, shuffled_contexts, train_size, batch_size, optimizer, n_samples, projection_config):
+def perform_training_step(model: EmbeddedConditionalGMM,
+                          target: AbstractTarget,
+                          shuffled_contexts,
+                          train_size,
+                          batch_size,
+                          optimizer,
+                          n_samples,
+                          projection_config
+                          ):
     project = projection_config["project"]
     eva_loss = 0
     if project:
@@ -304,7 +358,10 @@ def perform_training_step(model, target, shuffled_contexts, train_size, batch_si
                                                        eps_mean, eps_cov)
 
             # Compute ELBO
-            loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred, n_samples, alpha)
+            pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
+            proj_dist = MultivariateNormal(loc=mean_proj.clone().detach(), scale_tril=chol_proj.clone().detach())
+            reg_loss = alpha * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
+            loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
 
             # Update model
             eva_loss, b_old_dist = update_model(optimizer, model, loss, batch_idx, batch_size, shuffled_contexts)
@@ -330,28 +387,34 @@ def perform_training_step(model, target, shuffled_contexts, train_size, batch_si
     return eva_loss
 
 
-def compute_elbo_loss(model, target, contexts, mean, chol, gate, n_samples, alpha=0):
+def compute_elbo_loss(model: EmbeddedConditionalGMM,
+                      target: AbstractTarget,
+                      contexts,
+                      mean,
+                      chol,
+                      gate,
+                      n_samples,
+                      reg_loss=0
+                      ):
     model_samples = model.get_rsamples(mean, chol, n_samples)  # (S, C, O, dz)
     log_model_component = model.log_prob(mean, chol, model_samples)  # (S, C, O)
     log_responsibility = model.log_responsibilities_gmm(mean.clone().detach(), chol.clone().detach(),
                                                         gate.clone().detach(), model_samples)  # (S, C, O)
     log_target = target.log_prob_tgt(contexts, model_samples)  # (S, C, O)
 
-    # Compute regression loss if alpha > 0
-    if alpha > 0:
-        pred_dist = MultivariateNormal(loc=mean, scale_tril=chol)
-        proj_dist = MultivariateNormal(loc=mean.clone().detach(), scale_tril=chol.clone().detach())
-        reg_loss = kl_divergence(proj_dist, pred_dist).unsqueeze(0)
-    else:
-        reg_loss = 0
-
     elbo = ch.exp(gate.squeeze(0)) * (log_model_component - log_target - log_responsibility +
-                                      alpha * reg_loss + gate.squeeze(0))
+                                      reg_loss + gate.squeeze(0))
     loss = elbo.sum(dim=-1).mean()
     return loss
 
 
-def update_model(optimizer, model, loss, batch_idx=None, batch_size=None, shuffled_contexts=None):
+def update_model(optimizer,
+                 model,
+                 loss,
+                 batch_idx=None,
+                 batch_size=None,
+                 shuffled_contexts=None
+                 ):
     eva_loss = get_numpy(loss)
     optimizer.zero_grad()
     loss.backward()
@@ -429,6 +492,7 @@ def toy_task(config):
         loss_history, history_size, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs, adaption, loss_history, history_size, device)
 
     print("Training done!")
+
 
 if __name__ == "__main__":
     import os
