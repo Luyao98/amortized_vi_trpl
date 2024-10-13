@@ -41,13 +41,23 @@ if __name__ == "__main__":
         target.visualize(contexts)
 
 
-    def test_funnel_target(context_dim=2, n_contexts=3, n_samples=5):
+    def test_funnel_target(context_dim=2, n_contexts=3, n_samples=5, n_components=7):
         from toy_task.GMM.targets.funnel_target import FunnelTarget, get_sig_fn
 
         target = FunnelTarget(get_sig_fn, context_dim)
-        contexts = target.get_contexts(n_contexts)
-        samples = target.sample(contexts, n_samples)
-        target.visualize(contexts, n_samples=20)
-        target.visualize(contexts)
+        test_ctx = target.get_contexts(n_contexts)
+        assert test_ctx.shape == (n_contexts, context_dim)
+
+        test_samples = target.sample(test_ctx, n_samples)
+        assert test_samples.shape == (n_samples, n_contexts, 10)
+        log_probs_component = target.log_prob_tgt(test_ctx, test_samples)
+        assert log_probs_component.shape == (n_samples, n_contexts)
+
+        test_samples = test_samples.unsqueeze(2).expand(-1, -1, n_components, -1)
+        log_probs = target.log_prob_tgt(test_ctx, test_samples)
+        assert log_probs.shape == (n_samples, n_contexts, n_components)
+
+        target.visualize(test_ctx, n_samples=20)
+        target.visualize(test_ctx)
 
     test_funnel_target()

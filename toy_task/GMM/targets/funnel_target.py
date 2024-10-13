@@ -24,6 +24,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         - context_dim (int): The dimensionality of the context.
         - dim (int, optional): The dimensionality of the generated samples. Default is 10.
         """
+
         super().__init__()
         self.dim = dim
         self.context_dim = context_dim
@@ -40,6 +41,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         Returns:
         - ch.Tensor: A tensor of shape (n_contexts, context_dim) representing the contexts.
         """
+
         size = ch.Size([n_contexts, self.context_dim])
         contexts = self.context_dist.sample(size)
         return contexts
@@ -53,8 +55,9 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         - n_samples (int): The number of samples to draw.
 
         Returns:
-        - ch.Tensor: A tensor of shape (n_samples, n_contexts, dim) representing the samples.
+        - ch.Tensor: shape (n_samples, n_contexts, d_z).
         """
+
         n_contexts = contexts.shape[0]
         sigs = self.sig(contexts.cpu())
 
@@ -79,32 +82,38 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
 
         Parameters:
         - contexts (ch.Tensor): The context vectors of shape (n_contexts, context_dim).
-        - samples (ch.Tensor): The samples for which log-probability is computed. It can have shape (n_samples, n_contexts, dim) or (n_samples, n_contexts, 2).
+        - samples (ch.Tensor):  shape (n_samples, n_contexts, d_z) or (n_samples, n_contexts, n_components, d_z)
 
         Returns:
-        - ch.Tensor: A tensor representing the log-probabilities for the samples of shape (n_samples, n_contexts).
+        - ch.Tensor: Target log densities with shape (n_samples, n_contexts) or (n_samples, n_contexts, n_components).
         """
-        n_contexts = contexts.shape[0]
+
         sigs = self.sig(contexts).to(contexts.device)
 
-        if samples.dim() == 2:
+        if samples.shape[-1] == 2:
             # For plotting (2D case), expand the samples to the necessary shape
-            assert samples.shape[-1] == 2
-            samples = samples.unsqueeze(1).expand(-1, n_contexts, -1)
             other_dim = 1
         else:
             other_dim = self.dim - 1
 
         # Calculate log-probabilities for the first dimension v
-        v = samples[:, :, 0]
-        log_density_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs).log_prob(v)
+        v = samples[..., 0]
+        if samples.dim() == 3:
+            _, n_contexts, _ = samples.shape
+            log_density_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs).log_prob(v)
+            variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, other_dim)  # (S, C, 9)
+        else:
+            _, n_contexts, n_components, _ = samples.shape
+            loc = ch.zeros(n_contexts, n_components).to(contexts.device)
+            sigs = sigs.unsqueeze(-1).expand(-1, n_components)
+            log_density_v = Normal(loc=loc, scale=sigs).log_prob(v)
+            variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, -1, other_dim)  # (S, C, o, 9)
 
         # Calculate log-probabilities for the other dimensions
-        variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, other_dim)
         cov_other = ch.diag_embed(variance_other)
         mean_other = ch.zeros_like(variance_other)
         log_density_other = MultivariateNormal(loc=mean_other, covariance_matrix=cov_other).log_prob(
-            samples[:, :, 1:])
+            samples[..., 1:])
 
         # Combine log-probabilities
         log_prob = log_density_v + log_density_other
@@ -118,13 +127,14 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         - contexts (ch.Tensor): The context vectors parameterizing the Funnel.
         - n_samples (int, optional): Number of samples to draw for visualization. Default is None.
         """
+
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
             # Create a 2D grid for visualization
             v_range = ch.linspace(-2.5 * 3, 2.5 * 3, 100)
             other_range = ch.linspace(-10, 10, 100)
             V, O = ch.meshgrid(v_range, other_range, indexing='ij')
-            samples = ch.stack([V, O], dim=-1).view(-1, 2)
+            samples = ch.stack([V, O], dim=-1).view(-1, 2).unsqueeze(1)
 
             # Compute log-probabilities for the grid points
             log_probs = self.log_prob_tgt(c.unsqueeze(0), samples).squeeze(1).view(100, 100)
@@ -158,6 +168,7 @@ def get_sig_fn(contexts):
     Returns:
     - ch.Tensor: A tensor representing the computed standard deviations.
     """
+
     if contexts.shape[1] == 1:
         # Context with 1D: Compute standard deviation based on sin function
         sig = ch.sin(3 * contexts[:, 0] + 1) + 1.1

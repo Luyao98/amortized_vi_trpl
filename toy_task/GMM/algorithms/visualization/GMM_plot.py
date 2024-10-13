@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 
 
 from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget
-from toy_task.GMM.targets.funnel_target import FunnelTarget
 from toy_task.GMM.utils.torch_utils import get_numpy
 
 import wandb
@@ -22,8 +21,6 @@ def plot2d_matplotlib(
         contexts,
         plot_type,
         ideal_gates=None,
-        # fig,
-        # axes,
         normalize_output=False,
         device: str = "cpu",
         min_x: int or None = None,
@@ -98,7 +95,6 @@ def plot2d_matplotlib(
             cur_loc = locs[l, k]
             ax.scatter(x=cur_loc[0], y=cur_loc[1])
             ellipses = compute_gaussian_ellipse(cur_loc[:2], cur_scale_tril[:2, :2])  # modification for funnel
-            # ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
         ax.set_title("Comparison")
@@ -231,12 +227,6 @@ def compute_data_for_plot(
     # evaluate distributions
     with ch.no_grad():
         log_p_tgt = target_dist.log_prob_tgt(contexts, xy) # (n_plt**2, n_contexts)
-        # if  type(target_dist) == FunnelTarget:
-        #     # with this modification, the funnel target can be plotted with the GMM model
-        #     xy_funnel = ch.cat([xy, ch.zeros(xy.shape[0], dim - 2)], dim=1)
-        #     xy_funnel = xy_funnel.unsqueeze(0).expand(n_contexts, -1, -1)
-        #     log_p_model = model.log_prob_gmm(means, scale_trils, ch.log(ch.tensor(weights)), xy_funnel)
-        # else:
         log_p_model = model.log_prob_gmm(means, scale_trils, weights, xy)
 
     log_p_tgt = get_numpy(log_p_tgt.transpose(0, 1)) # (n_contexts, n_plt**2)

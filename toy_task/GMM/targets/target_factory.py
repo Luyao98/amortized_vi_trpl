@@ -10,9 +10,7 @@ def get_target(target_name, target_components, context_dim=None):
     elif target_name == "gmm":
         return get_gmm_target(target_components, context_dim)
     elif target_name == "funnel":
-        # target_components must be 10 to build a standard 10D funnel
-        assert target_components == 10
-        return FunnelTarget(get_sig_fn, target_components)
+        return FunnelTarget(get_sig_fn, context_dim)
     elif target_name == "star":
         return get_star_target(target_components, context_dim)
     else:
