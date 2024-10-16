@@ -276,7 +276,7 @@ def evaluate_model(model: EmbeddedConditionalGMM,
         loss_history_array = np.array(loss_history)
         first_half = loss_history_array[:history_size // 2].sum()
         second_half = loss_history_array[history_size // 2:].sum()
-        if np.abs(first_half - second_half) / second_half< 0.1:
+        if np.abs(first_half - second_half) / second_half < 0.1:
             adaption = True
             loss_history = []  # reset loss history, to avoid immediate adaption
             if len(model.active_component_indices) < model.max_components:
@@ -336,7 +336,7 @@ def perform_training_step(model: EmbeddedConditionalGMM,
                           n_samples,
                           projection_config
                           ):
-    project = projection_config["project"]
+    project = projection_config["component_project"]
     eva_loss = 0
     if project:
         eps_mean = projection_config["eps_mean"]
@@ -470,11 +470,10 @@ def toy_task(config):
     loss_history = []
     adaption = False
 
-    for epoch in range(n_epochs):
-        # Initialize and plot the model
-        if epoch == 0:
-            init_some_components(model, target, contexts, plot_contexts, device, scale)
+    # Initialize and plot the model
+    init_some_components(model, target, contexts, plot_contexts, device, scale)
 
+    for epoch in range(n_epochs):
         # Shuffle sampled contexts
         indices = ch.randperm(train_size)
         shuffled_contexts = contexts[indices]
@@ -504,7 +503,7 @@ if __name__ == "__main__":
 
     set_seed(1001)
 
-    config_path = "../conf/gmm_target/10_gmm_2d_target_adaption.yaml"
+    config_path = "../conf/gmm_target/10_gmm_2d_target.yaml"
     test_config = OmegaConf.load(config_path)
     gmm_config = OmegaConf.to_container(test_config, resolve=True)
 
