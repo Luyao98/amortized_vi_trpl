@@ -1,24 +1,22 @@
 defaults:
   - _self_
-  - target: funnel_target
-  - schema: projection_10d_funnel
-  - seed: a
+  - funnel_target: funnel_target
   - override hydra/sweeper: list
+  - override hydra/launcher: joblib
 
-#exp_name: 10d_funnel_algo_basic
-#exp_name: 10d_funnel_algo+
-exp_name: 10d_funnel_algo_kl
-#exp_name: 10d_funnel_algo_direct
-#exp_name: 10d_funnel_algo_stl
+exp_name: funnel_target_amortized
+
 
 hydra:
-  sweeper:
-    grid_params:
-#      projection: projection_10d_funnel
-      target.model_name: ["toy_task_model_3"]
-      seed: a,b
-#      projection.eps_mean: [0.1, 0.5]
-
-#    list_params:
-#      projection.eps_mean: [0.1]
-#      projection.eps_cov: [0.]
+    mode: MULTIRUN
+    launcher:
+        n_jobs: 10
+    sweeper:
+      grid_params:
+#        funnel_target.model_config.num_gate_layer: 5
+#        funnel_target.model_config.num_component_layer: 5, 6, 7
+#        funnel_target.model_config.num_neuron_component_layer: 128, 256
+        funnel_target.seed: [1001, 1002, 1003]
+#      list_params:
+#        funnel_target.projection.eps_mean: [0.1, 0.1, 0.1, 0.01, 0.01, 0.001, 0.005, 0.0005, 0.0001]
+#        funnel_target.projection.eps_cov: [0.01, 0.001, 0.0001, 0.001, 0.0001, 0.0001, 0.0005, 0.0001, 0.0001]

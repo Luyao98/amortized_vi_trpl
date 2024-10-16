@@ -1,18 +1,52 @@
-n_epochs: 1000
-batch_size: 128
-n_context: 1280
-n_components: 8
-num_gate_layer: 5   #2
-num_component_layer: 7  #5
-n_samples: 10
-gate_lr: 0.0001
-gaussian_lr: 0.0001
+# config for experiment:  compare daft and amortized vips
 
-model_name: "toy_task_model_2"
-dim: 10
-initialization_type: "xavier"
+seed: 1001
 
-target_name: "funnel"
-target_components: 10
+model_config:
+  model_name: embedded_model
+  dim: 10
+  context_dim: 2
+  random_init: True
+  init_scale : 1
+  init_std: 1
+  max_components: 10
+  init_components: 10
+  num_gate_layer: 5
+  num_component_layer: 7
+  num_neuron_gate_layer: 256
+  num_neuron_component_layer: 256
+  initialization_type: xavier
+
+target_config:
+  target_name: funnel
+  target_components: 10
+
+training_config:
+  n_epochs: 20000
+  batch_size: 128
+  n_context: 1280
+  n_samples: 5
+  gate_lr: 1e-5
+  gaussian_lr: 1e-4
+
+  adaption:
+    adapt: False
+    threshold: 1e-3
+    scale: 225
+    chol_scale: 1
+    update_sample: False
+    lr: 0.01
+    itr: 10
+    gate_strategy: 2
+    history_size: 3000
+
+projection:
+  component_project: False
+  eps_mean: 0.1
+  eps_cov: 0.01
+  alpha: 75
+
+  gate_project: False
+  eps_gate: 0.1
 
 
