@@ -10,11 +10,10 @@ from toy_task.GMM.utils.projection_utils import gaussian_kl
 
 def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
 
-    batch_size, n_components, dz = mean.shape
-    mean = mean.view(-1, dz)
-    chol = chol.view(-1, dz, dz)
-    old_mean = old_mean.view(-1, dz)
-    old_chol = old_chol.view(-1, dz, dz)
+    assert mean.dim() == 2
+    assert chol.dim() == 3
+    assert old_mean.dim() == 2
+    assert old_chol.dim() == 3
 
     maha_part, cov_part = gaussian_kl(mean, chol, old_mean, old_chol)
 
@@ -28,11 +27,11 @@ def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
         chol_proj = ch.zeros_like(chol)
         chol_proj[~mask] = chol[~mask]
         if mask.any():
-            cov_proj = CovKLProjection.apply(old_chol, chol, cov, eps_cov)
+            cov_proj = CovKLProjection.apply(old_chol, chol.detach(), cov, eps_cov)
             # ensure symmetry
-            cov_proj = (cov_proj + cov_proj.transpose(-1, -2)) / 2
+            # cov_proj = (cov_proj + cov_proj.transpose(-1, -2)) / 2
             # ensure positive definiteness
-            cov_proj += ch.eye(cov_proj.shape[-1], device=cov_proj.device) * 1e-6
+            # cov_proj += ch.eye(cov_proj.shape[-1], device=cov_proj.device) * 1e-6
 
             # needs projection and projection failed
             # mean propagates the nan values to the batch dimensions, in case any of entries is nan
@@ -52,7 +51,7 @@ def split_kl_projection(mean, chol, old_mean, old_chol, eps_mean, eps_cov):
         print("Projection failed, taking old cholesky for projection.")
         chol_proj = old_chol
         raise e
-    return mean_proj.view(batch_size, n_components, dz), chol_proj.view(batch_size, n_components, dz, dz)
+    return mean_proj, chol_proj
 
 
 def mean_projection(mean, old_mean, maha, eps_mu):
@@ -86,10 +85,10 @@ class CovKLProjection(ch.autograd.Function):
 
     @staticmethod
     def forward(ctx, *args, **kwargs):
-        old_chol, target_chol, target_cov, eps = args
+        old_chol, chol, cov, eps = args
         old_chol_np = get_numpy(old_chol)
-        target_chol_np = get_numpy(target_chol)
-        target_cov_np = get_numpy(target_cov)
+        chol_np = get_numpy(chol)
+        cov_np = get_numpy(cov)
 
         batch_shape = old_chol.shape[0]
         dim = old_chol.shape[-1]
@@ -97,10 +96,10 @@ class CovKLProjection(ch.autograd.Function):
         epss = eps * np.ones(batch_shape)
 
         p_sop = CovKLProjection.get_sop(batch_shape, dim)
-        proj_cov = p_sop.forward(epss, old_chol_np, target_chol_np, target_cov_np)
         ctx.proj = p_sop
+        proj_cov = p_sop.forward(epss, old_chol_np, chol_np, cov_np)
 
-        return target_cov.new(proj_cov)
+        return cov.new(proj_cov)
 
     @staticmethod
     def backward(ctx, *grad_outputs):
@@ -108,7 +107,6 @@ class CovKLProjection(ch.autograd.Function):
         d_covs, = grad_outputs
         d_covs_np = get_numpy(d_covs)
         d_covs_np = np.atleast_2d(d_covs_np)
-        df_covs = sop.backward(d_covs_np)
-        df_covs = np.atleast_2d(df_covs)
-        return d_covs.new(df_covs), None, None, None
-
+        df_chols= sop.backward(d_covs_np)
+        df_chols = np.atleast_2d(df_chols)
+        return d_covs.new(df_chols), None, None, None
