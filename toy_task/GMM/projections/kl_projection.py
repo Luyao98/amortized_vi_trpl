@@ -2,7 +2,7 @@ import cpp_projection
 
 import numpy as np
 import torch as ch
-
+from toy_task.GMM.utils.torch_utils import get_numpy
 
 class KLProjection(ch.autograd.Function):
     projection_op = None
@@ -19,10 +19,10 @@ class KLProjection(ch.autograd.Function):
         p, q, eps = args
         mean, cov = p  # target distribution
         old_mean, old_cov = q  # old distribution
-        mean = mean.numpy()
-        cov = cov.numpy()
-        old_mean = old_mean.numpy()
-        old_cov = old_cov.numpy()
+        mean = get_numpy(mean)
+        cov = get_numpy(cov)
+        old_mean = get_numpy(old_mean)
+        old_cov = get_numpy(old_cov)
 
         batch_shape, dim = mean.shape
         beta = np.nan
