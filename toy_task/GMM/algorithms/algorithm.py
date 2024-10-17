@@ -12,6 +12,7 @@ from toy_task.GMM.algorithms.visualization.GMM_plot import plot2d_matplotlib
 from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence, js_divergence_gate, kl_divergence_gate
 from toy_task.GMM.algorithms.evaluation.Jeffreys_Div import jeffreys_divergence
 from toy_task.GMM.projections.split_kl_projection import split_kl_projection
+# from toy_task.GMM.projections.gate_projection import kl_projection_gate
 from toy_task.GMM.utils.torch_utils import get_numpy
 
 import wandb
@@ -263,28 +264,30 @@ def evaluate_model(model: EmbeddedConditionalGMM,
                    plot_contexts,
                    epoch,
                    n_epochs,
+                   adapt,
                    adaption,
                    loss_history,
                    history_size,
                    device
                    ):
-    if len(loss_history) > history_size:
-        loss_history.pop(0)
-        assert len(loss_history) == history_size
+    if adapt:
+        if len(loss_history) > history_size:
+            loss_history.pop(0)
+            assert len(loss_history) == history_size
 
-    if len(loss_history) == history_size:
-        loss_history_array = np.array(loss_history)
-        first_half = loss_history_array[:history_size // 2].sum()
-        second_half = loss_history_array[history_size // 2:].sum()
-        if np.abs(first_half - second_half) / second_half < 0.1:
-            adaption = True
-            loss_history = []  # reset loss history, to avoid immediate adaption
-            if len(model.active_component_indices) < model.max_components:
-                print(f"\nStability reached at epoch {epoch}. Start adaption.")
-            else:
-                print(f"\nStability reached at epoch {epoch} with max active components.")
+        if len(loss_history) == history_size:
+            loss_history_array = np.array(loss_history)
+            first_half = loss_history_array[:history_size // 2].sum()
+            second_half = loss_history_array[history_size // 2:].sum()
+            if np.abs(first_half - second_half) / second_half < 0.1:
+                adaption = True
+                loss_history = []  # reset loss history, to avoid immediate adaption
+                if len(model.active_component_indices) < model.max_components:
+                    print(f"\nStability reached at epoch {epoch}. Start adaption.")
+                else:
+                    print(f"\nStability reached at epoch {epoch} with max active components.")
 
-    n_eval = 50
+    n_eval = 10
     n_plot = 10
     if (epoch + 1) % (n_epochs // n_eval)== 0:
         model.eval()
@@ -316,75 +319,175 @@ def plot(model: EmbeddedConditionalGMM,
          target: AbstractTarget,
          device,
          contexts=None,
-         plot_type="Evaluation"
+         plot_type="Evaluation",
+         logging=False
          ):
+    # if not logging:
+    #     return
+
     if contexts is None:
         contexts = target.get_contexts(3).to('cpu')
     else:
         contexts = contexts.clone().detach().to('cpu')
     plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
-                      min_x=-15, max_x=10, min_y=-10, max_y=15)  # 6.5 for bmm and funnel
+                      min_x=-5, max_x=5, min_y=-5, max_y=5)
     model.to(device)
 
 
-def perform_training_step(model: EmbeddedConditionalGMM,
-                          target: AbstractTarget,
-                          shuffled_contexts,
-                          train_size,
-                          batch_size,
-                          optimizer,
-                          n_samples,
-                          projection_config
-                          ):
-    project = projection_config["component_project"]
+def step(model: EmbeddedConditionalGMM,
+         target: AbstractTarget,
+         shuffled_contexts,
+         training_config,
+         optimizer
+         ):
+
+    train_size = training_config["n_context"]
+    batch_size = training_config["batch_size"]
+    n_samples = training_config["n_samples"]
+
     eva_loss = 0
-    if project:
-        eps_mean = projection_config["eps_mean"]
-        eps_cov = projection_config["eps_cov"]
-        alpha = projection_config["alpha"]
+    for batch_idx in range(0, train_size, batch_size):
+        b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
 
-        init_contexts = shuffled_contexts[0:batch_size]
-        b_gate_old, b_mean_old, b_chol_old = model(init_contexts)
+        # Prediction step
+        gate_pred, mean_pred, chol_pred = model(b_contexts)
 
-        for batch_idx in range(0, train_size, batch_size):
-            b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
+        # Compute ELBO loss
+        loss = compute_elbo_loss(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
 
-            # Prediction
-            gate_pred, mean_pred, chol_pred = model(b_contexts)
+        # Update model
+        eva_loss += get_numpy(loss)
+        optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
+        optimizer.step()
 
-            # Projection
-            mean_proj, chol_proj = split_kl_projection(mean_pred, chol_pred,
-                                                       b_mean_old.clone().detach(), b_chol_old.clone().detach(),
-                                                       eps_mean, eps_cov)
+        wandb.log({"train_loss": loss.item()})
 
-            # Compute ELBO
-            pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
-            proj_dist = MultivariateNormal(loc=mean_proj.clone().detach(), scale_tril=chol_proj.clone().detach())
-            reg_loss = alpha * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
-            loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
+    # Shuffle sampled contexts
+    indices = ch.randperm(train_size)
+    shuffled_contexts = shuffled_contexts[indices]
 
-            # Update model
-            eva_loss, b_old_dist = update_model(optimizer, model, loss, batch_idx, batch_size, shuffled_contexts)
-            # b_old_dist is None for the last batch
-            if b_old_dist is not None:
-                b_gate_old, b_mean_old, b_chol_old = b_old_dist
-            eva_loss += eva_loss
+    return eva_loss, shuffled_contexts
 
-    else:
-        for batch_idx in range(0, train_size, batch_size):
-            b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
 
-            # Prediction step
-            gate_pred, mean_pred, chol_pred = model(b_contexts)
+def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
+                                             target: AbstractTarget,
+                                             shuffled_contexts,
+                                             training_config,
+                                             projection_config,
+                                             optimizer,
+                                             old_dist,
+                                             ):
 
-            # Compute ELBO loss
-            loss = compute_elbo_loss(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
+    train_size = training_config["n_context"]
+    batch_size = training_config["batch_size"]
+    n_samples = training_config["n_samples"]
+    eps_mean = projection_config["eps_mean"]
+    eps_cov = projection_config["eps_cov"]
+    alpha = projection_config["alpha"]
 
-            # Update model
-            eva_loss, _ = update_model(optimizer, model, loss)
-            eva_loss += eva_loss
+    b_gate_old, b_mean_old, b_chol_old = old_dist
+    eva_loss = 0
+    for batch_idx in range(0, train_size, batch_size):
+        b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
 
-    return eva_loss
+        # Prediction
+        gate_pred, mean_pred, chol_pred = model(b_contexts)
+
+        # Projection
+        batch_size, n_components, dz = mean_pred.shape
+
+        mean_proj_flatten, chol_proj_flatten = split_kl_projection(mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
+                                                                   b_mean_old.view(-1, dz).clone().detach(),
+                                                                   b_chol_old.view(-1, dz, dz).clone().detach(),
+                                                                   eps_mean, eps_cov)
+
+        mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
+        chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
+
+        # Compute ELBO
+        pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
+        proj_dist = MultivariateNormal(loc=mean_proj.clone().detach(), scale_tril=chol_proj.clone().detach())
+        reg_loss = alpha * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
+        loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
+
+        with ch.no_grad():
+            # get old distribution for the next batch
+            if batch_idx + batch_size < len(shuffled_contexts):
+                b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
+                b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
+            else:
+                assert batch_idx + batch_size == len(shuffled_contexts)
+                # Shuffle sampled contexts
+                indices = ch.randperm(train_size, device=shuffled_contexts.device)
+                new_shuffled_contexts = shuffled_contexts[indices]
+                first_batch = new_shuffled_contexts[0:batch_size]
+                old_dist_first_batch = model(first_batch)
+
+        # Update model
+        eva_loss = eva_loss + get_numpy(loss)
+        optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
+        optimizer.step()
+
+        wandb.log({"train_loss": loss.item()})
+
+    return eva_loss, new_shuffled_contexts, old_dist_first_batch
+
+
+def step_with_component_projection(model: EmbeddedConditionalGMM,
+                                   target: AbstractTarget,
+                                   ctx,
+                                   training_config,
+                                   projection_config,
+                                   optimizer,
+                                   old_dist,
+                                   ):
+
+    train_size = training_config["n_context"]
+    batch_size = training_config["batch_size"]
+    n_samples = training_config["n_samples"]
+    eps_mean = projection_config["eps_mean"]
+    eps_cov = projection_config["eps_cov"]
+    alpha = projection_config["alpha"]
+    assert batch_size == train_size
+
+    # Prediction
+    gate_pred, mean_pred, chol_pred = model(ctx)
+
+    # Projection
+    b_gate_old, b_mean_old, b_chol_old = old_dist
+    batch_size, n_components, dz = mean_pred.shape
+
+    mean_proj_flatten, chol_proj_flatten = split_kl_projection(mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
+                                                               b_mean_old.view(-1, dz).clone().detach(),
+                                                               b_chol_old.view(-1, dz, dz).clone().detach(),
+                                                               eps_mean, eps_cov)
+
+    mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
+    chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
+
+    # Compute ELBO
+    pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
+    proj_dist = MultivariateNormal(loc=mean_proj.clone().detach(), scale_tril=chol_proj.clone().detach())
+    reg_loss = alpha * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
+    loss = compute_elbo_loss(model, target, ctx, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
+
+    # Update model
+    eva_loss = get_numpy(loss)
+    optimizer.zero_grad()
+    loss.backward()
+    nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
+    optimizer.step()
+
+    # get old distribution for the next batch
+    old_dist_update = gate_pred.clone().detach(), mean_pred.clone().detach(), chol_pred.clone().detach()
+
+    wandb.log({"train_loss": loss.item()})
+
+    return eva_loss, old_dist_update
 
 
 def compute_elbo_loss(model: EmbeddedConditionalGMM,
@@ -408,31 +511,7 @@ def compute_elbo_loss(model: EmbeddedConditionalGMM,
     return loss
 
 
-def update_model(optimizer,
-                 model,
-                 loss,
-                 batch_idx=None,
-                 batch_size=None,
-                 shuffled_contexts=None
-                 ):
-    eva_loss = get_numpy(loss)
-    optimizer.zero_grad()
-    loss.backward()
-    nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
-    optimizer.step()
-
-    wandb.log({"train_loss": loss.item()})
-
-    # Update old batch distribution for projection
-    if batch_idx is not None and batch_size is not None and shuffled_contexts is not None:
-        if batch_idx + batch_size < len(shuffled_contexts):
-            b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
-            return eva_loss, model(b_next_context)
-
-    return eva_loss, None
-
-
-def toy_task(config):
+def toy_task_new(config):
 
     model_config = config["model_config"]
     target_config = config["target_config"]
@@ -455,7 +534,6 @@ def toy_task(config):
     n_epochs = training_config["n_epochs"]
     batch_size = training_config["batch_size"]
     n_context = training_config["n_context"]
-    n_samples = training_config["n_samples"]
     gate_lr = training_config["gate_lr"]
     gaussian_lr = training_config["gaussian_lr"]
 
@@ -466,29 +544,43 @@ def toy_task(config):
 
     optimizer = get_optimizer(model, gate_lr, gaussian_lr)
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
-    train_size = n_context
     loss_history = []
     adaption = False
+    # eva_loss = 0
 
     # Initialize and plot the model
     init_some_components(model, target, contexts, plot_contexts, device, scale)
+    # get old dist for first batch
+    old_dist = model(contexts[0:batch_size])
 
     for epoch in range(n_epochs):
-        # Shuffle sampled contexts
-        indices = ch.randperm(train_size)
-        shuffled_contexts = contexts[indices]
-
-        # Add and delete components if adaption is enabled
+        # Add and delete components if indicator is True
         if adapt and adaption:
-            adaptive_components(model, target, shuffled_contexts[0:batch_size], plot_contexts, device, adaption_config)
+            adaptive_components(model, target, contexts[0:batch_size], plot_contexts, device, adaption_config)
             adaption = False
 
         # Perform training step
-        eva_loss = perform_training_step(model, target, shuffled_contexts, train_size, batch_size, optimizer, n_samples, projection_config)
+        component_project = projection_config["component_project"]
+        gate_project = projection_config["gate_project"]
+        if component_project:
+            if gate_project:
+                pass
+            else:
+                # eva_loss, old_dist = step_with_component_projection(model, target, contexts, training_config,
+                #                                                              projection_config, optimizer, old_dist)
+                eva_loss, contexts, old_dist = step_with_component_projection_minibatch(model, target, contexts,
+                                                                                         training_config, projection_config,
+                                                                                         optimizer, old_dist)
+        else:
+            if gate_project:
+                pass
+            else:
+                eva_loss, contexts = step(model, target, contexts, training_config, optimizer)
 
         # Evaluate model and update loss history
-        loss_history.append(eva_loss)
-        loss_history, history_size, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch, n_epochs, adaption, loss_history, history_size, device)
+        # loss_history.append(eva_loss)
+        loss_history, history_size, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch,
+                                                              n_epochs, adapt, adaption, loss_history, history_size, device)
 
     print("Training done!")
 
@@ -501,7 +593,7 @@ if __name__ == "__main__":
 
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-    set_seed(1001)
+    set_seed(1003)
 
     config_path = "../conf/gmm_target/10_gmm_2d_target.yaml"
     test_config = OmegaConf.load(config_path)
@@ -510,4 +602,4 @@ if __name__ == "__main__":
     run_name = "2d_context_10_init_components_no_adaption"
     group_name = "test"
     wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
-    toy_task(gmm_config)
+    toy_task_new(gmm_config)
