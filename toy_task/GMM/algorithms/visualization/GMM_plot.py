@@ -3,7 +3,6 @@ import torch as ch
 import matplotlib.pyplot as plt
 
 
-from toy_task.GMM.targets.gaussian_mixture_target import ConditionalGMMTarget
 from toy_task.GMM.utils.torch_utils import get_numpy
 
 import wandb
@@ -52,17 +51,10 @@ def plot2d_matplotlib(
     weights = data["weights"]
 
     # plot
-    if type(target_dist) == ConditionalGMMTarget:
-        real_weights = np.exp(target_dist.gate_fn(contexts).detach().cpu().numpy())
-        if n_contexts == 1:
-            fig, axes = plt.subplots(n_contexts, 5, figsize=(15, 10))
-        else:
-            fig, axes = plt.subplots(4, n_contexts, figsize=(15, 25))
+    if n_contexts == 1:
+        fig, axes = plt.subplots(n_contexts, 4, figsize=(15, 10))
     else:
-        if n_contexts == 1:
-            fig, axes = plt.subplots(n_contexts, 4, figsize=(15, 10))
-        else:
-            fig, axes = plt.subplots(3, n_contexts, figsize=(15, 20))
+        fig, axes = plt.subplots(4, n_contexts, figsize=(15, 20))
 
     for l in range(n_contexts):
         # plot target distribution
@@ -70,7 +62,7 @@ def plot2d_matplotlib(
         ax.clear()
         contour_plot = ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        # ax.set_title(f"Context: {contexts[l].numpy()} \n\n Target Density")
+        ax.set_title(f"Target Density")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         ax.set_xlim(min_x, max_x)
@@ -90,37 +82,30 @@ def plot2d_matplotlib(
             ellipses = compute_gaussian_ellipse(cur_loc[:2], cur_scale_tril[:2, :2])  # modification for funnel
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
+        ax.set_title("Comparison")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
+        ax.set_xlim(min_x, max_x)
+        ax.set_ylim(min_y, max_y)
+
+        # plot model distribution with background model distribution
+        ax = axes[2] if n_contexts == 1 else axes[2, l]
+        ax.clear()
+        ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
+        ax.axis("scaled")
         ax.set_title("Model Density")
         ax.set_xlabel("$x_1$")
         ax.set_ylabel("$x_2$")
         ax.set_xlim(min_x, max_x)
         ax.set_ylim(min_y, max_y)
 
-        # # plot model distribution with background model distribution
-        # ax = axes[2] if n_contexts == 1 else axes[2, l]
-        # ax.clear()
-        # ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
-        # ax.axis("scaled")
-        # ax.set_title("Model Density")
-        # ax.set_xlabel("$x_1$")
-        # ax.set_ylabel("$x_2$")
-        # ax.set_xlim(min_x, max_x)
-        # ax.set_ylim(min_y, max_y)
-
         # plot weights
-        ax = axes[2] if n_contexts == 1 else axes[2, l]
+        ax = axes[3] if n_contexts == 1 else axes[3, l]
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
-        ax.set_title("model weights")
+        ax.set_title("Mixture weights")
 
-        if type(target_dist) == ConditionalGMMTarget:
-            # plot weights
-            ax = axes[3] if n_contexts == 1 else axes[3, l]
-            ax.clear()
-            ax.pie(real_weights[l], labels=[f"{w * 100:.2f}%" for w in real_weights[l]], colors=colors)
-            ax.axis("scaled")
-            ax.set_title("target weights")
     # ax = axes[0, -1]
     # # color bar of last target density
     # cbar = plt.colorbar(contour_plot, cax=ax)

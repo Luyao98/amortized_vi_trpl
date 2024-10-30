@@ -3,9 +3,6 @@ from typing import Callable
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-import plotly.subplots as sp
-import plotly.express as px
-import plotly.graph_objects as go
 
 from daft.src.gmm_util.gmm import GMM
 from daft.src.multi_daft_vi.lnpdf import LNPDF
@@ -201,200 +198,6 @@ def compute_gaussian_ellipse(mean, scale_tril) -> np.ndarray:
     return ellipsis
 
 
-def plot1d_plotly(target_dist: LNPDF or Callable,
-                  model: GMM,
-                  mini_batch_size: int or None = None,
-                  use_log_space: bool = False,
-                  device: str = "cpu",
-                  min_x: int or None = None,
-                  max_x: int or None = None, ):
-    # get data for plotting
-    data = compute_data_for_plot1d(
-        target_dist,
-        model,
-        mini_batch_size,
-        device,
-        min_x=min_x,
-        max_x=max_x,
-    )
-    n_tasks = data["n_tasks"]
-    x = data["x"]
-    p_tgt = data["p_tgt"]
-    log_p_tgt = data["log_p_tgt"]
-    locs = data["locs"]
-    stds = data["stds"]
-    weights = data["weights"]
-
-    # create plotly figure object
-    specs = []
-    for l in range(n_tasks):
-        specs.append([{"type": "xy"}, {"type": "pie"}])
-    fig = sp.make_subplots(
-        rows=2,
-        cols=n_tasks,
-        specs=list(zip(*specs)),
-        column_titles=[f"Task {i}" for i in range(n_tasks)],
-        row_titles=["Target", "Weights"],
-        shared_xaxes=True,
-        shared_yaxes=True,
-    )
-    # build new ones
-    for l in range(n_tasks):
-        # plot tgt distribution
-        plot_traces = {}
-        if use_log_space:
-            density = log_p_tgt
-        else:
-            density = p_tgt
-        plot_traces["density_plot"] = go.Scatter(
-            x=x,
-            y=density[:, l],
-            mode="lines",
-            marker={"color": "black"},
-        )
-        plot_traces["means"] = []
-        colors = px.colors.qualitative.G10
-        for k in range(model.n_components):
-            cur_std = stds[l, k]
-            cur_loc = locs[l, k]
-            color = colors[k % len(colors)]
-            fig.add_trace({})
-            fig.add_vline(x=cur_loc[0], line_width=5, row=1, col=l + 1, line_color=color)
-            fig.add_vrect(x0=cur_loc[0] - 2 * cur_std[0, 0], x1=cur_loc[0] + 2 * cur_std[0, 0], line_width=0,
-                          fillcolor=color, opacity=0.2, row=1, col=l + 1)
-
-        # plot weights
-        plot_traces["pie"] = go.Pie(
-            values=weights[l],
-            labels=[f"Component {i}" for i, w in enumerate(weights[l])],
-            marker=dict(colors=colors),
-        )
-        # assign to subplots
-        fig.add_trace(plot_traces["density_plot"], row=1, col=l + 1)
-        fig.add_trace(plot_traces["pie"], row=2, col=l + 1)
-
-    # update layout
-    fig.update_traces(showlegend=False)
-
-
-    return fig
-
-
-def plot2d_plotly(
-        target_dist: LNPDF or Callable,
-        model: GMM,
-        mini_batch_size: int or None = None,
-        use_log_space: bool = False,
-        normalize_output: bool = False,
-        device: str = "cpu",
-        min_x: int or None = None,
-        max_x: int or None = None,
-        min_y: int or None = None,
-        max_y: int or None = None,
-
-):
-    """
-    params:
-        target_dist: Either LNPDF, then the log_density is called. Otherwise it is a function to compute the log density directly
-        model: GMM
-        mini_batch_size: int | None = None
-        use_log_space: bool = False -> if True, the log density is plotted
-        normalize_output: bool = False -> if True, the max log output is set to 0 in the visualization.
-    """
-    # get data for plotting
-    data = compute_data_for_plot2d(
-        target_dist,
-        model,
-        mini_batch_size,
-        normalize_output=normalize_output,
-        device=device,
-        min_x=min_x,
-        max_x=max_x,
-        min_y=min_y,
-        max_y=max_y,
-    )
-    n_tasks = data["n_tasks"]
-    n_plt = data["n_plt"]
-    x = data["x"]
-    y = data["y"]
-    xx = data["xx"]
-    yy = data["yy"]
-    xy = data["xy"]
-    p_tgt = data["p_tgt"]
-    log_p_tgt = data["log_p_tgt"]
-    locs = data["locs"]
-    scale_trils = data["scale_trils"]
-    weights = data["weights"]
-
-    # create plotly figure object
-    specs = []
-    for l in range(n_tasks):
-        specs.append([{"type": "xy"}, {"type": "pie"}])
-    fig = sp.make_subplots(
-        rows=2,
-        cols=n_tasks,
-        specs=list(zip(*specs)),
-        column_titles=[f"Task {i}" for i in range(n_tasks)],
-        row_titles=["Target", "Weights"],
-        shared_xaxes=True,
-        shared_yaxes=True,
-    )
-    # build new ones
-    for l in range(n_tasks):
-        # plot tgt distribution
-        plot_traces = {}
-        if use_log_space:
-            density = log_p_tgt
-        else:
-            density = p_tgt
-        plot_traces["contour plot"] = go.Contour(
-            x=x,
-            y=y,
-            z=density[:, l].reshape(n_plt, n_plt),
-            ncontours=100,
-            contours=dict(showlines=False),
-            colorscale="Greys",
-        )
-        plot_traces["means"] = []
-        plot_traces["ellipses"] = []
-        colors = px.colors.qualitative.G10[:model.n_components]
-        for k in range(model.n_components):
-            cur_scale_tril = scale_trils[l, k]
-            cur_loc = locs[l, k]
-            color = colors[k % len(colors)]
-            plot_traces["means"].append(
-                go.Scatter(x=[cur_loc[0]], y=[cur_loc[1]], mode="markers", marker=dict(color=color, size=10))
-            )
-            ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
-            if color is None:
-                plot_traces["ellipses"].append(
-                    go.Scatter(x=ellipses[0, :], y=ellipses[1, :], mode="lines")
-                )
-            else:
-                plot_traces["ellipses"].append(
-                    go.Scatter(
-                        x=ellipses[0, :], y=ellipses[1, :], mode="lines", line=dict(color=color, width=5)
-                    )
-                )
-        # plot weights
-        plot_traces["pie"] = go.Pie(
-            values=weights[l],
-            labels=[f"Component {i}" for i, w in enumerate(weights[l])],
-            marker=dict(colors=colors),
-        )
-        # assign to subplots
-        fig.add_trace(plot_traces["contour plot"], row=1, col=l + 1)
-        for k in range(model.n_components):
-            # if torch.exp(model.log_w)[0, k].item() < 0.2:
-            #     continue
-            fig.add_trace(plot_traces["means"][k], row=1, col=l + 1)
-            fig.add_trace(plot_traces["ellipses"][k], row=1, col=l + 1)
-        fig.add_trace(plot_traces["pie"], row=2, col=l + 1)
-    # update layout
-    fig.update_traces(showlegend=False)
-    return fig
-
-
 def plot2d_matplotlib(
         target_dist: LNPDF or Callable,
         model: GMM,
@@ -424,7 +227,7 @@ def plot2d_matplotlib(
         min_y=min_y,
         max_y=max_y,
     )
-    n_tasks = 3 # only plot fisrt 3 tasks
+    n_tasks = 1 # only plot fisrt 3 tasks
     n_plt = data["n_plt"]
     xx = data["xx"]
     yy = data["yy"]
@@ -436,16 +239,16 @@ def plot2d_matplotlib(
     # plot
     for l in range(n_tasks):
         # plot tgt distribution
-        ax = axes[0, l]
+        ax = axes[0]
         ax.clear()
         contour_plot = ax.contourf(xx, yy, p_tgt[:, l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        ax.set_title("Target density")
-        ax.set_xlabel("$z_1$")
-        ax.set_ylabel("$z_2$")
+        ax.set_title("Target Density")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
 
         # plot model distribution
-        ax = axes[1, l]
+        ax = axes[1]
         ax.clear()
         ax.contourf(xx, yy, p_tgt[:, l].reshape(n_plt, n_plt), levels=100)
         colors = []
@@ -459,27 +262,27 @@ def plot2d_matplotlib(
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
         ax.set_title("Comparision")
-        ax.set_xlabel("$z_1$")
-        ax.set_ylabel("$z_2$")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
         # ax.set_xlim(min_x, max_x)
         # ax.set_ylim(min_y, max_y)
 
         # plot model distribution
-        ax = axes[2, l]
+        ax = axes[2]
         ax.clear()
         ax.contourf(xx, yy, p_model[:, l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
-        ax.set_title("Model density")
+        ax.set_title("Model Density")
         ax.set_xlabel("$z_1$")
         ax.set_ylabel("$z_2$")
 
         # plot weights
-        ax = axes[3, l]
+        ax = axes[3]
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
         ax.set_title("Mixture weights")
-    ax = axes[0, -1]
+    # ax = axes[0, -1]
     # color bar of last tgt density
     # cbar = plt.colorbar(contour_plot, cax=ax)
 
@@ -493,4 +296,3 @@ def plot2d_matplotlib(
         plt.close(fig)
     else:
         fig.tight_layout()
-    # plt.pause(0.001)

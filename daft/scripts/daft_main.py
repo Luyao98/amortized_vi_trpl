@@ -4,6 +4,7 @@ import wandb
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+import torch as ch
 from matplotlib import pyplot as plt
 
 
@@ -51,7 +52,7 @@ def daft_star(config):
         prec_init=precs,
     )
 
-    fig, axes = plt.subplots(4, 3, figsize=(15, 20))
+    fig, axes = plt.subplots(1, 4, figsize=(15, 10))
     # intial plot
     plot2d_matplotlib(
         algorithm.target_dist,
@@ -67,11 +68,22 @@ def daft_star(config):
 
     itr = config["iterations"]
     n_plots = 10
-
+    infer_time = 0
     for i in range(itr):
+        # Start timing
+        start_event = ch.cuda.Event(enable_timing=True)
+        end_event = ch.cuda.Event(enable_timing=True)
+        start_event.record()
+
         elbo = algorithm.step()
+
+        # End timing
+        end_event.record()
+        ch.cuda.synchronize()
+        infer_time += start_event.elapsed_time(end_event)
+
         if (i + 1) % (itr // n_plots) == 0:
-            fig, axes = plt.subplots(4, 3, figsize=(15, 20))
+            fig, axes = plt.subplots(1, 4, figsize=(15, 10))
             plot2d_matplotlib(
                 algorithm.target_dist,
                 algorithm.model,
@@ -90,7 +102,9 @@ def daft_star(config):
         wandb.log({
             "train_loss": elbo
         })
-
+    wandb.log({
+        "inference_time/ms": float(infer_time/itr)
+    })
     wandb.finish()
 
 
@@ -132,7 +146,7 @@ def daft_gmm(config):
         prec_init=precs,
     )
 
-    fig, axes = plt.subplots(4, 3, figsize=(15, 20))
+    fig, axes = plt.subplots(1, 4, figsize=(15, 10))
     # intial plot
     plot2d_matplotlib(
         algorithm.target_dist,
@@ -149,11 +163,23 @@ def daft_gmm(config):
     itr = config["iterations"]
     n_plots = 10
     n_eval = 50
+    infer_time = 0
 
     for i in range(itr):
+        # Start timing
+        start_event = ch.cuda.Event(enable_timing=True)
+        end_event = ch.cuda.Event(enable_timing=True)
+        start_event.record()
+
         elbo = algorithm.step()
+
+        # End timing
+        end_event.record()
+        ch.cuda.synchronize()
+        infer_time += start_event.elapsed_time(end_event)
+
         if (i + 1) % (itr // n_plots) == 0:
-            fig, axes = plt.subplots(4, 3, figsize=(15, 20))
+            fig, axes = plt.subplots(1, 4, figsize=(15, 10))
             plot2d_matplotlib(
                 algorithm.target_dist,
                 algorithm.model,
@@ -173,7 +199,9 @@ def daft_gmm(config):
         wandb.log({
             "train_loss": elbo
         })
-
+    wandb.log({
+        "inference_time/ms": float(infer_time/itr)
+    })
     wandb.finish()
 
 @hydra.main(version_base=None, config_path="../daft_conf", config_name="config_gmm")
@@ -183,7 +211,7 @@ def toy(cfg: DictConfig) -> None:
 
     set_seed(cfg.daft_target.seed)
 
-    group_name = f"{cfg['exp_name']}"
+    group_name = f"test_{cfg['exp_name']}"
     run_name = f"seed_{cfg.daft_target.seed}_kl_bound_{cfg.daft_target.algorithm.more.component_kl_bound}"
     wandb.init(project="gmm_target", group=group_name, config=config_dict, name=run_name)
 
