@@ -114,14 +114,14 @@ def U(theta: float):
 def get_chol_fn(n_components):
     def cat_chol(c):
         diag1 = ch.sin(c[:, 0]) + 1.1
-        diag2 = 0.05 * ch.cos(c[:, 1]) + 0.08
-        diag3 = 0.05 * ch.cos(c[:, 0]) + 0.08
-        diag4 = 0.05 * ch.sin(c[:, 0]) * ch.cos(c[:, 1])
         zeros = ch.zeros_like(c[:, 0])
         if c.shape[-1] == 1:
+            diag3 = 0.05 * ch.cos(c[:, 0]) + 0.08
             chol = ch.stack([ch.stack([diag1, zeros], dim=1),
                              ch.stack([zeros, diag3], dim=1)], dim=1)
         elif c.shape[-1] == 2:
+            diag2 = 0.05 * ch.cos(c[:, 1]) + 0.08
+            diag4 = 0.05 * ch.sin(c[:, 0]) * ch.cos(c[:, 1])
             chol = ch.stack([ch.stack([diag1, zeros], dim=1),
                              ch.stack([diag4, diag2], dim=1)], dim=1)
         else:
