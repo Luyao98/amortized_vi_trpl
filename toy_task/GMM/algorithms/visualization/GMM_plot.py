@@ -20,7 +20,6 @@ def plot2d_matplotlib(
         model,
         contexts,
         plot_type,
-        ideal_gates=None,
         normalize_output=False,
         device: str = "cpu",
         min_x: int or None = None,
@@ -55,22 +54,19 @@ def plot2d_matplotlib(
     # plot
     if type(target_dist) == ConditionalGMMTarget:
         real_weights = np.exp(target_dist.gate_fn(contexts).detach().cpu().numpy())
-        if ideal_gates is not None:
-            fig, axes = plt.subplots(6, n_contexts, figsize=(15, 30))
+        if n_contexts == 1:
+            fig, axes = plt.subplots(n_contexts, 5, figsize=(15, 25))
         else:
             fig, axes = plt.subplots(5, n_contexts, figsize=(15, 25))
     else:
-        if ideal_gates is not None:
-            fig, axes = plt.subplots(5, n_contexts, figsize=(15, 25))
+        if n_contexts == 1:
+            fig, axes = plt.subplots(n_contexts, 4, figsize=(15, 20))
         else:
             fig, axes = plt.subplots(4, n_contexts, figsize=(15, 20))
 
     for l in range(n_contexts):
         # plot target distribution
-        if n_contexts == 1:
-            ax = axes[0]
-        else:
-            ax = axes[0, l]
+        ax = axes[0] if n_contexts == 1 else axes[0, l]
         ax.clear()
         contour_plot = ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
@@ -81,10 +77,7 @@ def plot2d_matplotlib(
         ax.set_ylim(min_y, max_y)
 
         # plot model distribution with background target distribution
-        if n_contexts == 1:
-            ax = axes[1]
-        else:
-            ax = axes[1, l]
+        ax = axes[1] if n_contexts == 1 else axes[1, l]
         ax.clear()
         ax.contourf(xx, yy, p_tgt[l].reshape(n_plt, n_plt), levels=100)
         colors = []
@@ -104,10 +97,7 @@ def plot2d_matplotlib(
         ax.set_ylim(min_y, max_y)
 
         # plot model distribution with background model distribution
-        if n_contexts == 1:
-            ax = axes[2]
-        else:
-            ax = axes[2, l]
+        ax = axes[2] if n_contexts == 1 else axes[2, l]
         ax.clear()
         ax.contourf(xx, yy, p_model[l].reshape(n_plt, n_plt), levels=100)
         ax.axis("scaled")
@@ -118,42 +108,15 @@ def plot2d_matplotlib(
         ax.set_ylim(min_y, max_y)
 
         # plot weights
-        if n_contexts == 1:
-            ax = axes[3]
-        else:
-            ax = axes[3, l]
+        ax = axes[3] if n_contexts == 1 else axes[3, l]
         ax.clear()
         ax.pie(weights[l], labels=[f"{w * 100:.2f}%" for w in weights[l]], colors=colors)
         ax.axis("scaled")
         ax.set_title("model weights")
 
-        if ideal_gates is not None:
-            # plot ideal weights
-            if n_contexts == 1:
-                ax = axes[4]
-            else:
-                ax = axes[4, l]
-            ax.clear()
-            ax.pie(ideal_gates[l], labels=[f"{w * 100:.2f}%" for w in ideal_gates[l]], colors=colors)
-            ax.axis("scaled")
-            ax.set_title("ideal target weights")
-
-            if type(target_dist) == ConditionalGMMTarget:
-                # plot weights
-                if n_contexts == 1:
-                    ax = axes[5]
-                else:
-                    ax = axes[5, l]
-                ax.clear()
-                ax.pie(real_weights[l], labels=[f"{w * 100:.2f}%" for w in real_weights[l]], colors=colors)
-                ax.axis("scaled")
-                ax.set_title("target weights")
-        elif type(target_dist) == ConditionalGMMTarget and ideal_gates is None:
+        if type(target_dist) == ConditionalGMMTarget:
             # plot weights
-            if n_contexts == 1:
-                ax = axes[4]
-            else:
-                ax = axes[4, l]
+            ax = axes[4] if n_contexts == 1 else axes[4, l]
             ax.clear()
             ax.pie(real_weights[l], labels=[f"{w * 100:.2f}%" for w in real_weights[l]], colors=colors)
             ax.axis("scaled")
