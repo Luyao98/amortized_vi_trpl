@@ -233,18 +233,7 @@ def get_all_contexts(target,
                      ):
     train_contexts = target.get_contexts(n_context).to(device)
     eval_contexts = target.get_contexts(200).to(device)
-    # bmm and gmm
-    # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.7],
-    #                            [-1.8]])
-
-    # funnel
-    # plot_contexts = ch.tensor([[-0.3],
-    #                            [0.1],
-    #                            [-0.8]])
-
-    # random gmm
-    plot_contexts = target.get_contexts(3)
+    plot_contexts = target.get_contexts(1)
     return train_contexts, eval_contexts, plot_contexts
 
 
@@ -346,11 +335,25 @@ def step(model: EmbeddedConditionalGMM,
     n_samples = training_config["n_samples"]
 
     eva_loss = 0
+    total_time = 0  # Accumulate total time for all batches
+    num_batches = 0  # Track the number of batches
     for batch_idx in range(0, train_size, batch_size):
         b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
 
-        # Prediction step
+        # Start timing
+        start_event = ch.cuda.Event(enable_timing=True)
+        end_event = ch.cuda.Event(enable_timing=True)
+        start_event.record()
+
+        # Prediction
         gate_pred, mean_pred, chol_pred = model(b_contexts)
+
+        # End timing
+        end_event.record()
+        ch.cuda.synchronize()
+        batch_time = start_event.elapsed_time(end_event)
+        total_time += batch_time
+        num_batches += 1
 
         # Compute ELBO loss
         loss = compute_elbo_loss(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
@@ -367,8 +370,8 @@ def step(model: EmbeddedConditionalGMM,
     # Shuffle sampled contexts
     indices = ch.randperm(train_size)
     shuffled_contexts = shuffled_contexts[indices]
-
-    return eva_loss, shuffled_contexts
+    avg_time = total_time / num_batches if num_batches > 0 else 0
+    return eva_loss, shuffled_contexts, avg_time
 
 
 def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
@@ -389,19 +392,36 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
 
     b_gate_old, b_mean_old, b_chol_old = old_dist
     eva_loss = 0
+    total_time = 0  # Accumulate total time for all batches
+    num_batches = 0  # Track the number of batches
+
     for batch_idx in range(0, train_size, batch_size):
         b_contexts = shuffled_contexts[batch_idx:batch_idx + batch_size]
+
+        # Start timing
+        start_event = ch.cuda.Event(enable_timing=True)
+        end_event = ch.cuda.Event(enable_timing=True)
+        start_event.record()
 
         # Prediction
         gate_pred, mean_pred, chol_pred = model(b_contexts)
 
+        # End timing
+        end_event.record()
+        ch.cuda.synchronize()
+        batch_time = start_event.elapsed_time(end_event)
+        total_time += batch_time
+        num_batches += 1
+
         # Projection
         batch_size, n_components, dz = mean_pred.shape
 
-        mean_proj_flatten, chol_proj_flatten = split_kl_projection(mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
-                                                                   b_mean_old.view(-1, dz).clone().detach(),
-                                                                   b_chol_old.view(-1, dz, dz).clone().detach(),
-                                                                   eps_mean, eps_cov)
+        mean_proj_flatten, chol_proj_flatten = split_kl_projection(
+            mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
+            b_mean_old.view(-1, dz).clone().detach(),
+            b_chol_old.view(-1, dz, dz).clone().detach(),
+            eps_mean, eps_cov
+        )
 
         mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
         chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
@@ -413,7 +433,7 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
         loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
 
         with ch.no_grad():
-            # get old distribution for the next batch
+            # Get old distribution for the next batch
             if batch_idx + batch_size < len(shuffled_contexts):
                 b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
                 b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
@@ -426,7 +446,7 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
                 old_dist_first_batch = model(first_batch)
 
         # Update model
-        eva_loss = eva_loss + get_numpy(loss)
+        eva_loss += get_numpy(loss)
         optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
@@ -434,7 +454,9 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
 
         wandb.log({"train_loss": loss.item()})
 
-    return eva_loss, new_shuffled_contexts, old_dist_first_batch
+    avg_time = total_time / num_batches if num_batches > 0 else 0
+
+    return eva_loss, new_shuffled_contexts, old_dist_first_batch, avg_time
 
 
 def step_with_component_projection(model: EmbeddedConditionalGMM,
@@ -454,8 +476,17 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
     alpha = projection_config["alpha"]
     assert batch_size == train_size
 
+    # Start timing
+    start_event = ch.cuda.Event(enable_timing=True)
+    end_event = ch.cuda.Event(enable_timing=True)
+    start_event.record()
+
     # Prediction
     gate_pred, mean_pred, chol_pred = model(ctx)
+
+    # End timing
+    end_event.record()
+    ch.cuda.synchronize()
 
     # Projection
     b_gate_old, b_mean_old, b_chol_old = old_dist
@@ -487,7 +518,7 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
 
     wandb.log({"train_loss": loss.item()})
 
-    return eva_loss, old_dist_update
+    return eva_loss, old_dist_update, start_event.elapsed_time(end_event)
 
 
 def compute_elbo_loss(model: EmbeddedConditionalGMM,
@@ -511,7 +542,7 @@ def compute_elbo_loss(model: EmbeddedConditionalGMM,
     return loss
 
 
-def toy_task_new(config):
+def toy_task(config):
 
     model_config = config["model_config"]
     target_config = config["target_config"]
@@ -547,6 +578,7 @@ def toy_task_new(config):
     loss_history = []
     adaption = False
     # eva_loss = 0
+    infer_time = 0
 
     # Initialize and plot the model
     init_some_components(model, target, contexts, plot_contexts, device, scale)
@@ -566,23 +598,28 @@ def toy_task_new(config):
             if gate_project:
                 pass
             else:
-                # eva_loss, old_dist = step_with_component_projection(model, target, contexts, training_config,
-                #                                                              projection_config, optimizer, old_dist)
-                eva_loss, contexts, old_dist = step_with_component_projection_minibatch(model, target, contexts,
-                                                                                         training_config, projection_config,
-                                                                                         optimizer, old_dist)
+                eva_loss, old_dist, inference_time = step_with_component_projection(model, target, contexts,
+                                                                                    training_config,
+                                                                                    projection_config, optimizer,
+                                                                                    old_dist)
+                # eva_loss, contexts, old_dist, inference_time = step_with_component_projection_minibatch(model, target,
+                #                                                                                         contexts,
+                #                                                                                         training_config,
+                #                                                                                         projection_config,
+                #                                                                                         optimizer,
+                #                                                                                         old_dist)
         else:
             if gate_project:
                 pass
             else:
-                eva_loss, contexts = step(model, target, contexts, training_config, optimizer)
+                eva_loss, contexts,  inference_time= step(model, target, contexts, training_config, optimizer)
 
         # Evaluate model and update loss history
         # loss_history.append(eva_loss)
         loss_history, history_size, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch,
                                                               n_epochs, adapt, adaption, loss_history, history_size, device)
-
-    print("Training done!")
+        infer_time += inference_time
+    wandb.log({"inference_time/ms": float(infer_time/n_epochs)})
 
 
 if __name__ == "__main__":
@@ -602,4 +639,4 @@ if __name__ == "__main__":
     run_name = "2d_context_10_init_components_no_adaption"
     group_name = "test"
     wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
-    toy_task_new(gmm_config)
+    toy_task(gmm_config)
