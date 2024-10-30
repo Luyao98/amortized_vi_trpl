@@ -152,7 +152,7 @@ class MultiDaft:
         )
         return rewards, rewards_grad
 
-    def evaluation(self, num_samples: int) -> float:
+    def evaluation(self, num_samples: int) -> Tuple[float, float]:
         with torch.no_grad():
             model_samples = self.model.sample(num_samples)
             target_samples = self.target_dist.sample(num_samples)
@@ -167,7 +167,10 @@ class MultiDaft:
 
             kl_target_midpoint = target_log_target.to(self._device) - mid_t
             kl_model_midpoint = model_log_model - mid_m
-
             js_div = 0.5 * (kl_target_midpoint + kl_model_midpoint)
 
-        return js_div.mean().detach().cpu().numpy()
+            kl_target_model = target_log_target.to(self._device) - model_log_target
+            kl_model_target = model_log_model - target_log_model.to(self._device)
+            jeffreys_div = 0.5 * (kl_target_model + kl_model_target)
+
+        return js_div.mean().detach().cpu().numpy(), jeffreys_div.mean().detach().cpu().numpy()
