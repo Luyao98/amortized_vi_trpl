@@ -47,10 +47,10 @@ class ConditionalSTARTarget(ConditionalGMMTarget):
         Returns:
         - ch.Tensor: shape (n_samples, n_contexts, d_z).
         """
-        device = contexts.device
-        log_gates = self.gate_fn(contexts).to(device)
-        means = self.mean_fn(contexts).to(device)
-        chols = self.chol_fn(contexts).to(device)
+
+        log_gates = self.gate_fn(contexts)
+        means = self.mean_fn(contexts)
+        chols = self.chol_fn(contexts)
         covs = chols @ chols.transpose(-1, -2)
 
         samples = MixtureSameFamily(
@@ -74,10 +74,10 @@ class ConditionalSTARTarget(ConditionalGMMTarget):
         Returns:
         - ch.Tensor: Target log densities with shape (n_samples, n_contexts) or (n_samples, n_contexts, n_components).
         """
-        device = contexts.device
-        log_gates = self.gate_fn(contexts).to(device) # (n_contexts, n_components_tgt)
-        means = self.mean_fn(contexts).to(device) # (n_contexts, n_components_tgt, d_z)
-        chols = self.chol_fn(contexts).to(device) # (n_contexts, n_components_tgt, d_z, d_z)
+
+        log_gates = self.gate_fn(contexts) # (n_contexts, n_components_tgt)
+        means = self.mean_fn(contexts)  # (n_contexts, n_components_tgt, d_z)
+        chols = self.chol_fn(contexts)  # (n_contexts, n_components_tgt, d_z, d_z)
         covs = chols @ chols.transpose(-1, -2)  # (n_contexts, n_components_tgt, d_z, d_z)
 
         tgt = MixtureSameFamily(
