@@ -45,8 +45,8 @@ def js_divergence(model,
     """
 
     eval_gate, eval_mean, eval_chol = model(eval_contexts)
-    target_samples = target.sample(eval_contexts, num_samples).to(device)  # (n_samples, n_contexts, dz)
-    model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples).to(device)
+    target_samples = target.sample(eval_contexts, num_samples)  # (n_samples, n_contexts, dz)
+    model_samples = model.get_samples_gmm(eval_gate, eval_mean, eval_chol, num_samples)
 
     t_log_t = target.log_prob_tgt(eval_contexts, target_samples)  # (n_samples, n_contexts)
     t_log_m = target.log_prob_tgt(eval_contexts, model_samples)
