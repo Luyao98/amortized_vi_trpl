@@ -102,11 +102,24 @@ class AbstractTarget(ABC):
         contexts, samples = input_samples
         updated_samples = samples.clone().detach()
         updated_samples.requires_grad = True
+        if samples.shape[-1] == 2:
+            for i in range(n):
+                _, grad = eval_fn_grad(fn, contexts, updated_samples, compute_grad=True)
 
-        for i in range(n):
-            _, grad = eval_fn_grad(fn, contexts, updated_samples, compute_grad=True)
+                with ch.no_grad():
+                    updated_samples = updated_samples + lr * grad
 
-            with ch.no_grad():
-                updated_samples = updated_samples + lr * grad
+        else:
+            # need a better way for high dim samples
+            optimizer = ch.optim.Adam([updated_samples], lr=lr)
+            for i in range(n):
+                optimizer.zero_grad()
+                # _, grad = eval_fn_grad(fn, contexts, updated_samples, compute_grad=True)
+                f_z = fn(contexts, updated_samples)
+
+                f_z.sum().backward()
+                ch.nn.utils.clip_grad_norm_([updated_samples], max_norm=1.0)
+
+                optimizer.step()
 
         return updated_samples.detach()
