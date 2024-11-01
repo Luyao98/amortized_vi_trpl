@@ -76,8 +76,8 @@ class ConditionalSTARTarget(ConditionalGMMTarget):
         """
 
         log_gates = self.gate_fn(contexts) # (n_contexts, n_components_tgt)
-        means = self.mean_fn(contexts)  # (n_contexts, n_components_tgt, d_z)
-        chols = self.chol_fn(contexts)  # (n_contexts, n_components_tgt, d_z, d_z)
+        means = self.mean_fn(contexts) # (n_contexts, n_components_tgt, d_z)
+        chols = self.chol_fn(contexts) # (n_contexts, n_components_tgt, d_z, d_z)
         covs = chols @ chols.transpose(-1, -2)  # (n_contexts, n_components_tgt, d_z, d_z)
 
         tgt = MixtureSameFamily(
@@ -98,7 +98,7 @@ class ConditionalSTARTarget(ConditionalGMMTarget):
 def get_weights_fn(n_components):
     def get_weights(contexts):
         batch_size = contexts.shape[0]
-        weights = ch.ones((batch_size,n_components)) / n_components
+        weights = ch.ones((batch_size,n_components), device=contexts.device) / n_components
         return ch.log(weights)
     return get_weights
 

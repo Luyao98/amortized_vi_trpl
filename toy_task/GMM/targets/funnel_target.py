@@ -59,10 +59,10 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         """
 
         n_contexts = contexts.shape[0]
-        sigs = self.sig(contexts.cpu())
+        sigs = self.sig(contexts)
 
         # Sample the first dimension v from a Normal distribution
-        v = Normal(loc=ch.zeros(n_contexts), scale=sigs).sample((n_samples,))
+        v = Normal(loc=ch.zeros(n_contexts, device=sigs.device), scale=sigs).sample((n_samples,))
         v = v.unsqueeze(-1)  # Reshape to (S, C, 1)
 
         # Sample the other dimensions conditioned on v
@@ -74,7 +74,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
 
         # Combine the first dimension with the other sampled dimensions
         full_samples = ch.cat((v, samples_other), dim=-1)  # (S, C, 10)
-        return full_samples.to(contexts.device)
+        return full_samples
 
     def log_prob_tgt(self, contexts, samples):
         """
@@ -88,7 +88,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         - ch.Tensor: Target log densities with shape (n_samples, n_contexts) or (n_samples, n_contexts, n_components).
         """
 
-        sigs = self.sig(contexts).to(contexts.device)
+        sigs = self.sig(contexts)
 
         if samples.shape[-1] == 2:
             # For plotting (2D case), expand the samples to the necessary shape
@@ -100,11 +100,11 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         v = samples[..., 0]
         if samples.dim() == 3:
             _, n_contexts, _ = samples.shape
-            log_density_v = Normal(loc=ch.zeros(n_contexts).to(contexts.device), scale=sigs).log_prob(v)
+            log_density_v = Normal(loc=ch.zeros(n_contexts, device=sigs.device), scale=sigs).log_prob(v)
             variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, other_dim)  # (S, C, 9)
         else:
             _, n_contexts, n_components, _ = samples.shape
-            loc = ch.zeros(n_contexts, n_components).to(contexts.device)
+            loc = ch.zeros(n_contexts, n_components, device=sigs.device)
             sigs = sigs.unsqueeze(-1).expand(-1, n_components)
             log_density_v = Normal(loc=loc, scale=sigs).log_prob(v)
             variance_other = ch.exp(v).unsqueeze(-1).expand(-1, -1, -1, other_dim)  # (S, C, o, 9)
@@ -170,9 +170,7 @@ def get_sig_fn(contexts):
     """
 
     if contexts.shape[1] == 1:
-        # Context with 1D: Compute standard deviation based on sin function
         sig = ch.sin(3 * contexts[:, 0] + 1) + 1.1
     else:
-        # Context with 2D: Compute standard deviation based on product of context elements
         sig = ch.sin(3 * contexts[:, 0] * contexts[:, 1] + 1) + 1.1
     return sig
