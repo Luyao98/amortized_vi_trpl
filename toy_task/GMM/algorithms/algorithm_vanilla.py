@@ -12,12 +12,12 @@ from toy_task.GMM.algorithms.algorithm import (init_some_components, delete_comp
 import wandb
 
 
-def step_stl(model: EmbeddedConditionalGMM,
-             target: AbstractTarget,
-             shuffled_contexts,
-             training_config,
-             optimizer
-             ):
+def step_vanilla(model: EmbeddedConditionalGMM,
+                 target: AbstractTarget,
+                 shuffled_contexts,
+                 training_config,
+                 optimizer
+                 ):
 
     train_size = training_config["n_context"]
     batch_size = training_config["batch_size"]
@@ -45,10 +45,10 @@ def step_stl(model: EmbeddedConditionalGMM,
         num_batches += 1
 
         # Compute ELBO loss
-        loss = compute_elbo_loss_stl(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
+        loss = compute_elbo_loss_vanilla(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
 
         # Update model
-        # eva_loss += get_numpy(loss)  # reduce cpu consumption
+        eva_loss += get_numpy(loss)
         optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
@@ -63,18 +63,18 @@ def step_stl(model: EmbeddedConditionalGMM,
     return eva_loss, shuffled_contexts, avg_time
 
 
-def compute_elbo_loss_stl(model: EmbeddedConditionalGMM,
-                          target: AbstractTarget,
-                          contexts,
-                          mean,
-                          chol,
-                          gate,
-                          n_samples
-                          ):
+def compute_elbo_loss_vanilla(model: EmbeddedConditionalGMM,
+                              target: AbstractTarget,
+                              contexts,
+                              mean,
+                              chol,
+                              gate,
+                              n_samples
+                              ):
     model_samples = model.get_rsamples(mean, chol, n_samples)  # (S, C, O, dz)
     _, _, n_components, _ = model_samples.shape
     log_model = [
-        model.log_prob_gmm(mean.clone().detach(), chol.clone().detach(), gate.clone().detach(), model_samples[:, :, o])
+        model.log_prob_gmm(mean, chol, gate, model_samples[:, :, o])
         for o in range(n_components)]
     log_model = ch.stack(log_model, dim=-1)  # (S, C, O)
     log_target = target.log_prob_tgt(contexts, model_samples)  # (S, C, O)
@@ -84,7 +84,7 @@ def compute_elbo_loss_stl(model: EmbeddedConditionalGMM,
     return loss
 
 
-def toy_task_stl(config):
+def toy_task_vanilla(config):
 
     model_config = config["model_config"]
     target_config = config["target_config"]
@@ -132,10 +132,7 @@ def toy_task_stl(config):
             adaption = False
 
         # Perform training step
-        eva_loss, contexts, inference_time = step_stl(model, target, contexts,
-                                                      training_config,
-                                                      optimizer)
-
+        eva_loss, contexts, inference_time = step_vanilla(model, target, contexts, training_config, optimizer)
 
         # Evaluate model and update loss history
         loss_history.append(eva_loss)
@@ -161,5 +158,5 @@ if __name__ == "__main__":
 
     run_name = "2d_context_10_init_components_no_adaption"
     group_name = "test"
-    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config, dir="/home/temp_store/luyao")
-    toy_task_stl(gmm_config)
+    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
+    toy_task_vanilla(gmm_config)

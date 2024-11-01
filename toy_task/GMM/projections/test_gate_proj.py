@@ -1,85 +1,35 @@
-import cvxpy as cp
-import torch
-from cvxpylayers.torch import CvxpyLayer
-from torch import nn
+import torch as ch
+import time
 
-# 定义CVXPY优化问题
-batch_size = 10
-n_components = 5  # 假设组件数为5
-p = cp.Variable(n_components, nonneg=True)
-q = cp.Parameter(n_components)
-r = cp.Parameter(n_components)
-epsilon = cp.Parameter(nonneg=True)
+from toy_task.GMM.projections.gate_projecion import kl_projection_gate, create_kl_projection_problem, kl_projection_gate_non_batch
 
-# 目标函数：最小化KL散度
-objective = cp.Minimize(cp.sum(cp.kl_div(p, q)))
 
-# 约束条件
-constraints = [
-    cp.sum(cp.kl_div(p, r)) <= epsilon,  # KL散度约束
-    cp.sum(p) == 1  # 归一化约束
-]
+batch_size = 1000
+n_components = 15
+a = ch.rand(batch_size, n_components, dtype=ch.float32, requires_grad=True)
+b = ch.rand(batch_size, n_components, dtype=ch.float32, requires_grad=True)
 
-problem = cp.Problem(objective, constraints)
+b_gate_old = ch.softmax(a, dim=1).cuda()
+gate_pred = ch.softmax(b, dim=1).cuda()
 
-# 确保问题是DPP的
-assert problem.is_dpp()
+epsilon = 0.01
 
-# 创建CVXPY层
-cvxpylayer = CvxpyLayer(problem, parameters=[q, r, epsilon], variables=[p])
+n_components = n_components
+cvxpylayer = create_kl_projection_problem(n_components)
 
-# 定义PyTorch模型
-class MyModel(nn.Module):
-    def __init__(self, n_components, epsilon):
-        super(MyModel, self).__init__()
-        self.linear = nn.Linear(n_components, n_components)
-        self.cvxpylayer = cvxpylayer
-        self.epsilon = epsilon
-        self.n_components = n_components
-        self.r_prev = None  # 初始化上一循环的输出
+start_time = time.time()
 
-    def forward(self, x):
-        q = self.linear(x)  # 线性层的输出作为q
-        if self.r_prev is None:
-            self.r_prev = torch.ones_like(q) / self.n_components  # 初始r为均匀分布
-        epsilon_tch = torch.tensor(self.epsilon, dtype=torch.float32)
-        # 使用CVXPY层求解得到p
-        try:
-            p, = self.cvxpylayer(q, self.r_prev, epsilon_tch)
-        except cp.error.SolverError as e:
-            print(f"Solver failed: {e}")
-            # 尝试增加求解器迭代次数或其他设置
-            p = torch.ones_like(q) / self.n_components  # 回退到均匀分布
-        self.r_prev = q.detach()  # 更新上一循环的输出
-        return p
+projected_gates = kl_projection_gate(b_gate_old, gate_pred, epsilon, cvxpylayer)
+# projected_gates_non_batch = kl_projection_gate_non_batch(b_gate_old, gate_pred, epsilon)
 
-# 初始化模型和优化器
-n_components = 5  # 假设组件数为5
-epsilon = 0.1  # 假设epsilon为0.1
-model = MyModel(n_components, epsilon)
-optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+end_time = time.time()
 
-# 示例输入数据
 
-input_tensor = torch.randn(batch_size, n_components, requires_grad=True)
+print("Sum along each row:", projected_gates.sum(dim=1))
+# print("Sum along each row:", projected_gates_non_batch.sum(dim=1))
 
-# 模拟训练循环
-for i in range(100):
-    optimizer.zero_grad()  # 清除梯度
+print(f"Time taken for kl_projection_gate: {end_time - start_time:.6f} seconds")
 
-    # 前向传播：计算模型输出
-    p = model(input_tensor)
 
-    # 定义损失函数（例如解的和）
-    loss = p.sum()
+# result: 1000*15, batched takes 5.242s, non-batched can not be calculated,caused warning, requires more memory
 
-    # 反向传播：计算损失相对于模型参数的梯度
-    loss.backward()
-
-    # 更新模型参数
-    optimizer.step()
-
-    print(f"Iteration {i}, Loss: {loss.item()}")
-
-# 打印最终的参数
-print("Optimized model parameters:", list(model.parameters()))

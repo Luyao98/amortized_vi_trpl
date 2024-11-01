@@ -1,78 +1,134 @@
-import numpy as np
-import torch
-from scipy.optimize import minimize
+import cvxpy as cp
+from cvxpylayers.torch import CvxpyLayer
 
-def optimize_lambda(epsilon, q, r):
-    device = q.device  # Get the device of q
+import torch as ch
+from torch.distributions import Categorical, kl_divergence
 
-    # Define the function g(lambda) using PyTorch
-    def g_torch(lambda_, epsilon, q, r):
-        term1 = -lambda_ * epsilon
-        term2 = -(1 + lambda_) * torch.log(torch.sum(q ** (1 / (1 + lambda_)) * r ** (lambda_ / (1 + lambda_))))
-        return term1 + term2
 
-    # Convert g to a function that can be used with scipy.optimize.minimize
-    def g_numpy(lambda_numpy, epsilon, q, r):
-        lambda_torch = torch.tensor(lambda_numpy, dtype=torch.float32, device=device)
-        q_torch = torch.tensor(q, dtype=torch.float32, device=device)
-        r_torch = torch.tensor(r, dtype=torch.float32, device=device)
-        g_value = g_torch(lambda_torch, epsilon, q_torch, r_torch)
-        return g_value.item()
+def compute_kl_div(pred, old):
+    pred_dist = Categorical(probs=pred)
+    old_dist = Categorical(probs=old)
+    kl_div = kl_divergence(pred_dist, old_dist)
+    return kl_div
 
-    # Initial guess for lambda
-    lambda_initial = np.array([0.1], dtype=np.float32)
 
-    # Bounds for lambda (lambda >= 0)
-    bounds = [(0, None)]
+def create_kl_projection_problem(n_components):
+    """
+    Create the CVXPY problem and corresponding CvxpyLayer for KL projection.
+    :param n_components: Number of components for the gate.
+    :return: A CvxpyLayer object for the KL projection problem.
+    """
+    # Create variables and parameters for the optimization
+    p = cp.Variable(n_components, nonneg=True)
+    q = cp.Parameter(n_components)
+    r = cp.Parameter(n_components)
+    eps = cp.Parameter(nonneg=True)
 
-    # Perform the optimization for the given sample
-    with torch.no_grad():
-        q_numpy = q.cpu().numpy()
-        r_numpy = r.cpu().numpy()
-        result = minimize(g_numpy, lambda_initial, args=(epsilon, q_numpy, r_numpy), bounds=bounds, method='L-BFGS-B')
+    # Define the objective function and constraints
+    objective = cp.Minimize(cp.sum(cp.kl_div(p, q)))
+    constraints = [
+        cp.sum(cp.kl_div(p, r)) <= eps,
+        cp.sum(p) == 1
+    ]
 
-    # Return the optimal lambda
-    return result.x[0]
+    # Create the optimization problem and layer
+    problem = cp.Problem(objective, constraints)
+    assert problem.is_dpp()  # Ensure the problem is DPP compliant
+    cvxpylayer = CvxpyLayer(problem, parameters=[q, r, eps], variables=[p])
 
-def calculate_p_i_star(optimal_lambda, q, r):
-    numerator =  (q ** (1 / (1 + optimal_lambda))) * (r ** (optimal_lambda / (1 + optimal_lambda)))
-    denominator = torch.sum((q ** (1 / (1 + optimal_lambda))) * (r ** (optimal_lambda / (1 + optimal_lambda))))
-    log_p = torch.log(numerator) - torch.log(denominator)
-    return log_p
+    return cvxpylayer
 
-def get_optimal_p_batch(q_batch, r_batch, epsilon):
-    device = q_batch.device
-    batch_size = q_batch.size(0)
-    p_i_star_batch = []
 
-    for i in range(batch_size):
-        # Optimize lambda for each sample in the batch
-        q = q_batch[i]
-        r = r_batch[i]
-        optimal_lambda = optimize_lambda(epsilon, q, r)
+def kl_projection_gate(gate_old, gate_pred, epsilon):
+    """
+    Projects the predicted gates onto the feasible set of gates that are within epsilon KL divergence from the old gates.
+    :param gate_old: Tensor of old gates.
+    :param gate_pred: Tensor of predicted gates.
+    :param epsilon: KL divergence threshold.
+    :param cvxpylayer: Pre-created CvxpyLayer for KL projection.
+    :return: Projected gates tensor.
+    """
 
-        # Convert optimal lambda to PyTorch tensor
-        optimal_lambda_torch = torch.tensor(optimal_lambda, dtype=torch.float32, device=device)
+    batch_size, n_components = gate_pred.shape
 
-        # Calculate p_i_star using the optimal lambda
-        p_i_star = calculate_p_i_star(optimal_lambda_torch, q, r)
-        p_i_star_batch.append(p_i_star)
+    eps_batch = ch.full((batch_size,), epsilon, dtype=gate_pred.dtype, device=gate_pred.device)
 
-    # Stack results into a batch
-    p_i_star_batch = torch.stack(p_i_star_batch)
-    return p_i_star_batch
+    # Create variables and parameters for the optimization
+    p = cp.Variable(n_components, nonneg=True)
+    q = cp.Parameter(n_components)
+    r = cp.Parameter(n_components)
+    eps = cp.Parameter(nonneg=True)
 
-# Example usage
-batch_size = 4
-n_components = 3
-epsilon = 0.00001
+    # Define the objective function and constraints
+    objective = cp.Minimize(cp.sum(cp.kl_div(p, q)))
+    constraints = [
+        cp.sum(cp.kl_div(p, r)) <= eps,
+        cp.sum(p) == 1
+    ]
 
-q_batch = torch.tensor([[1, 2, 3], [0.3, 0.4, 0.3], [0.4, 0.3, 0.3], [0.1, 0.6, 0.3]], requires_grad=True, device='cuda')
-r_batch = torch.tensor([[4, 5, 6], [0.2, 0.5, 0.3], [0.3, 0.4, 0.3], [0.4, 0.3, 0.3]], device='cuda')
+    # Create the optimization problem and layer
+    problem = cp.Problem(objective, constraints)
+    assert problem.is_dpp()  # Ensure the problem is DPP compliant
+    cvxpylayer = CvxpyLayer(problem, parameters=[q, r, eps], variables=[p])
 
-p_i_star_batch = get_optimal_p_batch(q_batch, r_batch, epsilon)
+    # quiet slow, just project all gates
+    # # Compute KL divergence and apply the optimization layer
+    # kl_divs = compute_kl_div(gate_pred, gate_old)
+    # mask = kl_divs > epsilon
+    # gate_proj = gate_pred.clone()
+    #
+    # # Only optimizing the gates that need to be projected
+    # if mask.any():
+    #     optimized_p = cvxpylayer(gate_pred[mask], gate_old[mask], eps_batch[mask])[0]
+    #     gate_proj[mask] = optimized_p
 
-print("Calculated p_i^* values for the batch:", p_i_star_batch)
-print("p_i^* requires grad:", p_i_star_batch.requires_grad)
-p_i_star_batch.sum().backward()
-print("Gradients of q_batch:", q_batch.grad)
+    optimized_p = cvxpylayer(gate_pred, gate_old, eps_batch)[0]
+    gate_proj = optimized_p
+
+    return gate_proj
+
+
+def kl_projection_gate_non_batch(gate_old, gate_pred, epsilon):
+    """
+    according to my tests, this version is not working, it requires much more memory
+    :param gate_old:
+    :param gate_pred:
+    :param epsilon:
+    :return:
+    """
+    batch_size, n_components = gate_pred.shape
+
+    # Create variables and parameters for the optimization
+    p = cp.Variable((batch_size, n_components), nonneg=True)
+    q = cp.Parameter((batch_size, n_components))
+    r = cp.Parameter((batch_size, n_components))
+    eps = cp.Parameter(nonneg=True)
+
+    # Define the objective function and constraints
+    objective = cp.Minimize(cp.sum(cp.kl_div(p, q)))
+    constraints = [
+        cp.sum(cp.kl_div(p, r), axis=1) <= eps,
+        cp.sum(p, axis=1) == 1
+    ]
+
+    # Create the optimization problem and layer
+    problem = cp.Problem(objective, constraints)
+    assert problem.is_dpp()  # Ensure the problem is DPP compliant
+    cvxpylayer = CvxpyLayer(problem, parameters=[q, r, eps], variables=[p])
+
+    # # Compute KL divergence and apply the optimization layer
+    # kl_divs = compute_kl_div(gate_pred, gate_old)
+    # mask = kl_divs > epsilon
+    # gate_proj = gate_pred.clone()
+    #
+    # # Only optimizing the gates that need to be projected
+    # if mask.any():
+    #     optimized_p = cvxpylayer(gate_pred[mask], gate_old[mask], ch.tensor([epsilon]))
+    #     gate_proj[mask] = optimized_p[0]
+
+    optimized_p = cvxpylayer(gate_pred, gate_old, ch.tensor([epsilon]))[0]
+    gate_proj = optimized_p[0]
+
+    return gate_proj
+
+
