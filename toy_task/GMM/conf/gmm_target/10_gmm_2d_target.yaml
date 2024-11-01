@@ -26,7 +26,7 @@ training_config:
   batch_size: 640
   n_context: 640
   n_samples: 5
-  gate_lr: 1e-3
+  gate_lr: 1e-2
   gaussian_lr: 1e-2
 
   adaption:
@@ -38,10 +38,13 @@ training_config:
     lr: 0.01
     itr: 10
     gate_strategy: 2
-    history_size: 3000
+    history_size: 15000
 
 projection:
-  project: False
-  eps_mean: 0.01
-  eps_cov: 0.0001
+  component_project: True
+  eps_mean: 0.1
+  eps_cov: 0.01
   alpha: 10
+
+  gate_project: False
+  eps_gate: 0.1

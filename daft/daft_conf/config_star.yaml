@@ -4,7 +4,7 @@ defaults:
   - override hydra/sweeper: list
   - override hydra/launcher: joblib
 
-exp_name: star_2d_target_non_amortized_projection
+exp_name: 2d_star_target_DAFT
 
 hydra:
     mode: MULTIRUN
@@ -13,4 +13,4 @@ hydra:
     sweeper:
       grid_params:
 #        daft_target.algorithm.more.component_kl_bound: 0.01, 0.001, 0.005, 0.0001, 0.0005
-        daft_target.seed: 1001, 1002, 1003, 1004, 1005
+        daft_target.seed: 1001

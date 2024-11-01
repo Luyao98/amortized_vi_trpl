@@ -1,5 +1,5 @@
 seed: 1001
-iterations: 12000
+iterations: 50000
 
 task:
     n_tasks: 320 # how many tasks in parallel the algorithm should solve

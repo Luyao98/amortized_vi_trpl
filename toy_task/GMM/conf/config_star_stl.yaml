@@ -1,0 +1,16 @@
+defaults:
+  - _self_
+  - star_target: star_2d_target
+  - override hydra/sweeper: list
+
+
+exp_name: 2d_star_target_STL
+
+
+hydra:
+    mode: MULTIRUN
+    sweeper:
+      grid_params:
+        star_target.training_config.gate_lr: 0.0001
+        star_target.training_config.gaussian_lr: 0.0001
+        star_target.seed: [1003, 1004, 1005, 1006, 1007, 1008, 1011, 1012]
