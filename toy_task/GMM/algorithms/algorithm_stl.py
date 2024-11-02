@@ -5,10 +5,9 @@ from toy_task.GMM.models.GMM_model_3 import EmbeddedConditionalGMM
 from toy_task.GMM.targets.abstract_target import AbstractTarget
 from toy_task.GMM.models.model_factory import get_model
 from toy_task.GMM.targets.target_factory import get_target
-from toy_task.GMM.utils.torch_utils import get_numpy
 
-from toy_task.GMM.algorithms.algorithm import (init_some_components, delete_components, adaptive_components,
-                                               get_all_contexts, get_optimizer, evaluate_model, plot)
+from toy_task.GMM.algorithms.algorithm import (init_some_components, adaptive_components, get_all_contexts,
+                                               get_optimizer, evaluate_model)
 import wandb
 
 
@@ -21,9 +20,8 @@ def step_stl(model: EmbeddedConditionalGMM,
 
     train_size = training_config["n_context"]
     batch_size = training_config["batch_size"]
-    n_samples = training_config["n_samples"]
 
-    eva_loss = 0
+    eva_loss = ch.zeros(1, device=shuffled_contexts.device)
     total_time = 0  # Accumulate total time for all batches
     num_batches = 0  # Track the number of batches
     for batch_idx in range(0, train_size, batch_size):
@@ -45,7 +43,8 @@ def step_stl(model: EmbeddedConditionalGMM,
         num_batches += 1
 
         # Compute ELBO loss
-        loss = compute_elbo_loss_stl(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
+        loss = compute_elbo_loss_stl(model, target, b_contexts, mean_pred, chol_pred, gate_pred,
+                                     training_config["n_samples"])
 
         # Update model
         # eva_loss += get_numpy(loss)  # reduce cpu consumption
@@ -54,11 +53,11 @@ def step_stl(model: EmbeddedConditionalGMM,
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         optimizer.step()
 
-        wandb.log({"negative ELBO": loss.item()})
+        wandb.log({"negative ELBO": loss.detach()})
 
-    # # Shuffle sampled contexts
-    # indices = ch.randperm(train_size)
-    # shuffled_contexts = shuffled_contexts[indices]
+    # Shuffle sampled contexts
+    indices = ch.randperm(train_size)
+    shuffled_contexts = shuffled_contexts[indices]
     avg_time = total_time / num_batches if num_batches > 0 else 0
     return eva_loss, shuffled_contexts, avg_time
 
@@ -105,25 +104,20 @@ def toy_task_stl(config):
     # Training
     n_epochs = training_config["n_epochs"]
     batch_size = training_config["batch_size"]
-    n_context = training_config["n_context"]
-    gate_lr = training_config["gate_lr"]
-    gaussian_lr = training_config["gaussian_lr"]
 
     adaption_config = training_config["adaption"]
     adapt = adaption_config["adapt"]
-    scale = adaption_config["scale"]
     history_size = adaption_config["history_size"]
-    lr = adaption_config["lr"]
-    n = adaption_config["itr"]
 
-    optimizer = get_optimizer(model, gate_lr, gaussian_lr)
-    contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
+    optimizer = get_optimizer(model, training_config["gate_lr"], training_config["gaussian_lr"])
+    contexts, eval_contexts, plot_contexts = get_all_contexts(target, training_config["n_context"] , device)
     loss_history = []
     adaption = False
     infer_time = 0
 
     # Initialize and plot the model
-    init_some_components(model, target, contexts, plot_contexts, device, scale, lr, n)
+    init_some_components(model, target, contexts, plot_contexts, device, adaption_config["scale"],
+                         adaption_config["lr"], adaption_config["itr"])
 
     for epoch in range(n_epochs):
         # Add and delete components if indicator is True
@@ -132,15 +126,13 @@ def toy_task_stl(config):
             adaption = False
 
         # Perform training step
-        eva_loss, contexts, inference_time = step_stl(model, target, contexts,
-                                                      training_config,
-                                                      optimizer)
-
+        eva_loss, contexts, inference_time = step_stl(model, target, contexts, training_config, optimizer)
 
         # Evaluate model and update loss history
         loss_history.append(eva_loss)
         loss_history, history_size, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch,
-                                                              n_epochs, adapt, adaption, loss_history, history_size, device)
+                                                              n_epochs, adapt, adaption, loss_history, history_size,
+                                                              device)
         infer_time += inference_time
     wandb.log({"inference_time/ms": float(infer_time/n_epochs)})
 
@@ -161,5 +153,5 @@ if __name__ == "__main__":
 
     run_name = "2d_context_10_init_components_no_adaption"
     group_name = "test"
-    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config, dir="/home/temp_store/luyao")
+    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
     toy_task_stl(gmm_config)

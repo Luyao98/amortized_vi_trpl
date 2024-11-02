@@ -1,4 +1,3 @@
-import  numpy as np
 import torch as ch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,7 +9,7 @@ from toy_task.GMM.models.model_factory import get_model
 from toy_task.GMM.targets.target_factory import get_target
 from toy_task.GMM.algorithms.visualization.GMM_plot import plot2d_matplotlib
 from toy_task.GMM.algorithms.evaluation.JensenShannon_Div import js_divergence
-from toy_task.GMM.projections.split_kl_projection import split_kl_projection
+from toy_task.GMM.projections.split_kl_projection import parallel_split_kl_projection
 # from toy_task.GMM.projections.gate_projection import kl_projection_gate
 from toy_task.GMM.utils.torch_utils import get_numpy
 
@@ -221,7 +220,7 @@ def adaptive_components(model: EmbeddedConditionalGMM,
         if len(model.active_component_indices) < model.max_components:
             chosen_context = add_components(model, target, adaption_contexts, gate_strategy, chol_scale, scale,
                                             update_sample, lr, itr)
-            new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(0).to('cpu')])
+            new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(0).cpu()])
         else:
             new_plot_contexts = plot_contexts
         plot(model, target, device=device, contexts=new_plot_contexts, plot_type="Adaptive Step")
@@ -266,12 +265,12 @@ def evaluate_model(model: EmbeddedConditionalGMM,
             assert len(loss_history) == history_size
 
         if len(loss_history) == history_size:
-            loss_history_array = np.array(loss_history)
-            first_half = loss_history_array[:history_size // 2].sum()
-            second_half = loss_history_array[history_size // 2:].sum()
-            if np.abs(first_half - second_half) / second_half < 0.1:
+            loss_history_tensor = ch.stack(loss_history)
+            first_half = loss_history_tensor[:history_size // 2].sum()
+            second_half = loss_history_tensor[history_size // 2:].sum()
+            if ch.abs(first_half - second_half) / second_half < 0.1:
                 adaption = True
-                loss_history = []  # reset loss history, to avoid immediate adaption
+                loss_history = []
                 if len(model.active_component_indices) < model.max_components:
                     print(f"\nStability reached at epoch {epoch}. Start adaption.")
                 else:
@@ -291,8 +290,8 @@ def evaluate_model(model: EmbeddedConditionalGMM,
                 plot(model, target, device=device, contexts=plot_contexts)
 
             wandb.log({
-                "Jensen Shannon Divergence": js_div.item(),
-                "Jeffreys Divergence": j_div.item()
+                "Jensen Shannon Divergence": js_div.detach(),
+                "Jeffreys Divergence": j_div.detach()
             })
         print("current epoch:", epoch)
         model.train()
@@ -310,9 +309,7 @@ def plot(model: EmbeddedConditionalGMM,
     #     return
 
     if contexts is None:
-        contexts = target.get_contexts(3).to('cpu')
-    else:
-        contexts = contexts.clone().detach().to('cpu')
+        contexts = target.get_contexts(3)
     plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
                       min_x=-5, max_x=5, min_y=-5, max_y=5)
     model.to(device)
@@ -327,9 +324,8 @@ def step(model: EmbeddedConditionalGMM,
 
     train_size = training_config["n_context"]
     batch_size = training_config["batch_size"]
-    n_samples = training_config["n_samples"]
 
-    eva_loss = 0
+    eva_loss = ch.zeros(1, device=shuffled_contexts.device)
     total_time = 0  # Accumulate total time for all batches
     num_batches = 0  # Track the number of batches
     for batch_idx in range(0, train_size, batch_size):
@@ -351,16 +347,17 @@ def step(model: EmbeddedConditionalGMM,
         num_batches += 1
 
         # Compute ELBO loss
-        loss = compute_elbo_loss(model, target, b_contexts, mean_pred, chol_pred, gate_pred, n_samples)
+        loss = compute_elbo_loss(model, target, b_contexts, mean_pred, chol_pred, gate_pred,
+                                 training_config["n_samples"])
 
         # Update model
-        eva_loss += get_numpy(loss)
+        eva_loss = eva_loss + loss.detach()
         optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         optimizer.step()
 
-        wandb.log({"negative ELBO": loss.item()})
+        wandb.log({"negative ELBO": loss.detach()})
 
     # Shuffle sampled contexts
     indices = ch.randperm(train_size)
@@ -369,24 +366,20 @@ def step(model: EmbeddedConditionalGMM,
     return eva_loss, shuffled_contexts, avg_time
 
 
-def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
-                                             target: AbstractTarget,
-                                             shuffled_contexts,
-                                             training_config,
-                                             projection_config,
-                                             optimizer,
-                                             old_dist,
-                                             ):
+def step_with_component_projection(model: EmbeddedConditionalGMM,
+                                   target: AbstractTarget,
+                                   shuffled_contexts,
+                                   training_config,
+                                   projection_config,
+                                   optimizer,
+                                   old_dist,
+                                   ):
 
     train_size = training_config["n_context"]
     batch_size = training_config["batch_size"]
-    n_samples = training_config["n_samples"]
-    eps_mean = projection_config["eps_mean"]
-    eps_cov = projection_config["eps_cov"]
-    alpha = projection_config["alpha"]
 
     b_gate_old, b_mean_old, b_chol_old = old_dist
-    eva_loss = 0
+    eva_loss = ch.zeros(1, device=shuffled_contexts.device)
     total_time = 0  # Accumulate total time for all batches
     num_batches = 0  # Track the number of batches
 
@@ -401,6 +394,12 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
         # Prediction
         gate_pred, mean_pred, chol_pred = model(b_contexts)
 
+        # Projection
+        mean_proj, chol_proj = parallel_split_kl_projection(
+            mean_pred, chol_pred, b_mean_old.clone().detach(), b_chol_old.clone().detach(),
+            projection_config["eps_mean"], projection_config["eps_cov"], minibatch_size=160
+        )
+
         # End timing
         end_event.record()
         ch.cuda.synchronize()
@@ -408,68 +407,50 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
         total_time += batch_time
         num_batches += 1
 
-        # Projection
-        batch_size, n_components, dz = mean_pred.shape
-
-        mean_proj_flatten, chol_proj_flatten = split_kl_projection(
-            mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
-            b_mean_old.view(-1, dz).clone().detach(),
-            b_chol_old.view(-1, dz, dz).clone().detach(),
-            eps_mean, eps_cov
-        )
-
-        mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
-        chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
-
         # Compute ELBO
         pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
         proj_dist = MultivariateNormal(loc=mean_proj.clone().detach(), scale_tril=chol_proj.clone().detach())
-        reg_loss = alpha * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
-        loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
+        reg_loss = projection_config["alpha"] * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
+        loss = compute_elbo_loss(model, target, b_contexts, mean_proj, chol_proj, gate_pred,
+                                 training_config["n_samples"], reg_loss)
 
         with ch.no_grad():
             # Get old distribution for the next batch
-            if batch_idx + batch_size < len(shuffled_contexts):
+            if batch_idx + batch_size < train_size:
                 b_next_context = shuffled_contexts[batch_idx + batch_size:batch_idx + 2 * batch_size]
                 b_gate_old, b_mean_old, b_chol_old = model(b_next_context)
             else:
-                assert batch_idx + batch_size == len(shuffled_contexts)
+                assert batch_idx + batch_size == train_size
                 # Shuffle sampled contexts
-                indices = ch.randperm(train_size, device=shuffled_contexts.device)
+                indices = ch.randperm(train_size)
                 new_shuffled_contexts = shuffled_contexts[indices]
                 first_batch = new_shuffled_contexts[0:batch_size]
                 old_dist_first_batch = model(first_batch)
 
         # Update model
-        eva_loss += get_numpy(loss)
+        eva_loss = eva_loss + loss.detach()
         optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         optimizer.step()
 
-        wandb.log({"negative ELBO": loss.item()})
+        wandb.log({"negative ELBO": loss.detach()})
 
     avg_time = total_time / num_batches if num_batches > 0 else 0
 
     return eva_loss, new_shuffled_contexts, old_dist_first_batch, avg_time
 
 
-def step_with_component_projection(model: EmbeddedConditionalGMM,
-                                   target: AbstractTarget,
-                                   ctx,
-                                   training_config,
-                                   projection_config,
-                                   optimizer,
-                                   old_dist,
-                                   ):
+def step_with_component_projection_full_batch(model: EmbeddedConditionalGMM,
+                                              target: AbstractTarget,
+                                              shuffled_contexts,
+                                              training_config,
+                                              projection_config,
+                                              optimizer,
+                                              old_dist,
+                                              ):
 
-    train_size = training_config["n_context"]
-    batch_size = training_config["batch_size"]
-    n_samples = training_config["n_samples"]
-    eps_mean = projection_config["eps_mean"]
-    eps_cov = projection_config["eps_cov"]
-    alpha = projection_config["alpha"]
-    assert batch_size == train_size
+    b_gate_old, b_mean_old, b_chol_old = old_dist
 
     # Start timing
     start_event = ch.cuda.Event(enable_timing=True)
@@ -477,32 +458,27 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
     start_event.record()
 
     # Prediction
-    gate_pred, mean_pred, chol_pred = model(ctx)
+    gate_pred, mean_pred, chol_pred = model(shuffled_contexts)
+
+    # Projection
+    mean_proj, chol_proj = parallel_split_kl_projection(
+        mean_pred, chol_pred, b_mean_old.clone().detach(), b_chol_old.clone().detach(),
+        projection_config["eps_mean"], projection_config["eps_cov"], minibatch_size=160
+    )
 
     # End timing
     end_event.record()
     ch.cuda.synchronize()
 
-    # Projection
-    b_gate_old, b_mean_old, b_chol_old = old_dist
-    batch_size, n_components, dz = mean_pred.shape
-
-    mean_proj_flatten, chol_proj_flatten = split_kl_projection(mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
-                                                               b_mean_old.view(-1, dz).clone().detach(),
-                                                               b_chol_old.view(-1, dz, dz).clone().detach(),
-                                                               eps_mean, eps_cov)
-
-    mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
-    chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
-
     # Compute ELBO
     pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
     proj_dist = MultivariateNormal(loc=mean_proj.clone().detach(), scale_tril=chol_proj.clone().detach())
-    reg_loss = alpha * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
-    loss = compute_elbo_loss(model, target, ctx, mean_proj, chol_proj, gate_pred, n_samples, reg_loss)
+    reg_loss = projection_config["alpha"] * kl_divergence(proj_dist, pred_dist).unsqueeze(0)
+    loss = compute_elbo_loss(model, target, shuffled_contexts, mean_proj, chol_proj, gate_pred,
+                             training_config["n_samples"], reg_loss)
 
     # Update model
-    eva_loss = get_numpy(loss)
+    eva_loss = loss.detach()
     optimizer.zero_grad()
     loss.backward()
     nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
@@ -511,9 +487,12 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
     # get old distribution for the next batch
     old_dist_update = gate_pred.clone().detach(), mean_pred.clone().detach(), chol_pred.clone().detach()
 
-    wandb.log({"negative ELBO": loss.item()})
+    # Shuffle sampled contexts
+    indices = ch.randperm(training_config["n_context"])
+    shuffled_contexts = shuffled_contexts[indices]
+    wandb.log({"negative ELBO": loss.detach()})
 
-    return eva_loss, old_dist_update, start_event.elapsed_time(end_event)
+    return eva_loss, shuffled_contexts, old_dist_update, start_event.elapsed_time(end_event)
 
 
 def compute_elbo_loss(model: EmbeddedConditionalGMM,
@@ -560,25 +539,20 @@ def toy_task(config):
     n_epochs = training_config["n_epochs"]
     batch_size = training_config["batch_size"]
     n_context = training_config["n_context"]
-    gate_lr = training_config["gate_lr"]
-    gaussian_lr = training_config["gaussian_lr"]
 
     adaption_config = training_config["adaption"]
     adapt = adaption_config["adapt"]
-    scale = adaption_config["scale"]
     history_size = adaption_config["history_size"]
-    lr = adaption_config["lr"]
-    n = adaption_config["itr"]
 
-    optimizer = get_optimizer(model, gate_lr, gaussian_lr)
+    optimizer = get_optimizer(model, training_config["gate_lr"], training_config["gaussian_lr"])
     contexts, eval_contexts, plot_contexts = get_all_contexts(target, n_context, device)
     loss_history = []
     adaption = False
-    eva_loss = 0
     infer_time = 0
 
     # Initialize and plot the model
-    init_some_components(model, target, contexts, plot_contexts, device, scale, lr, n)
+    init_some_components(model, target, contexts, plot_contexts, device, adaption_config["scale"],
+                         adaption_config["lr"], adaption_config["itr"])
     # get old dist for first batch
     old_dist = model(contexts[0:batch_size])
 
@@ -592,24 +566,29 @@ def toy_task(config):
             adaption = False
 
         # Perform training step
-        component_project = projection_config["component_project"]
-        gate_project = projection_config["gate_project"]
-        if component_project:
-            if gate_project:
+        if projection_config["component_project"]:
+            if projection_config["gate_project"]:
+                eva_loss, old_dist, inference_time = None, None, None
                 pass
             else:
-                eva_loss, old_dist, inference_time = step_with_component_projection(model, target, contexts,
-                                                                                    training_config,
-                                                                                    projection_config, optimizer,
-                                                                                    old_dist)
-                # eva_loss, contexts, old_dist, inference_time = step_with_component_projection_minibatch(model, target,
-                #                                                                                         contexts,
-                #                                                                                         training_config,
-                #                                                                                         projection_config,
-                #                                                                                         optimizer,
-                #                                                                                         old_dist)
+                if n_context == batch_size:
+                    eva_loss, contexts, old_dist, inference_time = step_with_component_projection_full_batch(model,
+                                                                                                             target,
+                                                                                                             contexts,
+                                                                                                             training_config,
+                                                                                                             projection_config,
+                                                                                                             optimizer,
+                                                                                                             old_dist)
+                else:
+                    eva_loss, contexts, old_dist, inference_time = step_with_component_projection(model, target,
+                                                                                                  contexts,
+                                                                                                  training_config,
+                                                                                                  projection_config,
+                                                                                                  optimizer,
+                                                                                                  old_dist)
         else:
-            if gate_project:
+            if projection_config["gate_project"]:
+                eva_loss, contexts, inference_time = None, None, None
                 pass
             else:
                 eva_loss, contexts, inference_time= step(model, target, contexts, training_config, optimizer)
@@ -617,7 +596,8 @@ def toy_task(config):
         # Evaluate model and update loss history
         loss_history.append(eva_loss)
         loss_history, history_size, adaption = evaluate_model(model, target, eval_contexts, plot_contexts, epoch,
-                                                              n_epochs, adapt, adaption, loss_history, history_size, device)
+                                                              n_epochs, adapt, adaption, loss_history, history_size,
+                                                              device)
         infer_time += inference_time
     wandb.log({"inference_time/ms": float(infer_time/n_epochs)})
 
@@ -638,5 +618,5 @@ if __name__ == "__main__":
 
     run_name = "2d_context_10_init_components_no_adaption"
     group_name = "test"
-    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config, dir="/home/temp_store/luyao")
+    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
     toy_task(gmm_config)
