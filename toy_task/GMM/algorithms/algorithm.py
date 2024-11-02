@@ -141,26 +141,15 @@ def add_components(model: EmbeddedConditionalGMM,
     # draw samples from a basic Gaussian distribution for better exploration
     basic_mean = ch.zeros((contexts.shape[0], model.dim))
     basic_cov = scale * ch.eye(model.dim).unsqueeze(0).expand(contexts.shape[0], -1, -1)
-    basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([10])).to(device)
+    basic_samples = MultivariateNormal(loc=basic_mean, covariance_matrix=basic_cov).sample(ch.Size([100])).to(device)
 
-    model_samples = model.get_samples_gmm(current_gate[:, mask], current_mean[:, mask], current_chol[:, mask], 10)
+    model_samples = model.get_samples_gmm(current_gate[:, mask], current_mean[:, mask], current_chol[:, mask], 100)
     samples = ch.cat([basic_samples, model_samples], dim=0) # (s=s1+s2,c,f)
 
     # improve the sample quality depending on the gradient of the log density
     if update_sample:
-        # test time
-        start_event = ch.cuda.Event(enable_timing=True)
-        end_event = ch.cuda.Event(enable_timing=True)
-        start_event.record()
-
         with ch.enable_grad():
-            samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr, itr)
-
-        end_event.record()
-        ch.cuda.synchronize()
-        elapsed_time = start_event.elapsed_time(end_event)
-        wandb.log({"elapsed_time/ms": float(elapsed_time)})
-        # test end
+            samples = target.update_samples((contexts, samples), target.log_prob_tgt, 10 * lr, itr)
 
     log_model = model.log_prob_gmm(current_mean[:, mask], current_chol[:, mask], current_gate[:, mask], samples)
     log_target = target.log_prob_tgt(contexts, samples)
