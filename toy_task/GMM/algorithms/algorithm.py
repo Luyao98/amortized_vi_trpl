@@ -269,7 +269,7 @@ def evaluate_model(model: EmbeddedConditionalGMM,
             loss_history_array = np.array(loss_history)
             first_half = loss_history_array[:history_size // 2].sum()
             second_half = loss_history_array[history_size // 2:].sum()
-            if np.abs(first_half - second_half) / second_half < 0.1:
+            if np.abs(first_half - second_half) / second_half < 1e10:
                 adaption = True
                 loss_history = []  # reset loss history, to avoid immediate adaption
                 if len(model.active_component_indices) < model.max_components:
@@ -314,7 +314,7 @@ def plot(model: EmbeddedConditionalGMM,
     else:
         contexts = contexts.clone().detach().to('cpu')
     plot2d_matplotlib(target, model.to('cpu'), contexts, plot_type=plot_type,
-                      min_x=-15, max_x=10, min_y=-10, max_y=15)
+                      min_x=-5, max_x=5, min_y=-5, max_y=5)
     model.to(device)
 
 
@@ -481,6 +481,20 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
 
     # Projection
     b_gate_old, b_mean_old, b_chol_old = old_dist
+    ####################
+    # cpp file keeps the old information
+    delet_n = model.max_components - len(model.active_component_indices)
+    mean_pred = ch.cat([mean_pred, ch.ones_like(mean_pred[:, :delet_n, :])], dim=1)
+    # chol_pred = ch.cat([chol_pred, ch.ones_like(chol_pred[:, :delet_n, :, :])], dim=1)
+    b_mean_old = ch.cat([b_mean_old, ch.ones_like(b_mean_old[:, :delet_n, :])], dim=1)
+    # b_chol_old = ch.cat([b_chol_old, ch.ones_like(b_chol_old[:, :delet_n, :, :])], dim=1)
+    unit_lower_triangular = ch.eye(chol_pred.size(2), device=chol_pred.device).unsqueeze(0).unsqueeze(0).expand(
+        chol_pred.size(0), delet_n,
+        chol_pred.size(2),
+        chol_pred.size(2))
+    chol_pred = ch.cat([chol_pred, unit_lower_triangular.clone()], dim=1)
+    b_chol_old = ch.cat([b_chol_old, unit_lower_triangular.clone()], dim=1)
+    ####################
     batch_size, n_components, dz = mean_pred.shape
 
     mean_proj_flatten, chol_proj_flatten = split_kl_projection(mean_pred.view(-1, dz), chol_pred.view(-1, dz, dz),
@@ -490,6 +504,12 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
 
     mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
     chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
+    ####################
+    mean_proj = mean_proj[:, :n_components - delet_n, :]
+    chol_proj = chol_proj[:, :n_components - delet_n, :, :]
+    mean_pred = mean_pred[:, :n_components - delet_n, :]
+    chol_pred = chol_pred[:, :n_components - delet_n, :, :]
+    ####################
 
     # End timing
     end_event.record()
@@ -630,7 +650,7 @@ if __name__ == "__main__":
 
     set_seed(1003)
 
-    config_path = "../conf/gmm_target/10_gmm_2d_target.yaml"
+    config_path = "../conf/star_target/star_2d_target.yaml"
     test_config = OmegaConf.load(config_path)
     gmm_config = OmegaConf.to_container(test_config, resolve=True)
 
