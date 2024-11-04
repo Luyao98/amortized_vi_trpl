@@ -86,7 +86,6 @@ def add_components(model: EmbeddedConditionalGMM,
                    gate_strategy,
                    chol_scale,
                    scale,
-                   update_sample,
                    lr,
                    itr
                    ):
@@ -148,20 +147,19 @@ def add_components(model: EmbeddedConditionalGMM,
     samples = ch.cat([basic_samples, model_samples], dim=0) # (s=s1+s2,c,f)
 
     # improve the sample quality depending on the gradient of the log density
-    if update_sample:
-        # test time
-        start_event = ch.cuda.Event(enable_timing=True)
-        end_event = ch.cuda.Event(enable_timing=True)
-        start_event.record()
+    # test time
+    start_event = ch.cuda.Event(enable_timing=True)
+    end_event = ch.cuda.Event(enable_timing=True)
+    start_event.record()
 
-        with ch.enable_grad():
-            samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr, itr)
+    with ch.enable_grad():
+        samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr, itr)
 
-        end_event.record()
-        ch.cuda.synchronize()
-        elapsed_time = start_event.elapsed_time(end_event)
-        wandb.log({"elapsed_time/ms": float(elapsed_time)})
-        # test end
+    end_event.record()
+    ch.cuda.synchronize()
+    elapsed_time = start_event.elapsed_time(end_event)
+    wandb.log({"elapsed_time/ms": float(elapsed_time)})
+    # test end
 
     log_model = model.log_prob_gmm(current_mean[:, mask], current_chol[:, mask], current_gate[:, mask], samples)
     log_target = target.log_prob_tgt(contexts, samples)
@@ -211,7 +209,6 @@ def adaptive_components(model: EmbeddedConditionalGMM,
     gate_strategy = adaption_config["gate_strategy"]
     chol_scale = adaption_config["chol_scale"]
     scale = adaption_config["scale"]
-    update_sample = adaption_config["update_sample"]
     lr = adaption_config["lr"]
     itr = adaption_config["itr"]
 
@@ -220,7 +217,7 @@ def adaptive_components(model: EmbeddedConditionalGMM,
         delete_components(model, adaption_contexts, threshold)
         if len(model.active_component_indices) < model.max_components:
             chosen_context = add_components(model, target, adaption_contexts, gate_strategy, chol_scale, scale,
-                                            update_sample, lr, itr)
+                                            lr, itr)
             new_plot_contexts = ch.cat([plot_contexts, chosen_context.unsqueeze(0).to('cpu')])
         else:
             new_plot_contexts = plot_contexts
@@ -269,7 +266,7 @@ def evaluate_model(model: EmbeddedConditionalGMM,
             loss_history_array = np.array(loss_history)
             first_half = loss_history_array[:history_size // 2].sum()
             second_half = loss_history_array[history_size // 2:].sum()
-            if np.abs(first_half - second_half) / second_half < 1e10:
+            if np.abs(first_half - second_half) / second_half < 0.1:
                 adaption = True
                 loss_history = []  # reset loss history, to avoid immediate adaption
                 if len(model.active_component_indices) < model.max_components:
