@@ -171,7 +171,7 @@ def add_components(model: EmbeddedConditionalGMM,
     start_event.record()
 
     with ch.enable_grad():
-        samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr, itr)
+        samples = target.update_samples((contexts, samples), target.log_prob_tgt, 10 * lr, itr)
 
     end_event.record()
     ch.cuda.synchronize()
@@ -364,7 +364,6 @@ def plot(model: EmbeddedConditionalGMM,
     :param device: Device to run the computations on (CPU/GPU)
     :param contexts: Contexts for plotting
     :param plot_type: Type of plot (e.g., "Evaluation", "Adaptive Step")
-    :param logging: Whether to enable logging
     """
     if contexts is None:
         contexts = target.get_contexts(3).to('cpu')
@@ -751,7 +750,20 @@ if __name__ == "__main__":
     test_config = OmegaConf.load(config_path)
     gmm_config = OmegaConf.to_container(test_config, resolve=True)
 
-    run_name = "2d_context_10_init_components_no_adaption"
-    group_name = "test"
-    wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config, dir="/home/temp_store/luyao")
-    toy_task(gmm_config)
+    # run_name = "2d_context_10_init_components_no_adaption"
+    # group_name = "test"
+    # wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config, dir="/home/temp_store/luyao")
+    # toy_task(gmm_config)
+
+    model_config = gmm_config["model_config"]
+    # Device
+    device = ch.device("cuda" if ch.cuda.is_available() else "cpu")
+    print("Current device:", device)
+    # Model
+    model = get_model(model_config, device)
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    # calculate the total parameters of the model
+    total_params = count_parameters(model)
+    print(f"the total parameters of the model: {total_params}")
