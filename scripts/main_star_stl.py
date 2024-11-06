@@ -18,10 +18,10 @@ def star(cfg: DictConfig) -> None:
         **OmegaConf.to_container(cfg.star_target, resolve=True)
     }
 
-    project = "final2_star_target"
+    project = "dalmatian_final_star_target"
     group_name = f"{cfg['exp_name']}"
     run_name = f"seed_{cfg.star_target.seed}"
-    wandb.init(project=project, group=group_name, config=config_dict, name=run_name, dir="/home/temp_store/luyao")
+    wandb.init(project=project, group=group_name, config=config_dict, name=run_name)
 
     toy_task_stl(config_dict)
 

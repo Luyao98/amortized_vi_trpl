@@ -2,20 +2,28 @@ defaults:
   - _self_
   - star_target: star_2d_target
   - override hydra/sweeper: list
-  - override hydra/launcher: joblib
+#  - override hydra/launcher: joblib
 
 
-exp_name: star_2d_target_amortized_projection
+exp_name: AVIPS
 
 
 hydra:
     mode: MULTIRUN
-    launcher:
-        n_jobs: 10
+#    launcher:
+#        n_jobs: 1
     sweeper:
       grid_params:
-        star_target.projection.alpha: [5, 10, 50, 75]
-        star_target.seed: [1001, 1002, 1003, 1004, 1005]
+        star_target.projection.component_project: False
+        star_target.training_config.adaption.adapt: False
+        star_target.training_config.adaption.itr: 0
+        star_target.seed: [1003, 1004, 1005, 1006, 1007, 1008, 1011, 1012] # 1001, 1002, 1009, 1010 discard
 #      list_params:
-#        star_target.projection.eps_mean: [0.01, 0.01, 0.001, 0.005, 0.0005, 0.0001]
-#        star_target.projection.eps_cov: [0.001, 0.0001, 0.0001, 0.0005, 0.0001, 0.0001]
+#        star_target.training_config.batch_size: [32, 64, 160, 320]
+#        star_target.training_config.n_epochs: [5000, 10000, 25000, 50000]
+#        star_target.projection.component_project: [True, True, False]
+#        star_target.training_config.adaption.adapt: [False, False, False]
+#        star_target.training_config.adaption.itr: [0, 10, 10]
+#
+#        star_target.projection.eps_mean: [0.1, 0.01, 0.01, 0.1 ]
+#        star_target.projection.eps_cov: [0.01, 0.1, 0.01, 0.1]
