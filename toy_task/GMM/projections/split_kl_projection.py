@@ -10,6 +10,7 @@ from toy_task.GMM.utils.projection_utils import gaussian_kl
 
 def parallel_split_kl_projection(mean_pred, chol_pred, b_mean_old, b_chol_old, eps_mean, eps_cov, minibatch_size):
     """
+    does't work due to split computational graph
     Parallel implementation of the split KL projection using joblib for efficiency and avoiding CPU problem.
 
     Parameters:
@@ -40,7 +41,7 @@ def parallel_split_kl_projection(mean_pred, chol_pred, b_mean_old, b_chol_old, e
         """
         mean_proj_flatten_minibatch, chol_proj_flatten_minibatch = split_kl_projection(
             mean.view(-1, dz), chol.view(-1, dz, dz),
-            old_mean.view(-1, dz), old_chol.view(-1, dz, dz),
+            old_mean.view(-1, dz).clone().detach(), old_chol.view(-1, dz, dz).clone().detach(),
             eps_mean, eps_cov
         )
         return mean_proj_flatten_minibatch, chol_proj_flatten_minibatch
