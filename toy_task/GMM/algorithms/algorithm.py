@@ -476,6 +476,13 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
         # Prediction
         gate_pred, mean_pred, chol_pred = model(b_contexts)
 
+        # End timing
+        end_event.record()
+        ch.cuda.synchronize()
+        batch_time = start_event.elapsed_time(end_event)
+        total_time += batch_time
+        num_batches += 1
+
         # Projection
         batch_size, n_components, dz = mean_pred.shape
 
@@ -488,13 +495,6 @@ def step_with_component_projection_minibatch(model: EmbeddedConditionalGMM,
 
         mean_proj = mean_proj_flatten.view(batch_size, n_components, dz)
         chol_proj = chol_proj_flatten.view(batch_size, n_components, dz, dz)
-
-        # End timing
-        end_event.record()
-        ch.cuda.synchronize()
-        batch_time = start_event.elapsed_time(end_event)
-        total_time += batch_time
-        num_batches += 1
 
         # Compute ELBO
         pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
@@ -565,6 +565,10 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
     # Prediction
     gate_pred, mean_pred, chol_pred = model(ctx)
 
+    # End timing
+    end_event.record()
+    ch.cuda.synchronize()
+
     # Projection
     b_gate_old, b_mean_old, b_chol_old = old_dist
     ####################
@@ -594,10 +598,6 @@ def step_with_component_projection(model: EmbeddedConditionalGMM,
     mean_pred = mean_pred[:, :n_components - delet_n, :]
     chol_pred = chol_pred[:, :n_components - delet_n, :, :]
     ####################
-
-    # End timing
-    end_event.record()
-    ch.cuda.synchronize()
 
     # Compute ELBO
     pred_dist = MultivariateNormal(loc=mean_pred, scale_tril=chol_pred)
