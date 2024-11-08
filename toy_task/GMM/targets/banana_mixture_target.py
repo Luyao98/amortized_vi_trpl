@@ -1,7 +1,6 @@
 import torch as ch
 from torch.distributions import MultivariateNormal, Categorical, uniform
 import numpy as np
-# from scipy.stats import special_ortho_group
 import matplotlib.pyplot as plt
 from toy_task.GMM.targets.abstract_target import AbstractTarget
 
@@ -20,21 +19,6 @@ class BananaDistribution:
         # self.rotation = ch.tensor(special_ortho_group.rvs(self.dim), dtype=ch.float32, device=self.device)
         self.rotation = ch.tensor([[-0.9751, -0.2217], [0.2217, -0.9751]], dtype=ch.float32,
                                   device=self.device).repeat(self.batch_size, 1, 1)
-
-    #     self.rotation = self.get_rotation_matrix(curvature)
-    #
-    # def get_rotation_matrix(self, curvature):
-    #     angles = ch.sin(curvature)
-    #     cos_vals = ch.cos(angles)
-    #     sin_vals = ch.sin(angles)
-    #     rotation_matrices = ch.zeros((self.batch_size, 2, 2), dtype=ch.float32, device=self.device)
-    #
-    #     rotation_matrices[:, 0, 0] = cos_vals
-    #     rotation_matrices[:, 0, 1] = -sin_vals
-    #     rotation_matrices[:, 1, 0] = sin_vals
-    #     rotation_matrices[:, 1, 1] = cos_vals
-    #
-    #     return rotation_matrices
 
     def sample(self, n_samples):
         gaus_samples = self.base_dist.sample((n_samples,)).transpose(0, 1).to(self.device)
@@ -91,10 +75,9 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
             indices = Categorical(ch.exp(log_weights[i])).sample((n_samples,))
             chosen_curvatures = curvatures[i, indices]
             banana_i = BananaDistribution(curvature=chosen_curvatures, dim=self.ndim)
-            sample = banana_i.sample(1).squeeze(1)  # 因为sample返回的是[n_contexts, n_s, 2]，squeeze一下
+            sample = banana_i.sample(1).squeeze(1)
             samples.append(sample)
-        return ch.stack(samples)
-        # return samples[ch.randperm(n_samples)]  # shuffle the samples
+        return ch.stack(samples, dim=1)
 
     def log_prob_tgt(self, contexts, samples):
         curvatures = self.curvature_fn(contexts, self.n_components).to(contexts.device)
@@ -102,6 +85,7 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
         banana_for_prob = [BananaDistribution(curvature=curvatures[i], dim=self.ndim)
                            for i in range(self.n_components)]
         if samples.dim() == 3:
+            samples = samples.transpose(0, 1)
             n_samples = samples.shape[1]
         else:
             # for plotting
@@ -109,7 +93,7 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
             samples = samples.unsqueeze(0).expand(contexts.shape[0], -1, -1)
         log_probs = ch.stack([banana.log_prob(samples) for banana in banana_for_prob])
         weights = log_weights.transpose(0, 1).unsqueeze(-1).expand(-1, -1, n_samples)
-        return ch.logsumexp(weights + log_probs, dim=0)
+        return ch.logsumexp(weights + log_probs, dim=0).transpose(0, 1)
 
     def visualize(self, contexts, n_samples=None):
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
@@ -164,9 +148,11 @@ def get_weights(contexts, n_components):
 
 # # test
 # target = BananaMixtureTarget(get_curvature_fn, n_components=2)
-# # contexts_test = target.get_contexts(3)
-# contexts_test = ch.tensor([[-0.3],
-#                            [0.7],
-#                            [-1.8]])
-# print(contexts_test)
-# target.visualize(contexts_test)
+# contexts_test = target.get_contexts(3)
+# assert contexts_test.shape == (3, 1)
+# samples = target.sample(contexts_test, 10)
+# assert samples.shape == (10, 3, 2)
+# log_samples = target.log_prob_tgt(contexts_test,samples)
+# assert log_samples.shape == (10, 3)
+# # print(contexts_test)
+# target.visualize(contexts_test, 100)
