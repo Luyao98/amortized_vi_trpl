@@ -199,19 +199,3 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
 
         plt.tight_layout()
         plt.show()
-
-cur = get_curvature_fn(5)
-
-# # test
-# target = BananaMixtureTarget(cur, context_dim=1)
-# contexts_test = target.get_contexts(3)
-# assert contexts_test.shape == (3, 1)
-# samples = target.sample(contexts_test, 10)
-# assert samples.shape == (10, 3, 2)
-# log_probs = target.log_prob_tgt(contexts_test, samples)
-# assert log_probs.shape == (10, 3)
-# # samples = ch.rand(10,3,5,2)
-# # log_samples = target.log_prob_tgt(contexts_test,samples)
-# # assert log_samples.shape == (10, 3, 5)
-# # print(contexts_test)
-# target.visualize(contexts_test)
