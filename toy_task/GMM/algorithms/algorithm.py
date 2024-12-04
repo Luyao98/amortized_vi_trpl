@@ -49,6 +49,7 @@ def init_some_components(model: EmbeddedConditionalGMM,
 
         model_samples = model.get_samples_gmm(current_gate, current_mean, current_chol, 50)  # (s,c,f)
         samples = ch.cat([basic_samples.to(device), model_samples], dim=0)  # (s=s1+s2,c,f)
+        # samples = model_samples
         with ch.enable_grad():
             samples = target.update_samples((contexts, samples), target.log_prob_tgt, lr, n)
         log_target = target.log_prob_tgt(contexts, samples)  # (s,c)
@@ -746,13 +747,13 @@ if __name__ == "__main__":
 
     set_seed(1003)
 
-    config_path = "../conf/star_target/star_2d_target.yaml"
+    config_path = "../conf/funnel_target/funnel_target.yaml"
     test_config = OmegaConf.load(config_path)
     gmm_config = OmegaConf.to_container(test_config, resolve=True)
 
     # run_name = "2d_context_10_init_components_no_adaption"
     # group_name = "test"
-    # wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config, dir="/home/temp_store/luyao")
+    # wandb.init(project="spiral_gmm_target", group=group_name, name=run_name, config=gmm_config)
     # toy_task(gmm_config)
 
     model_config = gmm_config["model_config"]

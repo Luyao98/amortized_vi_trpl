@@ -7,6 +7,8 @@ import torch
 
 from daft.src.gmm_util.gmm import GMM
 from daft.src.multi_daft_vi.util_lnpdf import mini_batch_function_no_grad, mini_batch_function_grad
+from toy_task.GMM.targets.banana_mixture_target import get_bmm_target
+from toy_task.GMM.targets.funnel_target import FunnelTarget, get_sig_fn
 
 class LNPDF:
     def mini_batch_log_density(
@@ -87,6 +89,94 @@ class GmmLNPDF(LNPDF):
     def sample(self, n: int):
         return self.target_gmm.sample(n_samples=n)
 
+
+class BmmLNPDF(LNPDF):
+    def __init__(
+        self, n_components, context_dim, contexts
+    ):
+        self.contexts = contexts
+        self.target_gmm = get_bmm_target(n_components, context_dim)
+
+    def log_density(
+            self,
+            z: torch.Tensor,
+            compute_grad: bool = False,
+    ) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
+
+        if compute_grad:
+            z.requires_grad = True
+            log_prob = self.target_gmm.log_prob_tgt(self.contexts, z)
+            gradients = torch.autograd.grad(
+                outputs=log_prob.sum(),
+                inputs=z,
+                create_graph=False,
+                retain_graph=False
+            )
+            samples_gradient = gradients[0]
+            torch.cuda.empty_cache()
+            z.requires_grad = False
+
+            result = (log_prob.detach(), samples_gradient.detach())
+        else:
+            log_probs = self.target_gmm.log_prob_tgt(self.contexts, z)
+            result = (log_probs.detach(), None)
+        return result
+
+    def get_num_dimensions(self):
+        ctx = self.contexts[0:1]
+        sample = self.target_gmm.sample(ctx, 1)
+        return sample.shape[-1]
+
+    def can_sample(self):
+        return True
+
+    def sample(self, n: int):
+        return self.target_gmm.sample(self.contexts, n_samples=n)
+
+
+class FunnelLNPDF(LNPDF):
+
+    def __init__(
+            self, n_components, context_dim, contexts
+    ):
+        self.contexts = contexts
+        self.target_funnel = FunnelTarget(get_sig_fn, context_dim)
+
+    def log_density(
+            self,
+            z: torch.Tensor,
+            compute_grad: bool = False,
+    ) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
+
+        if compute_grad:
+            z.requires_grad = True
+            log_prob = self.target_funnel.log_prob_tgt(self.contexts, z)
+            gradients = torch.autograd.grad(
+                outputs=log_prob.sum(),
+                inputs=z,
+                create_graph=False,
+                retain_graph=False
+            )
+            samples_gradient = gradients[0]
+            torch.cuda.empty_cache()
+            z.requires_grad = False
+
+            result = (log_prob.detach(), samples_gradient.detach())
+        else:
+            log_probs = self.target_funnel.log_prob_tgt(self.contexts, z)
+            result = (log_probs.detach(), None)
+        return result
+
+    def get_num_dimensions(self):
+        ctx = self.contexts[0:1]
+        sample = self.target_funnel.sample(ctx, 1)
+        return sample.shape[-1]
+
+    def can_sample(self):
+        return True
+
+    def sample(self, n: int):
+        return self.target_funnel.sample(self.contexts, n_samples=n)
 
 def U(theta: float):
     return np.array(
@@ -212,10 +302,11 @@ def get_context(n_contexts, context_dim):
 
 
 def make_contextual_star_target(n_tasks: int, n_components: int):
-    # 2d contextual star tgt
+    # 1d and 2d contextual star target
 
     ## contexts
-    ctx = get_context(n_tasks, 2)
+    context_dim = 2
+    ctx = get_context(n_tasks, context_dim)
 
     ## weights
     w_true = np.ones((n_tasks, n_components)) / n_components
@@ -224,11 +315,16 @@ def make_contextual_star_target(n_tasks: int, n_components: int):
     # first component
     mus = [np.array([1.5, 0.0])]
     diag1 = np.sin(ctx[:, 0]) + 1.1  # Shape: (batch_size,)
-    diag2 = 0.05 * np.cos(ctx[:, 1]) + 0.08
-    diag3 = 0.05 * np.sin(ctx[:, 0]) * np.cos(ctx[:, 1])
     zeros = np.zeros_like(ctx[:, 0])
-    chols = [np.stack([np.stack([diag1, zeros], axis=1),
-                     np.stack([diag3, diag2], axis=1)], axis=1)]  # Shape: (batch_size, 2, 2)
+    if context_dim == 2:
+        diag2 = 0.05 * np.cos(ctx[:, 1]) + 0.08
+        diag3 = 0.05 * np.sin(ctx[:, 0]) * np.cos(ctx[:, 1])
+        chols = [np.stack([np.stack([diag1, zeros], axis=1),
+                         np.stack([diag3, diag2], axis=1)], axis=1)]  # Shape: (batch_size, 2, 2)
+    else:
+        diag2 = 0.05 * np.cos(ctx[:, 0]) + 0.08
+        chols = [np.stack([np.stack([diag1, zeros], axis=1),
+                           np.stack([zeros, diag2], axis=1)], axis=1)]  # Shape: (batch_size, 2, 2)
     # other components are generated through rotation
     theta = 2 * math.pi / n_components
     for _ in range(n_components - 1):
@@ -255,6 +351,7 @@ def make_contextual_star_target(n_tasks: int, n_components: int):
     )
 
     return target_dist
+
 
 def make_contextual_gmm_target(n_tasks: int, n_components: int):
     from toy_task.GMM.targets.gaussian_mixture_target import get_mean_fn, get_weights_fn, get_chol_fn
@@ -284,3 +381,27 @@ def make_contextual_gmm_target(n_tasks: int, n_components: int):
     )
 
     return target_dist
+
+
+def make_contextual_bmm_target(n_tasks: int, n_components: int):
+
+    ## contexts
+    contexts = get_context(n_tasks, 1)
+    contexts = torch.Tensor(contexts)
+    # generate tgt dist
+    target_dist = BmmLNPDF(n_components, 1, contexts)
+    # target_dist.target_gmm.visualize(contexts)
+    return target_dist
+
+
+def make_contextual_funnel_target(n_tasks: int, n_components: int):
+
+    ## contexts
+    contexts = get_context(n_tasks, 2)
+    contexts = torch.Tensor(contexts)
+    # generate tgt dist
+    target_dist = FunnelLNPDF(n_components, 2, contexts)
+    # target_dist.target_funnel.visualize(contexts)
+    return target_dist
+
+# tgt = make_contextual_funnel_target(3,10)

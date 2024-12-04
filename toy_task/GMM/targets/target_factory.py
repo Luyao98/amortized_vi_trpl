@@ -1,6 +1,6 @@
-from toy_task.GMM.targets.banana_mixture_target import BananaMixtureTarget, get_curvature_fn
 from toy_task.GMM.targets.gaussian_mixture_target import get_gmm_target
 from toy_task.GMM.targets.gmm_star_target import get_star_target
+from toy_task.GMM.targets.banana_mixture_target import get_bmm_target
 from toy_task.GMM.targets.funnel_target import FunnelTarget, get_sig_fn
 
 
@@ -22,7 +22,7 @@ def get_target(target_name, target_components, context_dim=None):
 
     # Return the Banana Mixture Model target distribution with the specified curvature function and components.
     if target_name == "bmm":
-        return BananaMixtureTarget(get_curvature_fn, target_components)
+        return get_bmm_target(target_components, context_dim)
 
     # Return a Gaussian Mixture Model (GMM) target distribution with the given components and context dimension.
     elif target_name == "gmm":

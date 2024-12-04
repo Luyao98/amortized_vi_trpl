@@ -6,8 +6,9 @@ from toy_task.GMM.targets.abstract_target import AbstractTarget
 from toy_task.GMM.models.model_factory import get_model
 from toy_task.GMM.targets.target_factory import get_target
 
-from toy_task.GMM.algorithms.algorithm import (init_some_components, adaptive_components, get_all_contexts,
+from toy_task.GMM.algorithms.algorithm_gmm import (init_some_components, adaptive_components, get_all_contexts,
                                                get_optimizer, evaluate_model)
+from toy_task.GMM.utils.torch_utils import get_numpy
 import wandb
 
 
@@ -21,7 +22,7 @@ def step_stl(model: EmbeddedConditionalGMM,
     train_size = training_config["n_context"]
     batch_size = training_config["batch_size"]
 
-    eva_loss = ch.zeros(1, device=shuffled_contexts.device)
+    eva_loss = 0
     total_time = 0  # Accumulate total time for all batches
     num_batches = 0  # Track the number of batches
     for batch_idx in range(0, train_size, batch_size):
@@ -47,13 +48,13 @@ def step_stl(model: EmbeddedConditionalGMM,
                                      training_config["n_samples"])
 
         # Update model
-        # eva_loss += get_numpy(loss)  # reduce cpu consumption
+        eva_loss += get_numpy(loss)
         optimizer.zero_grad()
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         optimizer.step()
 
-        wandb.log({"negative ELBO": loss.detach()})
+        wandb.log({"negative ELBO": loss.item()})
 
     # Shuffle sampled contexts
     indices = ch.randperm(train_size)

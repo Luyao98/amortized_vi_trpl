@@ -116,9 +116,18 @@ class AbstractTarget(ABC):
                 optimizer.zero_grad()
                 # _, grad = eval_fn_grad(fn, contexts, updated_samples, compute_grad=True)
                 f_z = fn(contexts, updated_samples)
+                if not ch.isfinite(f_z).all():
+                    import wandb
+                    wandb.finish()
+                    raise ValueError("The target function returned inf or NaN")
 
                 f_z.sum().backward()
-                ch.nn.utils.clip_grad_norm_([updated_samples], max_norm=1.0)
+                if updated_samples.grad is not None:
+                    if not ch.isfinite(updated_samples.grad).all():
+                        import wandb
+                        wandb.finish()
+                        raise ValueError("Gradient contains NaN or Inf after backward pass")
+                ch.nn.utils.clip_grad_norm_([updated_samples], max_norm=0.1)
 
                 optimizer.step()
 

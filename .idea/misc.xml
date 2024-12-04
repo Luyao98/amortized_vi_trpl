@@ -3,7 +3,7 @@
   <component name="Black">
     <option name="sdkName" value="TRPL_origin" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="TRPL_Lab (2)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="TRPL_coleman (2)" project-jdk-type="Python SDK" />
   <component name="PyPackaging">
     <option name="earlyReleasesAsUpgrades" value="true" />
   </component>

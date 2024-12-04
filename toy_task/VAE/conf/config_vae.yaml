@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - model: vae_model
-#  - schema: no_projection
+#  - projection: no_projection
   - override hydra/sweeper: list
 
 exp_name: init_try

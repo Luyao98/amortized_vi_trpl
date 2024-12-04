@@ -112,7 +112,7 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
 
         indices = Categorical(ch.exp(log_gates)).sample((n_samples,)) # (S, B)
         curvatures_selected = curvatures[indices, ch.arange(batch_size).unsqueeze(0), :] # (S, B, 1)
-        translation = 5 * ch.sin(3 * curvatures_selected.expand(-1, -1, 2) + 3)
+        translation = 4 * ch.sin(3 * curvatures_selected.expand(-1, -1, 2) + 3)
         rotation = ch.tensor([[-0.9751, -0.2217], [0.2217, -0.9751]], dtype=ch.float32,
                              device=device).expand(batch_size, -1, -1)
         gaus_samples = MultivariateNormal(loc=means, covariance_matrix=covs).sample((n_samples, batch_size)) # (S, B, 2)
@@ -140,41 +140,56 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
         device = contexts.device
         n_samples = samples.shape[0] # (S, B, O, dz) or (S, B, dz)
 
-        log_gates = get_weights(contexts, n_components).expand(n_samples, -1, -1) # (S, B, O)
+        log_gates = get_weights(contexts, n_components)
         means = ch.zeros(2, dtype=ch.float32, device=device)
         covs = 0.4 * ch.eye(2, dtype=ch.float32, device=device)
 
-        translation = 5 * ch.sin(3 * curvatures.expand(-1, -1, 2) + 3)
+        translation = 4 * ch.sin(3 * curvatures.expand(-1, -1, 2) + 3)
         rotation = ch.tensor([[-0.9751, -0.2217], [0.2217, -0.9751]], dtype=ch.float32,
                              device=device).expand(batch_size, -1, -1)
         if samples.dim() == 3:  # (S, B, dz)
             samples = samples.unsqueeze(2)  # (S, B, 1, 2)
             samples = samples - translation # (S, B, O, 2)
             samples = ch.einsum('sboi,bji->sboj', samples, rotation) # (S, B, O, dz)
+            if ch.isnan(curvatures).any() or ch.isinf(curvatures).any():
+                import wandb
+                wandb.finish()
+                print("curvatures contains NaN or Inf values")
+            if ch.isnan(samples).any() or ch.isinf(samples).any():
+                import wandb
+                wandb.finish()
+                print("samples contains NaN or Inf values")
+
             # inverse transform
             gaus_samples = samples.clone()
             gaus_samples[..., 1:] = samples[..., 1:] - curvatures * samples[..., 0].unsqueeze(-1) ** 2 + curvatures
+
             log_prob_component = MultivariateNormal(loc=means, covariance_matrix=covs).log_prob(gaus_samples) # (S, B, O)
-            log_prob = ch.logsumexp(log_gates + log_prob_component, dim=-1) # (S, B)
+            log_prob = ch.logsumexp(log_gates.expand(n_samples, -1, -1) + log_prob_component, dim=-1) # (S, B)
         else:
-            log_prob = []
-            for o in range(n_components):
-                samples_o = samples[:, :, o]
-                samples_o = samples_o.unsqueeze(2) # (S, B, O, dz)
-                samples_o = samples_o - translation  # (S, B, O, dz)
-                samples_o = ch.einsum('sboi,bji->sboj', samples_o, rotation) # (S, B, dz)
-                # inverse transform
-                gaus_samples = samples_o.clone()
-                gaus_samples[..., 1:] = samples_o[..., 1:] - curvatures * samples_o[..., 0].unsqueeze(-1) ** 2 + curvatures
-                log_prob_component = MultivariateNormal(loc=means, covariance_matrix=covs).log_prob(gaus_samples) # (S, B, O)
-                log_prob_o = ch.logsumexp(log_gates + log_prob_component, dim=-1) # (S, B)
-                log_prob.append(log_prob_o)
-            log_prob = ch.stack(log_prob, dim=-1) # (S, B, O)
+            model_components = samples.shape[2]
+            samples = samples.permute(0, 2, 1, 3).reshape(-1, batch_size, 2) # (S * O_model, B, dz)
+            samples = samples.unsqueeze(2)  # (S * O_model, B, 1, 2)
+            samples = samples - translation # (S * O_model, B, O, 2)
+            samples = ch.einsum('sboi,bji->sboj', samples, rotation) # (S * O_model, B, O, dz)
+
+            # inverse transform
+            gaus_samples = samples.clone()
+            gaus_samples[..., 1:] = samples[..., 1:] - curvatures * samples[..., 0].unsqueeze(-1) ** 2 + curvatures
+            if ch.isnan(gaus_samples).any() or ch.isinf(gaus_samples).any():
+                import wandb
+                wandb.finish()
+                print("value contains NaN or Inf values")
+
+            log_prob_component = MultivariateNormal(loc=means, covariance_matrix=covs).log_prob(gaus_samples)
+            log_prob = ch.logsumexp(log_gates.expand(n_samples * model_components, -1, -1)  + log_prob_component, dim=-1)
+            log_prob = log_prob.view(n_samples, model_components, batch_size).permute(0, 2, 1) # (S, B, O_model)
         return log_prob
 
     def visualize(self,
                   contexts: ch.Tensor,
-                  n_samples: int = None
+                  n_samples: int = None,
+                  filename: str = None
                   ):
         """
         Visualizes the target distribution given the contexts.
@@ -185,17 +200,29 @@ class BananaMixtureTarget(AbstractTarget, ch.nn.Module):
         """
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
-            x, y = np.meshgrid(np.linspace(-10, 10, 100), np.linspace(-10, 10, 100))
+            x, y = np.meshgrid(np.linspace(-7.5, 7.5, 100), np.linspace(-7.5, 7.5, 100))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
             pdf_values = self.log_prob_tgt(c.unsqueeze(0), grid.unsqueeze(1))
             pdf_values = pdf_values.exp().view(100, 100).numpy()
 
             ax = axes[i]
-            ax.contourf(x, y, pdf_values, levels=50, cmap='viridis')
+            ax.contourf(x, y, pdf_values, levels=50, cmap='viridis', antialiased=True)
             if n_samples is not None:
                 samples = self.sample(c.unsqueeze(0), n_samples)
                 ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
-            ax.set_title(f'Target {i + 1} with context {c}')
+            # ax.set_title(f'Target {i + 1} with context {c}')
+            ax.set_xlabel("$x_0$")
+            ax.set_ylabel("$x_1$")
 
         plt.tight_layout()
+        if filename is not None:
+            plt.savefig(filename, format='pdf', dpi=300)
         plt.show()
+
+def get_bmm_target(n_components, context_dim):
+    return BananaMixtureTarget(get_curvature_fn(n_components), context_dim)
+
+
+# target = get_bmm_target(5,1)
+# ctx = target.get_contexts(3)
+# target.visualize(ctx, filename="general_bmm_target.pdf")

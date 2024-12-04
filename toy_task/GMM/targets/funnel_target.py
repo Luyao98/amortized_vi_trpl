@@ -119,7 +119,8 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         log_prob = log_density_v + log_density_other
         return log_prob
 
-    def visualize(self, contexts, n_samples=None):
+    def visualize(self, contexts, n_samples=None,
+                  filename: str = None):
         """
         Visualizes the Funnel distribution for the given contexts.
 
@@ -131,8 +132,8 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
             # Create a 2D grid for visualization
-            v_range = ch.linspace(-2.5 * 3, 2.5 * 3, 100)
-            other_range = ch.linspace(-10, 10, 100)
+            v_range = ch.linspace(-5, 5, 100)
+            other_range = ch.linspace(-5, 5, 100)
             V, O = ch.meshgrid(v_range, other_range, indexing='ij')
             samples = ch.stack([V, O], dim=-1).view(-1, 2).unsqueeze(1)
 
@@ -142,7 +143,7 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
 
             ax = axes[i]
             # Plot the contour map of the distribution
-            ax.contourf(V.numpy(), O.numpy(), probs.numpy(), levels=50, cmap='viridis')
+            ax.contourf(V.numpy(), O.numpy(), probs.numpy(), levels=50, cmap='viridis', antialiased=True)
 
             if n_samples is not None:
                 # Sample points and plot them on the contour map
@@ -150,11 +151,13 @@ class FunnelTarget(AbstractTarget, ch.nn.Module):
                 ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
 
             ax.axis("scaled")
-            ax.set_title("Funnel Distribution")
+            # ax.set_title(f'Target {i + 1} with context {c}')
             ax.set_xlabel("$v$")
-            ax.set_ylabel("$x[0]$")
-            ax.grid(True)
+            ax.set_ylabel("$x_0$")
+            # ax.grid(True)
         plt.tight_layout()
+        if filename is not None:
+            plt.savefig(filename)
         plt.show()
 
 

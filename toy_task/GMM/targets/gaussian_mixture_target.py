@@ -114,30 +114,36 @@ class ConditionalGMMTarget(AbstractTarget, ch.nn.Module):
 
     def visualize(self,
                   contexts: ch.Tensor,
-                  n_samples: int = None
+                  n_samples: int = None,
+                  filename: str = None
                   ):
         """
-        Visualizes the target distribution given the contexts.
+        Visualizes the target distribution given the contexts and saves the output as a PDF.
 
         Parameters:
         - contexts (ch.Tensor): The context vectors parameterizing the GMM.
         - n_samples (int, optional): Number of samples to draw for visualization. Default is None.
+        - filename (str, optional): The name of the file to save the visualization as. Default is 'visualization.pdf'.
         """
         fig, axes = plt.subplots(1, contexts.shape[0], figsize=(5 * contexts.shape[0], 5))
         for i, c in enumerate(contexts):
-            x, y = np.meshgrid(np.linspace(-30, 30, 300), np.linspace(-30, 30, 300))
+            x, y = np.meshgrid(np.linspace(-5, 5, 300), np.linspace(-5, 5, 300))
             grid = ch.tensor(np.c_[x.ravel(), y.ravel()], dtype=ch.float32)
             pdf_values = self.log_prob_tgt(c.unsqueeze(0), grid.unsqueeze(1))
             pdf_values = pdf_values.exp().view(300, 300).numpy()
 
             ax = axes[i]
-            ax.contourf(x, y, pdf_values, levels=50, cmap='viridis')
+            ax.contourf(x, y, pdf_values, levels=50, cmap='viridis', antialiased=True)
             if n_samples is not None:
                 samples = self.sample(c.unsqueeze(0), n_samples)
                 ax.scatter(samples[..., 0], samples[..., 1], color='red', alpha=0.5)
-            ax.set_title(f'Target {i + 1} with context {c}')
+            # ax.set_title(f'Target {i + 1} with context {c}')
+            ax.set_xlabel("$x_0$")
+            ax.set_ylabel("$x_1$")
 
         plt.tight_layout()
+        if filename is not None:
+            plt.savefig(filename, format='pdf', dpi=300)
         plt.show()
 
 

@@ -34,9 +34,10 @@ def compute_data_for_plot2d(
     # extract weights already here, to figure out which components are relevant
     weights = np.exp(model.log_w.detach().to("cpu").numpy())
     mask = (weights > 0.001).flatten()
-    relevant_means = torch.reshape(model.mean, (-1, 2))[mask, :]
+    _, _, dim = model.mean.shape
+    relevant_means = torch.reshape(model.mean, (-1, dim))[mask, :]
     scale_trils = model.cov_chol
-    relevant_scale_trils = torch.reshape(scale_trils, (-1, 2, 2))[mask, :, :]
+    relevant_scale_trils = torch.reshape(scale_trils, (-1, dim, dim))[mask, :, :]
     if min_x is not None:
         assert max_x is not None
         assert min_y is not None
@@ -87,7 +88,9 @@ def compute_data_for_plot2d(
             else:
                 fun = lambda z: (target_dist(z), None)
                 log_p_tgt, _ = mini_batch_function_no_grad(fun, xy, mini_batch_size=mini_batch_size)
-
+        if dim == 10:
+            extra_dims = torch.ones((n_plt ** 2, n_tasks, 8), dtype=torch.float32, device=xy.device)
+            xy = torch.cat([xy, extra_dims], dim=-1)
         log_p_model, _ = model.log_density(xy.to(model.mean.device), compute_grad=False)
     log_p_tgt = log_p_tgt.to("cpu").numpy()
     if normalize_output:
@@ -213,7 +216,7 @@ def plot2d_matplotlib(
         logging = False
 ):
 
-    assert model.d_z == 2, "Only 2D models are supported"
+    # assert model.d_z == 2, "Only 2D models are supported"
 
     # get data for plotting
     data = compute_data_for_plot2d(
@@ -258,7 +261,7 @@ def plot2d_matplotlib(
             cur_scale_tril = scale_trils[l, k]
             cur_loc = locs[l, k]
             ax.scatter(x=cur_loc[0], y=cur_loc[1])
-            ellipses = compute_gaussian_ellipse(cur_loc, cur_scale_tril)
+            ellipses = compute_gaussian_ellipse(cur_loc[:2], cur_scale_tril[:2, :2])  # modification for funnel
             ax.plot(ellipses[0, :], ellipses[1, :], color=color)
         ax.axis("scaled")
         ax.set_title("Comparision")

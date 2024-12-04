@@ -61,7 +61,7 @@ def create_initial_gmm_parameters(
     initial_var: float,
     target_dist
 ):
-    init_scale = 15
+    init_scale = 1.0  # need to change this to same as the setting in AVIPS
     means= 2 * init_scale * torch.rand(n_tasks, n_components, d_z) - init_scale
 
     # prior = torch.distributions.Normal(loc=torch.zeros(d_z), scale=prior_scale * torch.ones(d_z))
@@ -85,13 +85,13 @@ def create_initial_gmm_parameters(
     ).sample(torch.Size([50]))
     samples = torch.cat([basic_samples, model_samples], dim=0)  # (s=s1+s2,c,f)
 
-    updated_samples = samples.clone().detach()
-    updated_samples.requires_grad = True
-    for i in range(10):
-        _, log_target_grad = target_dist.log_density(z=updated_samples, compute_grad=True)  # (s,c)
-        with torch.no_grad():
-            updated_samples = updated_samples + 0.001 * log_target_grad
-    samples = updated_samples.detach()
+    # updated_samples = samples.clone().detach()
+    # updated_samples.requires_grad = True
+    # for i in range(10):
+    #     _, log_target_grad = target_dist.log_density(z=updated_samples, compute_grad=True)  # (s,c)
+    #     with torch.no_grad():
+    #         updated_samples = updated_samples + 0.01 * log_target_grad
+    # samples = updated_samples.detach()
 
     log_target = target_dist.log_density(samples, compute_grad=False)[0]  # (s,c)
     max_value, max_idx = torch.max(log_target, dim=0)
